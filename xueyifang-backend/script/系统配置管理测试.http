@@ -1,0 +1,282 @@
+### 学艺坊 - 系统配置管理模块测试脚本
+### 使用 IDEA HTTP Client 执行
+
+@baseUrl = http://localhost:8080/api
+@adminToken = eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjEsImNyZWF0ZURhdGUiOjE3NjQ0Mjk5NTU0ODcsInRpbWVzdGFtcCI6MTc2NDQyOTk1NTQ4Nywic3ViIjoiMSIsImlhdCI6MTc2NDQyOTk1NSwiZXhwIjoxNzY1MDM0NzU1fQ.IjrJOtpezhmezog_HOwjxhY-YWBKQsHb6mDKAuAatPY
+@studentToken = eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjIsImNyZWF0ZURhdGUiOjE3NjQ0MzAwMDI4MDQsInRpbWVzdGFtcCI6MTc2NDQzMDAwMjgwNCwic3ViIjoiMiIsImlhdCI6MTc2NDQzMDAwMiwiZXhwIjoxNzY1MDM0ODAyfQ.pzvACOKw8_vz-uk1ckuR3nDbV9QkiobJM1c1CKgoo8g
+
+### ⚠️ Token说明：
+### @adminToken - 管理员账户的JWT Token（需要先登录管理员账户获取）
+### @studentToken - 普通学生账户的JWT Token（用于测试权限控制）
+
+###############################################################################
+### 第一部分：系统配置列表查询 ⭐
+###############################################################################
+
+### 1.1 获取配置列表（管理员）- 默认分页
+### 预期：返回 code=0，data包含系统配置的分页列表
+GET {{baseUrl}}/admin/sys-config/list
+Authorization: Bearer {{adminToken}}
+
+### 1.2 获取配置列表 - 自定义分页参数
+### 预期：返回 code=0，data包含指定分页的数据
+GET {{baseUrl}}/admin/sys-config/list?pageNum=1&pageSize=5
+Authorization: Bearer {{adminToken}}
+
+### 1.3 获取配置列表 - 按 key 模糊搜索（订单相关配置）
+### 预期：返回 code=0，data只包含 configKey 包含 "ORDER" 的配置
+GET {{baseUrl}}/admin/sys-config/list?keyLike=ORDER
+Authorization: Bearer {{adminToken}}
+
+### 1.4 获取配置列表 - 按 key 模糊搜索（审核相关）
+### 预期：返回 code=0，data包含 REVIEW_MODE 配置
+GET {{baseUrl}}/admin/sys-config/list?keyLike=REVIEW
+Authorization: Bearer {{adminToken}}
+
+### 1.5 获取配置列表 - 按 key 模糊搜索（自动相关配置）
+### 预期：返回 code=0，data包含 AUTO_ 开头的配置
+GET {{baseUrl}}/admin/sys-config/list?keyLike=AUTO
+Authorization: Bearer {{adminToken}}
+
+### 1.6 【权限测试】普通学生尝试访问配置列表
+### 预期：返回 code=40003，message="需要管理员权限"
+GET {{baseUrl}}/admin/sys-config/list
+Authorization: Bearer {{studentToken}}
+
+###############################################################################
+### 第二部分：单条配置查询 ⭐
+###############################################################################
+
+### 2.1 获取单条配置详情（管理员）
+### 预期：返回 code=0，data包含配置详情
+### 注意：ID=1 通常是 REVIEW_MODE 配置
+GET {{baseUrl}}/admin/sys-config/1
+Authorization: Bearer {{adminToken}}
+
+### 2.2 获取另一条配置详情
+### 预期：返回 code=0
+GET {{baseUrl}}/admin/sys-config/2
+Authorization: Bearer {{adminToken}}
+
+### 2.3 获取不存在的配置
+### 预期：返回 code=40002，message="配置不存在"
+GET {{baseUrl}}/admin/sys-config/99999
+Authorization: Bearer {{adminToken}}
+
+### 2.4 【权限测试】普通学生尝试访问配置详情
+### 预期：返回 code=40003
+GET {{baseUrl}}/admin/sys-config/1
+Authorization: Bearer {{studentToken}}
+
+###############################################################################
+### 第三部分：更新配置 ⭐
+###############################################################################
+
+### 3.1 更新配置值（仅更新 configValue）
+### 预期：返回 code=0，data=true
+### 注意：修改 REVIEW_MODE 为 2（免审核模式）
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 1,
+  "configValue": "2"
+}
+
+### 3.2 恢复配置值
+### 预期：返回 code=0，data=true
+### 注意：恢复 REVIEW_MODE 为 1（需审核模式）
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 1,
+  "configValue": "1"
+}
+
+### 3.3 更新配置描述
+### 预期：返回 code=0，data=true
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 1,
+  "description": "审核模式：1=全部审核, 2=仅下架后重新申请需审核（已更新）"
+}
+
+### 3.4 更新配置启用状态（禁用配置）
+### 预期：返回 code=0，data=true
+### 注意：禁用后 getConfigValue 将返回默认值
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 2,
+  "isEnabled": 0
+}
+
+### 3.5 恢复配置启用状态
+### 预期：返回 code=0，data=true
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 2,
+  "isEnabled": 1
+}
+
+### 3.6 同时更新多个字段
+### 预期：返回 code=0，data=true
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 3,
+  "configValue": "48",
+  "description": "订单未支付超时取消时间（小时）- 默认24小时，临时调整为48小时"
+}
+
+### 3.7 恢复配置为原始值
+### 预期：返回 code=0，data=true
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 3,
+  "configValue": "24",
+  "description": "订单未支付超时取消时间（小时）"
+}
+
+### 3.8 更新不存在的配置
+### 预期：返回 code=40002，message="配置不存在"
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 99999,
+  "configValue": "test"
+}
+
+### 3.9 【参数验证】缺少 id
+### 预期：返回 code=40001，message包含"配置ID不能为空"
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "configValue": "test"
+}
+
+### 3.10 【权限测试】普通学生尝试更新配置
+### 预期：返回 code=40003
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{studentToken}}
+
+{
+  "id": 1,
+  "configValue": "2"
+}
+
+###############################################################################
+### 第四部分：批量获取配置值 ⭐
+###############################################################################
+
+### 4.1 批量获取多个配置值
+### 预期：返回 code=0，data为 Map<String, String>
+GET {{baseUrl}}/admin/sys-config/key-values?keys=REVIEW_MODE,ORDER_UNPAID_TIMEOUT_HOURS
+Authorization: Bearer {{adminToken}}
+
+### 4.2 批量获取所有主要配置
+### 预期：返回 code=0，data包含所有请求的配置键值对
+GET {{baseUrl}}/admin/sys-config/key-values?keys=REVIEW_MODE,ORDER_UNPAID_TIMEOUT_HOURS,SELLER_REFUND_TIMEOUT_DAYS,AUTO_CONFIRM_RECEIPT_DAYS,DEFAULT_WALLET_BALANCE
+Authorization: Bearer {{adminToken}}
+
+### 4.3 获取单个配置值
+### 预期：返回 code=0，data只包含一个键值对
+GET {{baseUrl}}/admin/sys-config/key-values?keys=REVIEW_MODE
+Authorization: Bearer {{adminToken}}
+
+### 4.4 获取不存在的配置键
+### 预期：返回 code=0，data为空Map或不包含不存在的键
+GET {{baseUrl}}/admin/sys-config/key-values?keys=NOT_EXIST_KEY,ANOTHER_NOT_EXIST
+Authorization: Bearer {{adminToken}}
+
+### 4.5 混合获取（存在和不存在的键）
+### 预期：返回 code=0，data只包含存在的配置
+GET {{baseUrl}}/admin/sys-config/key-values?keys=REVIEW_MODE,NOT_EXIST_KEY,ORDER_UNPAID_TIMEOUT_HOURS
+Authorization: Bearer {{adminToken}}
+
+### 4.6 空 keys 参数
+### 预期：返回 code=0，data为空Map
+GET {{baseUrl}}/admin/sys-config/key-values?keys=
+Authorization: Bearer {{adminToken}}
+
+### 4.7 【权限测试】普通学生尝试批量获取配置
+### 预期：返回 code=40003
+GET {{baseUrl}}/admin/sys-config/key-values?keys=REVIEW_MODE
+Authorization: Bearer {{studentToken}}
+
+###############################################################################
+### 第五部分：业务场景验证 ⭐
+###############################################################################
+
+### 5.1 场景：临时延长订单支付超时时间
+### 步骤1：查看当前配置
+GET {{baseUrl}}/admin/sys-config/list?keyLike=ORDER_UNPAID
+Authorization: Bearer {{adminToken}}
+
+### 5.2 场景：临时延长订单支付超时时间
+### 步骤2：修改为48小时
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 3,
+  "configValue": "48",
+  "description": "订单未支付超时取消时间（小时）- 活动期间临时延长至48小时"
+}
+
+### 5.3 场景：临时延长订单支付超时时间
+### 步骤3：验证修改结果
+GET {{baseUrl}}/admin/sys-config/key-values?keys=ORDER_UNPAID_TIMEOUT_HOURS
+Authorization: Bearer {{adminToken}}
+
+### 5.4 场景：恢复默认配置
+PUT {{baseUrl}}/admin/sys-config/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "id": 3,
+  "configValue": "24",
+  "description": "订单未支付超时取消时间（小时）"
+}
+
+###############################################################################
+### 测试完成说明
+###############################################################################
+###
+### 本测试脚本覆盖以下功能：
+### 1. 分页查询配置列表（支持模糊搜索）
+### 2. 查询单条配置详情
+### 3. 更新配置项（value/description/isEnabled）
+### 4. 批量获取配置值
+### 5. 权限控制验证（管理员专属）
+### 6. 参数验证测试
+### 7. 业务场景模拟
+###
+### 注意事项：
+### - 测试前请确保后端服务已启动 (localhost:8080)
+### - 请使用有效的管理员Token替换 @adminToken
+### - 配置修改后请及时恢复，避免影响系统正常运行
+###############################################################################

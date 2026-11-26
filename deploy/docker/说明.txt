@@ -1,0 +1,12 @@
+========================================
+  学艺坊 Docker 部署说明
+========================================
+
+1. 进入本目录并创建环境变量文件：
+   cp .env.example .env
+   （请将 .env 中的数据库密码、Redis 密码和 JWT_SECRET 修改为强随机密钥）
+
+2. 直接启动全栈容器（自动构建前后端镜像并导入 xueyifang-clean-init.sql）：
+   docker compose up --build -d
+
+详细步骤见 DEPLOY.md。

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xueyifang.mapper.UserMapper">
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, student_id, password, real_name, nickname, phone, email, dormitory, grade, professional_id, avatar, bio, role, publish_permission, permission_review_status, wallet_balance, frozen_amount, account_status, create_time, update_time, is_delete
+    </sql>
+
+    <!-- 使用悲观锁查询用户（FOR UPDATE） -->
+    <select id="selectForUpdate" resultType="com.xueyifang.domain.po.User">
+        SELECT <include refid="Base_Column_List"/>
+        FROM user
+        WHERE id = #{userId}
+          AND is_delete = 0
+        FOR UPDATE
+    </select>
+
+</mapper>

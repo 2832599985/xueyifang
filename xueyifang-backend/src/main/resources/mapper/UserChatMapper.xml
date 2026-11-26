@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xueyifang.mapper.UserChatMapper">
+
+    <select id="selectConversations" resultType="com.xueyifang.domain.vo.ChatConversationVO">
+        SELECT
+            conv.other_user_id AS userId,
+            u.real_name AS realName,
+            u.avatar AS avatar,
+            CASE
+                WHEN msg.message_type = 2 THEN '[图片]'
+                WHEN msg.message_type = 3 THEN '[文件]'
+                ELSE msg.content
+            END AS lastMessage,
+            conv.unread_count AS unreadCount,
+            msg.create_time AS lastMessageTime
+        FROM (
+            SELECT
+                CASE WHEN c.sender_id = #{userId} THEN c.receiver_id ELSE c.sender_id END AS other_user_id,
+                MAX(c.id) AS last_msg_id,
+                SUM(CASE WHEN c.receiver_id = #{userId} AND c.is_read = 0 THEN 1 ELSE 0 END) AS unread_count
+            FROM user_chat c
+            WHERE c.is_delete = 0
+              AND (c.sender_id = #{userId} OR c.receiver_id = #{userId})
+            GROUP BY other_user_id
+        ) conv
+        INNER JOIN user_chat msg ON msg.id = conv.last_msg_id
+        INNER JOIN user u ON u.id = conv.other_user_id AND u.is_delete = 0
+        ORDER BY msg.create_time DESC
+    </select>
+
+</mapper>

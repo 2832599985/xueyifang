@@ -1,0 +1,35 @@
+{
+  "name": "xueyifang-frontend",
+  "version": "1.0.0",
+  "description": "学艺坊-校园技能服务与交易平台前端",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.1.0",
+    "axios": "^1.5.0",
+    "echarts": "^5.4.3",
+    "element-plus": "^2.3.14",
+    "jsqr": "^1.4.0",
+    "pinia": "^2.1.6",
+    "qrcode": "^1.5.4",
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.4",
+    "vue3-eventbus": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.6.0",
+    "@types/qrcode": "^1.5.6",
+    "@vitejs/plugin-vue": "^4.3.4",
+    "sass": "^1.67.0",
+    "typescript": "~5.9.3",
+    "unplugin-auto-import": "^0.16.6",
+    "unplugin-vue-components": "^0.25.2",
+    "vite": "^4.4.9",
+    "vue-tsc": "^2.2.12"
+  }
+}

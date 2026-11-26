@@ -1,0 +1,21 @@
+# 开发环境配置（支持 DB_* / REDIS_* 环境变量覆盖）
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:xueyifang}?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useUnicode=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:changeme}
+
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DB:2}
+
+# MyBatis Plus日志
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    com.xueyifang: debug

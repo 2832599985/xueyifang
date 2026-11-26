@@ -1,0 +1,119 @@
+### Redis 缓存测试脚本
+### 测试前需要先登录获取 token
+
+### ========== 1. 登录获取 Token ==========
+
+### 普通用户登录
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "studentId": "20240003",
+  "password": "password123"
+}
+
+> {%
+client.global.set("userToken", response.body.data.token);
+%}
+
+### 管理员登录
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "studentId": "20240001",
+  "password": "password123"
+}
+
+> {%
+client.global.set("adminToken", response.body.data.token);
+%}
+
+### ========== 2. 公共字典缓存测试 ==========
+
+### 2.1 服务标签列表（首次请求会写入缓存 dict:service_tags）
+GET http://localhost:8080/api/service/tags
+
+### 2.2 专业列表（首次请求会写入缓存 dict:professionals）
+GET http://localhost:8080/api/professional/list
+
+### 2.3 交易地点列表（首次请求会写入缓存 dict:trade_locations）
+GET http://localhost:8080/api/trade-location/list
+
+### ========== 3. 服务详情缓存测试 ==========
+
+### 3.1 获取服务详情（首次请求会写入缓存 service:detail:{id}）
+### 替换 {serviceId} 为实际的服务ID
+GET http://localhost:8080/api/service/1
+
+### 3.2 再次请求同一服务（应该命中缓存，查看后端日志）
+GET http://localhost:8080/api/service/1
+
+### ========== 4. 系统配置缓存测试 ==========
+
+### 4.1 获取系统配置（需要管理员权限）
+GET http://localhost:8080/api/admin/config/REVIEW_MODE
+Authorization: Bearer {{adminToken}}
+
+### 4.2 修改系统配置（会删除缓存）
+PUT http://localhost:8080/api/admin/config
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "configKey": "REVIEW_MODE",
+  "configValue": "1",
+  "description": "服务审核模式"
+}
+
+### ========== 5. 用户销售统计缓存测试 ==========
+
+### 5.1 获取我的销售统计（首次写入缓存 statistics:user:sales:{userId}）
+GET http://localhost:8080/api/statistics/sales
+Authorization: Bearer {{userToken}}
+
+### 5.2 再次请求（应该命中缓存，5分钟后自动过期）
+GET http://localhost:8080/api/statistics/sales
+Authorization: Bearer {{userToken}}
+
+### ========== 6. 管理员系统统计缓存测试 ==========
+
+### 6.1 获取系统统计（首次写入缓存 statistics:admin:system）
+GET http://localhost:8080/api/admin/statistics
+Authorization: Bearer {{adminToken}}
+
+### 6.2 再次请求（应该命中缓存，10分钟后自动过期）
+GET http://localhost:8080/api/admin/statistics
+Authorization: Bearer {{adminToken}}
+
+### ========== 7. 卖家评分缓存测试 ==========
+
+### 7.1 获取服务详情时会查询卖家评分（写入缓存 seller:rating:{sellerId}）
+### 查看后端日志确认缓存行为
+GET http://localhost:8080/api/service/1
+
+### ========== 8. 缓存失效测试 ==========
+
+### 8.1 编辑服务后会删除服务详情缓存
+### 需要先下架服务才能编辑
+PUT http://localhost:8080/api/service/offline/1
+Authorization: Bearer {{userToken}}
+
+### 编辑服务
+PUT http://localhost:8080/api/service/1
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "serviceTitle": "测试服务标题修改"
+}
+
+### 8.2 添加专业会删除专业列表缓存（管理员）
+POST http://localhost:8080/api/professional
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "professionalName": "测试专业",
+  "description": "测试专业描述"
+}

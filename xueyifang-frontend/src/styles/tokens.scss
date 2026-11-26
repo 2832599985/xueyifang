@@ -1,0 +1,123 @@
+/**
+ * 学艺坊 Design Tokens · Timeless Monochrome Editorial (曜石极简 · 高级商业画廊)
+ * Inspired by Apple / Vercel / Notion / SSENSE:
+ * Pure white canvas, crisp matte obsidian primary actions (#111111),
+ * neutral zinc hairlines, and restrained warm amber for ratings/escrow accents.
+ */
+:root {
+  /* Surfaces */
+  --xyf-bg: #ffffff;
+  --xyf-surface: #ffffff;
+  --xyf-surface-soft: #f7f7f8;
+  --xyf-surface-muted: #f1f1f3;
+  --xyf-surface-ink: #111113;
+  --xyf-surface-ink-2: #1c1c20;
+
+  /* Ink / Text */
+  --xyf-ink: #111113;
+  --xyf-ink-2: #52525b;
+  --xyf-ink-3: #8e8e98;
+  --xyf-ink-invert: #ffffff;
+
+  /* Brand Palette: Matte Obsidian Black (Zero Purple, Zero Hospital Green) */
+  --xyf-primary: #18181b;
+  --xyf-primary-hover: #27272a;
+  --xyf-primary-active: #09090b;
+  --xyf-primary-soft: #f4f4f5;
+  --xyf-primary-border: #d4d4d8;
+
+  --xyf-accent: #18181b;
+  --xyf-accent-soft: #f4f4f5;
+  --xyf-accent-border: #e4e4e7;
+
+  --xyf-gold: #d97706;
+  --xyf-gold-soft: #fef3c7;
+
+  /* Semantics (Used strictly for status pills / alerts, never dominating brand chrome) */
+  --xyf-success: #16a34a;
+  --xyf-success-soft: #f0fdf4;
+  --xyf-success-border: #bbf7d0;
+
+  --xyf-warning: #b45309;
+  --xyf-warning-soft: #fffbeb;
+  --xyf-warning-border: #fde68a;
+
+  --xyf-danger: #dc2626;
+  --xyf-danger-soft: #fef2f2;
+  --xyf-danger-border: #fecaca;
+
+  --xyf-info: #0284c7;
+  --xyf-info-soft: #f0f9ff;
+  --xyf-info-border: #bae6fd;
+
+  /* Hairline Borders */
+  --xyf-border: #e7e7ea;
+  --xyf-border-strong: #d4d4d8;
+  --xyf-border-subtle: #f2f2f5;
+
+  /* Radii */
+  --xyf-radius-xs: 6px;
+  --xyf-radius-sm: 10px;
+  --xyf-radius-md: 14px;
+  --xyf-radius-lg: 18px;
+  --xyf-radius-xl: 24px;
+  --xyf-radius-pill: 999px;
+
+  /* Crisp Architectural Shadows */
+  --xyf-shadow-xs: 0 1px 2px rgba(9, 9, 11, 0.04);
+  --xyf-shadow-sm: 0 4px 16px -4px rgba(9, 9, 11, 0.06), 0 1px 3px rgba(9, 9, 11, 0.03);
+  --xyf-shadow-md: 0 14px 36px -10px rgba(9, 9, 11, 0.1), 0 4px 12px -2px rgba(9, 9, 11, 0.04);
+  --xyf-shadow-lg: 0 26px 60px -16px rgba(9, 9, 11, 0.15), 0 8px 22px -6px rgba(9, 9, 11, 0.05);
+  --xyf-shadow-focus: 0 0 0 3px rgba(24, 24, 27, 0.1);
+
+  /* Typography */
+  --xyf-font-sans: 'PingFang SC', 'Hiragino Sans GB', 'Inter', 'Microsoft YaHei', 'Noto Sans SC',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --xyf-font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  /* Spacing & Layout */
+  --xyf-container-width: 1280px;
+  --xyf-header-height: 68px;
+  --xyf-admin-sidebar-width: 248px;
+  --xyf-transition: 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Element Plus Overrides: Pure Monochrome Obsidian */
+  --el-color-primary: #18181b;
+  --el-color-primary-light-3: #3f3f46;
+  --el-color-primary-light-5: #71717a;
+  --el-color-primary-light-7: #d4d4d8;
+  --el-color-primary-light-8: #e4e4e7;
+  --el-color-primary-light-9: #f4f4f5;
+  --el-color-primary-dark-2: #09090b;
+
+  --el-color-success: #16a34a;
+  --el-color-warning: #b45309;
+  --el-color-danger: #dc2626;
+  --el-color-info: #52525b;
+
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #ffffff;
+  --el-bg-color-overlay: #ffffff;
+  --el-fill-color-light: #f7f7f8;
+  --el-fill-color-blank: #ffffff;
+
+  --el-text-color-primary: #111113;
+  --el-text-color-regular: #52525b;
+  --el-text-color-secondary: #8e8e98;
+
+  --el-border-color: #e4e4e7;
+  --el-border-color-light: #f1f1f3;
+  --el-border-color-lighter: #f7f7f8;
+  --el-border-radius-base: 10px;
+  --el-border-radius-small: 8px;
+  --el-font-family: var(--xyf-font-sans);
+
+  /* Semantic Aliases Consumed Across Views */
+  --xyf-sidebar-bg: var(--xyf-surface-ink);
+  --xyf-primary-dark: var(--xyf-primary-hover);
+  --xyf-ink-secondary: var(--xyf-ink-2);
+  --xyf-ink-muted: var(--xyf-ink-3);
+  --xyf-ink-light: #a1a1aa;
+  --xyf-bg-muted: var(--xyf-surface-muted);
+  --xyf-border-light: var(--xyf-border-subtle);
+}

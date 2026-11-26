@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xueyifang.mapper.ServiceOrderMapper">
+
+    <!-- 批量统计服务销量（GROUP BY 优化，避免 N+1 查询） -->
+    <select id="batchCountSalesByServiceIds" resultType="java.util.Map">
+        SELECT service_id, COUNT(*) as sales_count
+        FROM service_order
+        WHERE is_delete = 0
+          AND order_status = #{orderStatus}
+          AND service_id IN
+        <foreach collection="serviceIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        GROUP BY service_id
+    </select>
+
+</mapper>

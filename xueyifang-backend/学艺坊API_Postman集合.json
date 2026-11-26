@@ -1,0 +1,947 @@
+{
+  "info": {
+    "name": "学艺坊校园技能服务与交易平台API",
+    "description": "《学艺坊》校园技能服务与交易平台的API接口文档",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🔐 用户认证模块",
+      "item": [
+        {
+          "name": "用户注册",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"20240001\",\n  \"password\": \"password123\",\n  \"confirmPassword\": \"password123\",\n  \"realName\": \"张三\",\n  \"phone\": \"13800138000\",\n  \"professionalId\": 1,\n  \"email\": \"zhangsan@example.com\",\n  \"dormitory\": \"宿舍1-101\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "用户登录",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.code === 0 && jsonData.data.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.data.token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"20240001\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取当前用户信息",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/currentUser",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "currentUser"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改个人信息",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nickname\": \"小张\",\n  \"email\": \"new@example.com\",\n  \"dormitory\": \"宿舍2-202\",\n  \"grade\": \"大三\",\n  \"avatar\": \"https://example.com/new_avatar.jpg\",\n  \"bio\": \"热爱编程和设计\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/updateProfile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "updateProfile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改密码",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"password123\",\n  \"newPassword\": \"newpassword456\",\n  \"confirmPassword\": \"newpassword456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/changePassword",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "changePassword"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📱 权限申请模块",
+      "item": [
+        {
+          "name": "申请发布权限",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"我想发布编程教学服务\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/permission/apply",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "permission",
+                "apply"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查询权限审核状态",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/permission/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "permission",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🎯 服务模块",
+      "item": [
+        {
+          "name": "获取服务列表",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/service/list?pageNum=1&pageSize=10&tagId=1&sortBy=latest&keyword=编程",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service",
+                "list"
+              ],
+              "query": [
+                {
+                  "key": "pageNum",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                },
+                {
+                  "key": "tagId",
+                  "value": "1"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "latest"
+                },
+                {
+                  "key": "keyword",
+                  "value": "编程"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取服务详情",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/service/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "发布服务",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceTitle\": \"Java编程辅导\",\n  \"serviceDescription\": \"详细的服务描述\",\n  \"tagId\": 1,\n  \"tradeType\": 2,\n  \"price\": 99.99,\n  \"maxPurchases\": -1,\n  \"isPhysical\": 0,\n  \"images\": [\n    \"https://example.com/img1.jpg\",\n    \"https://example.com/img2.jpg\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/service/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service",
+                "publish"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取服务标签列表",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/service/tags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service",
+                "tags"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取用户发布的服务列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service/myServices?pageNum=1&pageSize=10&status=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service",
+                "myServices"
+              ],
+              "query": [
+                {
+                  "key": "pageNum",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🛒 订单模块",
+      "item": [
+        {
+          "name": "创建订单",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": 1,\n  \"quantity\": 1,\n  \"tradeType\": 2,\n  \"tradeLocationId\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/order/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "order",
+                "create"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "支付订单",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/order/100/pay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "order",
+                "100",
+                "pay"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取订单列表（买家视角）",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/order/myOrders?pageNum=1&pageSize=10&orderStatus=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "order",
+                "myOrders"
+              ],
+              "query": [
+                {
+                  "key": "pageNum",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                },
+                {
+                  "key": "orderStatus",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取订单详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/order/100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "order",
+                "100"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "❤️ 收藏模块",
+      "item": [
+        {
+          "name": "收藏服务",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/favorite/collect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "favorite",
+                "collect"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取收藏列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/favorite/myCollections?pageNum=1&pageSize=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "favorite",
+                "myCollections"
+              ],
+              "query": [
+                {
+                  "key": "pageNum",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔔 通知模块",
+      "item": [
+        {
+          "name": "获取通知列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notification/list?pageNum=1&pageSize=20&isRead=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification",
+                "list"
+              ],
+              "query": [
+                {
+                  "key": "pageNum",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                },
+                {
+                  "key": "isRead",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取未读消息数",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notification/unreadCount",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification",
+                "unreadCount"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "👨‍💼 管理员模块",
+      "item": [
+        {
+          "name": "获取待审核用户列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/pending?pageNum=1&pageSize=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "pending"
+              ],
+              "query": [
+                {
+                  "key": "pageNum",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "审核用户权限",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"approved\": true,\n  \"reason\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/permission/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "permission",
+                "review"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取系统统计数据",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/statistics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "statistics"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📁 文件管理模块",
+      "item": [
+        {
+          "name": "上传用户头像",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "选择图片文件（jpg/jpeg/png/gif/webp，最大1MB）"
+                },
+                {
+                  "key": "biz",
+                  "value": "user_avatar",
+                  "type": "text",
+                  "description": "业务类型：user_avatar"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "file",
+                "upload"
+              ]
+            },
+            "description": "上传用户头像，支持jpg/jpeg/png/gif/webp格式，最大1MB"
+          },
+          "response": []
+        },
+        {
+          "name": "上传服务图片",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "选择图片文件（jpg/jpeg/png/gif/webp，最大5MB）"
+                },
+                {
+                  "key": "biz",
+                  "value": "service_image",
+                  "type": "text",
+                  "description": "业务类型：service_image"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "file",
+                "upload"
+              ]
+            },
+            "description": "上传服务图片，支持jpg/jpeg/png/gif/webp格式，最大5MB"
+          },
+          "response": []
+        },
+        {
+          "name": "批量上传服务图片",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": [],
+                  "description": "选择第1张图片"
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": [],
+                  "description": "选择第2张图片"
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": [],
+                  "description": "选择第3张图片（可选）"
+                },
+                {
+                  "key": "biz",
+                  "value": "service_image",
+                  "type": "text",
+                  "description": "业务类型：service_image"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/file/upload/batch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "file",
+                "upload",
+                "batch"
+              ]
+            },
+            "description": "批量上传服务图片，可以一次上传多张图片"
+          },
+          "response": []
+        },
+        {
+          "name": "删除文件",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/file/delete?url=http://localhost:8080/api/file/view/user_avatar/1/202511/abc123-avatar.jpg",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "file",
+                "delete"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "http://localhost:8080/api/file/view/user_avatar/1/202511/abc123-avatar.jpg",
+                  "description": "要删除的文件URL（从上传接口返回的URL）"
+                }
+              ]
+            },
+            "description": "删除已上传的文件"
+          },
+          "response": []
+        },
+        {
+          "name": "查看本地文件（浏览器访问）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/file/view/user_avatar/1/202511/abc123-avatar.jpg",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "file",
+                "view",
+                "user_avatar",
+                "1",
+                "202511",
+                "abc123-avatar.jpg"
+              ]
+            },
+            "description": "查看本地存储的文件（仅本地存储模式有效），直接在浏览器中访问该URL可查看图片"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

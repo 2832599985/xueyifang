@@ -1,0 +1,441 @@
+{
+	"info": {
+		"_postman_id": "trade-location-api-collection",
+		"name": "交易地点管理 API",
+		"description": "学易坊后端 - 交易地点管理模块的完整 CRUD 接口集合\n\n使用说明：\n1. 先调用登录接口获取 token\n2. 将 token 设置到环境变量 {{token}} 中\n3. 所有接口会自动携带 Authorization 请求头",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "查询所有可用的交易地点",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/list",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"list"
+					]
+				},
+				"description": "获取所有可用且未删除的交易地点列表\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "查询所有交易地点（包括不可用的）",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/list/all",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"list",
+						"all"
+					]
+				},
+				"description": "获取所有交易地点列表（包括不可用的，但不包括已删除的）\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "分页查询交易地点",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/page?current=1&pageSize=10&isAvailable=1",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"page"
+					],
+					"query": [
+						{
+							"key": "current",
+							"value": "1",
+							"description": "当前页码"
+						},
+						{
+							"key": "pageSize",
+							"value": "10",
+							"description": "每页大小"
+						},
+						{
+							"key": "isAvailable",
+							"value": "1",
+							"description": "是否可用（1=可用, 0=不可用，不传=全部）"
+						}
+					]
+				},
+				"description": "分页查询交易地点列表，支持按可用状态筛选\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "分页查询所有交易地点（不筛选可用状态）",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/page?current=1&pageSize=10",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"page"
+					],
+					"query": [
+						{
+							"key": "current",
+							"value": "1",
+							"description": "当前页码"
+						},
+						{
+							"key": "pageSize",
+							"value": "10",
+							"description": "每页大小"
+						}
+					]
+				},
+				"description": "分页查询所有交易地点（不筛选可用状态）\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "根据ID查询交易地点详情",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/1",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"1"
+					]
+				},
+				"description": "根据地点ID查询交易地点详细信息\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "添加交易地点",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"locationName\": \"校园咖啡厅\",\n  \"locationDescription\": \"学生常聚集场所，环境舒适\",\n  \"locationAddress\": \"校园中心广场旁\",\n  \"isAvailable\": 1\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/add",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"add"
+					]
+				},
+				"description": "添加新的交易地点信息\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "添加交易地点（最小参数）",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"locationName\": \"图书馆门口\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/add",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"add"
+					]
+				},
+				"description": "只传必填参数添加交易地点（地点名称）\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "更新交易地点",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"id\": 1,\n  \"locationName\": \"新校园咖啡厅\",\n  \"locationDescription\": \"更新后的描述信息\",\n  \"locationAddress\": \"新的详细地址\",\n  \"isAvailable\": 1\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/update",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"update"
+					]
+				},
+				"description": "根据地点ID更新交易地点信息\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "更新交易地点（部分字段）",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"id\": 1,\n  \"locationName\": \"更新后的地点名称\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/update",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"update"
+					]
+				},
+				"description": "只更新部分字段（只传需要更新的字段）\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "设置交易地点为不可用",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"id\": 1,\n  \"isAvailable\": 0\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/update",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"update"
+					]
+				},
+				"description": "将交易地点设置为不可用状态\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "删除交易地点",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/1",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"1"
+					]
+				},
+				"description": "根据地点ID删除交易地点（逻辑删除）\n\n需要登录：是"
+			},
+			"response": []
+		},
+		{
+			"name": "批量删除交易地点",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text",
+						"description": "JWT Token 认证"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "[1, 2, 3, 4, 5]"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/trade-location/batch",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"trade-location",
+						"batch"
+					]
+				},
+				"description": "批量删除交易地点（逻辑删除）\n\n需要登录：是"
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// 可以在这里添加全局的预请求脚本",
+					"// 例如：自动刷新 token 等"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// 可以在这里添加全局的测试脚本",
+					"// 例如：自动保存响应中的 token"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080/api",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "your_jwt_token_here",
+			"type": "string"
+		}
+	]
+}
+

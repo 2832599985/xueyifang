@@ -1,0 +1,47 @@
+# ==================== Local Secrets & Private Config ====================
+.env
+.env.local
+.env.*.local
+deploy/docker/.env
+**/application-local.yml
+**/application-local.yaml
+**/application-secret.yml
+
+# ==================== Build & Dependency Artifacts ====================
+**/target/
+**/build/
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/.vite/
+**/__pycache__/
+*.pyc
+*.pyo
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==================== Runtime Uploads & Local Binaries ====================
+xueyifang-backend/uploads/
+deploy/portable/
+deploy/docker/init-db/
+deploy/tunnel-*.cmd
+_archive/
+
+# ==================== Legacy Static Dumps & Prototypes ====================
+xueyifang-frontend/prototypes/
+xueyifang-backend/api-documentation.html
+
+# ==================== IDE & OS ====================
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+HELP.md

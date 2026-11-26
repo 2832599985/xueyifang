@@ -1,0 +1,225 @@
+### 服务编辑/上下架接口测试
+
+# 测试用Token
+# 买家小李 (userId=3): eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjMsImNyZWF0ZURhdGUiOjE3NjM4MDQzNzcxMDUsInRpbWVzdGFtcCI6MTc2MzgwNDM3NzEwNSwic3ViIjoiMyIsImlhdCI6MTc2MzgwNDM3NywiZXhwIjoxNzY0NDA5MTc3fQ.PEZW_VDKAD5tjeSCJ6TLAima7rRKQPl_zrnDA9Zi7GA
+# 卖家小王 (userId=2): eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjIsImNyZWF0ZURhdGUiOjE3NjM4MDQzOTUwMTUsInRpbWVzdGFtcCI6MTc2MzgwNDM5NTAxNSwic3ViIjoiMiIsImlhdCI6MTc2MzgwNDM5NSwiZXhwIjoxNzY0NDA5MTk1fQ.WPxWObn-nNb7m5kpJ6PnYI05WjwvjHD5RZx0iaFVofY
+
+@baseUrl = http://localhost:8080/api
+@sellerToken = eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjIsImNyZWF0ZURhdGUiOjE3NjM4MDQzOTUwMTUsInRpbWVzdGFtcCI6MTc2MzgwNDM5NTAxNSwic3ViIjoiMiIsImlhdCI6MTc2MzgwNDM5NSwiZXhwIjoxNzY0NDA5MTk1fQ.WPxWObn-nNb7m5kpJ6PnYI05WjwvjHD5RZx0iaFVofY
+@buyerToken = eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjMsImNyZWF0ZURhdGUiOjE3NjM4MDQzNzcxMDUsInRpbWVzdGFtcCI6MTc2MzgwNDM3NzEwNSwic3ViIjoiMyIsImlhdCI6MTc2MzgwNDM3NywiZXhwIjoxNzY0NDA5MTc3fQ.PEZW_VDKAD5tjeSCJ6TLAima7rRKQPl_zrnDA9Zi7GA
+
+### ==================== 准备工作 ====================
+
+### 1. 发布一个新服务 (卖家小王)
+# @name publishService
+POST {{baseUrl}}/service/publish
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "serviceTitle": "测试编辑服务",
+  "serviceDescription": "这是一个测试服务，用于测试编辑功能",
+  "tagId": 1,
+  "tradeType": 1,
+  "price": 50.00,
+  "maxPurchases": 10,
+  "isPhysical": 0,
+  "images": []
+}
+
+### 2. 查看我的服务列表
+GET {{baseUrl}}/service/myServices?pageNum=1&pageSize=10
+Authorization: Bearer {{sellerToken}}
+
+### ==================== 编辑服务测试 ====================
+
+### 3. 正常编辑服务 - 编辑下架/待审核状态的服务 (应成功)
+# 注意: 新发布的服务状态为 STATUS_PENDING(3) 或 REVIEW_MODE=2时为 STATUS_ONLINE(1)
+# 如果是 STATUS_PENDING，可以直接编辑
+# 如果是 STATUS_ONLINE，需要先下架再编辑
+PUT {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "serviceTitle": "更新后的服务标题",
+  "serviceDescription": "更新后的服务描述",
+  "price": 60.00
+}
+
+### 4. 编辑服务 - 只更新标题
+PUT {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "serviceTitle": "只更新标题测试"
+}
+
+### 5. 编辑服务 - 更新图片
+PUT {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "images": [
+    "http://localhost:8080/api/file/view/1e8avq1m-Snipaste_2025-11-16_22-07-18.png"
+  ]
+}
+
+### 6. 编辑服务 - 清空图片 (传空数组)
+PUT {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "images": []
+}
+
+### 7. 非发布者编辑服务 (应失败 - 返回 40206)
+PUT {{baseUrl}}/service/1
+Authorization: Bearer {{buyerToken}}
+Content-Type: application/json
+
+{
+  "serviceTitle": "尝试修改别人的服务"
+}
+
+### 8. 未登录编辑服务 (应失败 - 返回 40103)
+PUT {{baseUrl}}/service/1
+Content-Type: application/json
+
+{
+  "serviceTitle": "未登录尝试编辑"
+}
+
+### 9. 编辑不存在的服务 (应失败 - 返回 40201)
+PUT {{baseUrl}}/service/99999
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "serviceTitle": "编辑不存在的服务"
+}
+
+### 10. 价格校验 - 价格为0 (应失败 - 返回 40001)
+PUT {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "price": 0
+}
+
+### 11. 价格校验 - 负数价格 (应失败 - 返回 40001)
+PUT {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "price": -10.00
+}
+
+### 12. 标题校验 - 空标题 (应失败 - 返回 40001)
+PUT {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "serviceTitle": ""
+}
+
+### 13. 交易类型校验 - 非法值 (应失败 - 返回 40001)
+PUT {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "tradeType": 99
+}
+
+### ==================== 下架服务测试 ====================
+
+### 14. 先确保服务是上架状态 (需要管理员审核通过)
+# 查看服务详情确认状态
+GET {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+
+### 15. 正常下架服务 (服务需要是 STATUS_ONLINE 状态)
+# 预期: 成功，状态变为 STATUS_OFFLINE(2)
+PUT {{baseUrl}}/service/3/offline
+Authorization: Bearer {{sellerToken}}
+
+### 16. 重复下架服务 (应失败 - 返回 40209)
+# 服务已下架，再次下架应该失败
+PUT {{baseUrl}}/service/3/offline
+Authorization: Bearer {{sellerToken}}
+
+### 17. 下架待审核状态的服务 (应失败 - 返回 40209)
+# 只有上架中的服务可以下架
+PUT {{baseUrl}}/service/3/offline
+Authorization: Bearer {{sellerToken}}
+
+### 18. 非发布者下架服务 (应失败 - 返回 40206)
+PUT {{baseUrl}}/service/3/offline
+Authorization: Bearer {{buyerToken}}
+
+### 19. 未登录下架服务 (应失败 - 返回 40103)
+PUT {{baseUrl}}/service/3/offline
+
+### ==================== 上架/提交审核测试 ====================
+
+### 20. 正常上架/提交审核 (服务需要是 STATUS_OFFLINE 或 STATUS_REJECTED 状态)
+# 预期:
+# - REVIEW_MODE=1: 状态变为 STATUS_PENDING(3), reviewStatus=REVIEW_PENDING(2)
+# - REVIEW_MODE=2: 状态变为 STATUS_ONLINE(1), reviewStatus=REVIEW_APPROVED(1)
+PUT {{baseUrl}}/service/3/online
+Authorization: Bearer {{sellerToken}}
+
+### 21. 重复上架服务 (应失败 - 返回 40208)
+# 服务已是待审核/上架状态，再次上架应该失败
+PUT {{baseUrl}}/service/3/online
+Authorization: Bearer {{sellerToken}}
+
+### 22. 非发布者上架服务 (应失败 - 返回 40206)
+PUT {{baseUrl}}/service/3/online
+Authorization: Bearer {{buyerToken}}
+
+### 23. 未登录上架服务 (应失败 - 返回 40103)
+PUT {{baseUrl}}/service/3/online
+
+### 24. 上架不存在的服务 (应失败 - 返回 40201)
+PUT {{baseUrl}}/service/99999/online
+Authorization: Bearer {{sellerToken}}
+
+### ==================== 编辑上架中服务测试 ====================
+
+### 25. 尝试编辑上架中的服务 (应失败 - 返回 40207)
+# 首先确保服务是上架状态，然后尝试编辑
+# 上架中的服务需要先下架再编辑
+PUT {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "serviceTitle": "尝试编辑上架中的服务"
+}
+
+### ==================== 完整流程测试 ====================
+
+### 26. 查看服务详情 - 验证状态变化
+GET {{baseUrl}}/service/3
+Authorization: Bearer {{sellerToken}}
+
+### 27. 查看我的服务列表 - 按状态筛选 (status=1 上架, status=2 下架, status=3 待审核)
+GET {{baseUrl}}/service/myServices?status=2&pageNum=1&pageSize=10
+Authorization: Bearer {{sellerToken}}
+
+### ==================== 错误码说明 ====================
+# 40001 - PARAMS_ERROR: 参数错误
+# 40103 - USER_NOT_LOGIN: 用户未登录
+# 40201 - SERVICE_NOT_EXIST: 服务不存在
+# 40206 - SERVICE_NOT_OWNER: 非服务发布者，无权操作
+# 40207 - SERVICE_CANNOT_EDIT: 当前状态不允许编辑
+# 40208 - SERVICE_CANNOT_ONLINE: 当前状态不允许上架
+# 40209 - SERVICE_CANNOT_OFFLINE: 当前状态不允许下架
