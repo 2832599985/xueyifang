@@ -1,0 +1,50 @@
+SET NAMES utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `demand_request` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '悬赏需求ID',
+  `demand_no` varchar(64) NOT NULL COMMENT '悬赏单号',
+  `publisher_id` bigint NOT NULL COMMENT '发布需求的学生ID',
+  `campus_id` bigint NOT NULL DEFAULT 1 COMMENT '所属校区ID',
+  `tag_id` bigint DEFAULT NULL COMMENT '关联服务分类标签ID',
+  `title` varchar(120) NOT NULL COMMENT '悬赏需求标题',
+  `description` text NOT NULL COMMENT '详细需求背景与交付标准',
+  `budget_min` decimal(10,2) NOT NULL COMMENT '预算下限',
+  `budget_max` decimal(10,2) NOT NULL COMMENT '预算上限',
+  `trade_type` tinyint NOT NULL DEFAULT 1 COMMENT '1=校园线下当面, 2=线上远程交付',
+  `urgency_level` tinyint NOT NULL DEFAULT 1 COMMENT '1=常规, 2=加急, 3=十万火急',
+  `deadline_time` datetime DEFAULT NULL COMMENT '期望最晚交付时间',
+  `meetup_lat` decimal(10,6) DEFAULT NULL COMMENT '线下约定纬度',
+  `meetup_lng` decimal(10,6) DEFAULT NULL COMMENT '线下约定经度',
+  `meetup_poi_name` varchar(120) DEFAULT NULL COMMENT '线下约定校内地标',
+  `meetup_address` varchar(255) DEFAULT NULL COMMENT '线下具体方位补充',
+  `meetup_radius_meters` int DEFAULT 80 COMMENT '线下当面核销有效半径米数',
+  `bid_count` int NOT NULL DEFAULT 0 COMMENT '有效竞标数',
+  `demand_status` tinyint NOT NULL DEFAULT 0 COMMENT '0=招募竞标中, 1=已选标转担保单, 2=发布者取消, 3=管理员关闭',
+  `accepted_bid_id` bigint DEFAULT NULL COMMENT '采纳的中标记录ID',
+  `matched_service_id` bigint DEFAULT NULL COMMENT '选标生成的定向服务ID',
+  `matched_order_id` bigint DEFAULT NULL COMMENT '选标生成的担保订单ID',
+  `close_reason` varchar(255) DEFAULT NULL COMMENT '关闭原因',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_delete` tinyint NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_demand_no` (`demand_no`),
+  KEY `idx_demand_campus_status` (`campus_id`, `demand_status`, `urgency_level`),
+  KEY `idx_demand_publisher` (`publisher_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='校内反向悬赏需求表';
+
+CREATE TABLE IF NOT EXISTS `demand_bid` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '竞标ID',
+  `demand_id` bigint NOT NULL COMMENT '悬赏需求ID',
+  `bidder_id` bigint NOT NULL COMMENT '竞标创作者ID',
+  `bid_price` decimal(10,2) NOT NULL COMMENT '竞标报价金额',
+  `estimated_hours` int NOT NULL DEFAULT 24 COMMENT '承诺完成耗时小时数',
+  `bid_plan` varchar(600) NOT NULL COMMENT '接单方案说明',
+  `bid_status` tinyint NOT NULL DEFAULT 0 COMMENT '0=待选标, 1=已中标转单, 2=未中标, 3=已撤回',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '报价时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_delete` tinyint NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+  PRIMARY KEY (`id`),
+  KEY `idx_bid_demand` (`demand_id`, `bid_status`),
+  KEY `idx_bid_bidder` (`bidder_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='创作者悬赏竞标报价表';
