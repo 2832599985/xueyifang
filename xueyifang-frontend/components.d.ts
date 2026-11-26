@@ -9,10 +9,12 @@ declare module 'vue' {
   export interface GlobalComponents {
     AuthVisualStage: typeof import('./src/components/auth/AuthVisualStage.vue')['default']
     CampusAmbientCanvas: typeof import('./src/components/home/CampusAmbientCanvas.vue')['default']
+    CampusMapPicker: typeof import('./src/components/business/CampusMapPicker.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElBadge: typeof import('element-plus/es')['ElBadge']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
+    ElDatePicker: typeof import('element-plus/es')['ElDatePicker']
     ElDialog: typeof import('element-plus/es')['ElDialog']
     ElDrawer: typeof import('element-plus/es')['ElDrawer']
     ElDropdown: typeof import('element-plus/es')['ElDropdown']
@@ -34,6 +36,7 @@ declare module 'vue' {
     ElSelect: typeof import('element-plus/es')['ElSelect']
     ElSkeleton: typeof import('element-plus/es')['ElSkeleton']
     ElSkeletonItem: typeof import('element-plus/es')['ElSkeletonItem']
+    ElSlider: typeof import('element-plus/es')['ElSlider']
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTable: typeof import('element-plus/es')['ElTable']
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
@@ -43,10 +46,12 @@ declare module 'vue' {
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     LazyImage: typeof import('./src/components/common/LazyImage.vue')['default']
+    MeetupProposalCard: typeof import('./src/components/business/MeetupProposalCard.vue')['default']
     OfflineMeetupPassCard: typeof import('./src/components/business/OfflineMeetupPassCard.vue')['default']
     OfflineVerifyDialog: typeof import('./src/components/business/OfflineVerifyDialog.vue')['default']
     OrderCard: typeof import('./src/components/business/OrderCard.vue')['default']
     OrderTimeline: typeof import('./src/components/business/OrderTimeline.vue')['default']
+    RealCampusMap: typeof import('./src/components/business/RealCampusMap.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     ServiceCard: typeof import('./src/components/business/ServiceCard.vue')['default']
@@ -59,5 +64,8 @@ declare module 'vue' {
     XyfPageHeader: typeof import('./src/components/ui/XyfPageHeader.vue')['default']
     XyfStatTile: typeof import('./src/components/ui/XyfStatTile.vue')['default']
     XyfStatusBadge: typeof import('./src/components/ui/XyfStatusBadge.vue')['default']
+  }
+  export interface ComponentCustomProperties {
+    vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }

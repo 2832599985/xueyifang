@@ -19,18 +19,27 @@ public class ServiceDetailVO {
     private String sellerGrade;
     private String sellerBio;
     private Integer sellerCompletedOrders;
+    private Integer sellerEduVerified;
+    private Integer sellerCreditScore;
+    private Long campusId;
+    private String campusName;
     private Long tagId;
     private String tagName;
     private Integer tradeType;
     private Long tradeLocationId;
     private String tradeLocationName;
+    private BigDecimal tradeLocationLat;
+    private BigDecimal tradeLocationLng;
     private BigDecimal price;
     private Integer maxPurchases;
     private Integer currentPurchaseCount;
     private Integer isPhysical;
-    private Integer status;           // 服务状态: 1=上架, 2=下架, 3=待审核, 4=驳回
-    private Integer reviewStatus;     // 审核状态: 1=通过, 2=待审核, 3=驳回
-    private String reviewReason;      // 审核驳回原因
+    private Integer requireSlot;
+    private Integer cancelFreeHours;
+    private Integer requireBleVerify;
+    private Integer status;
+    private Integer reviewStatus;
+    private String reviewReason;
     private Integer viewCount;
     private Integer collectionCount;
     private Integer salesCount;
@@ -40,4 +49,5 @@ public class ServiceDetailVO {
     private LocalDateTime updateTime;
     private List<String> images;
     private Boolean isCollected;
+    private List<ServiceTimeSlotVO> availableSlots;
 }

@@ -1,8 +1,3 @@
-/**
- * Order API module
- * Handles all order-related API calls
- */
-
 import request from './request'
 import type { PageResult, PageParams } from '@/types/http'
 import type {
@@ -10,21 +5,14 @@ import type {
   OrderDetail,
   CreateOrderRequest,
   PayOrderRequest,
-  RefundOrderRequest,
   SellerHandleRefundRequest,
   SellerShipPayload,
   OrderVerifyCredential,
   OrderVerifyQrPayload,
-  OrderStatus
+  MeetupProposal,
+  EscrowPrepayResult
 } from '@/types/order'
 
-// ==================== Order APIs ====================
-
-/**
- * Create a new order
- * @param data Order creation data
- * @returns Created order ID
- */
 export function createOrder(data: CreateOrderRequest): Promise<number> {
   return request<number>({
     url: '/order/create',
@@ -33,12 +21,6 @@ export function createOrder(data: CreateOrderRequest): Promise<number> {
   })
 }
 
-/**
- * Pay for an order
- * @param orderId Order ID
- * @param data Payment data (optional)
- * @returns void
- */
 export function payOrder(orderId: number, data?: PayOrderRequest): Promise<void> {
   return request<void>({
     url: `/order/${orderId}/pay`,
@@ -47,11 +29,68 @@ export function payOrder(orderId: number, data?: PayOrderRequest): Promise<void>
   })
 }
 
-/**
- * Get order detail
- * @param orderId Order ID
- * @returns Order detail information
- */
+export function createEscrowPrepay(orderId: number, payChannel = 'WECHAT_MINI'): Promise<EscrowPrepayResult> {
+  return request<EscrowPrepayResult>({
+    url: '/payment/escrow/prepay',
+    method: 'post',
+    data: { orderId, payChannel }
+  })
+}
+
+export function triggerSandboxEscrowWebhook(payload: {
+  paymentNo: string
+  paidAmount: number
+  signature: string
+  channelTradeNo?: string
+}): Promise<void> {
+  return request<void>({
+    url: '/payment/escrow/webhook/callback',
+    method: 'post',
+    data: {
+      ...payload,
+      timestamp: Math.floor(Date.now() / 1000)
+    }
+  })
+}
+
+export function proposeMeetupLocation(
+  orderId: number,
+  data: {
+    latitude: number
+    longitude: number
+    poiName: string
+    detailAddress?: string
+    radiusMeters?: number
+    proposedTime?: string
+    remark?: string
+  }
+): Promise<number> {
+  return request<number>({
+    url: `/order/${orderId}/meetup/propose`,
+    method: 'post',
+    data
+  })
+}
+
+export function respondMeetupProposal(
+  proposalId: number,
+  accept: boolean,
+  rejectReason?: string
+): Promise<void> {
+  return request<void>({
+    url: `/order/meetup/${proposalId}/respond`,
+    method: 'post',
+    data: { accept, rejectReason }
+  })
+}
+
+export function listMeetupProposals(orderId: number): Promise<MeetupProposal[]> {
+  return request<MeetupProposal[]>({
+    url: `/order/${orderId}/meetup/proposals`,
+    method: 'get'
+  })
+}
+
 export function getOrderDetail(orderId: number | string): Promise<OrderDetail> {
   return request<OrderDetail>({
     url: `/order/${orderId}`,
@@ -59,11 +98,6 @@ export function getOrderDetail(orderId: number | string): Promise<OrderDetail> {
   })
 }
 
-/**
- * Get buyer's order list (我的订单)
- * @param params Query parameters with pagination and status filter
- * @returns Paginated order list
- */
 export function listBuyerOrders(
   params?: PageParams & { orderStatus?: number }
 ): Promise<PageResult<OrderListItem>> {
@@ -78,11 +112,6 @@ export function listBuyerOrders(
   })
 }
 
-/**
- * Get seller's order list (我的售出订单)
- * @param params Query parameters with pagination and status filter
- * @returns Paginated order list
- */
 export function listSellerOrders(
   params?: PageParams & { orderStatus?: number }
 ): Promise<PageResult<OrderListItem>> {
@@ -97,11 +126,6 @@ export function listSellerOrders(
   })
 }
 
-/**
- * Cancel an order
- * @param orderId Order ID
- * @returns Success status
- */
 export function cancelOrder(orderId: number): Promise<void> {
   return request<void>({
     url: `/order/${orderId}/cancel`,
@@ -109,11 +133,6 @@ export function cancelOrder(orderId: number): Promise<void> {
   })
 }
 
-/**
- * Buyer confirm order completion (买家确认收货)
- * @param orderId Order ID
- * @returns Success status
- */
 export function buyerConfirm(orderId: number): Promise<void> {
   return request<void>({
     url: `/order/${orderId}/confirm`,
@@ -121,9 +140,6 @@ export function buyerConfirm(orderId: number): Promise<void> {
   })
 }
 
-/**
- * Seller ship order (卖家发货，可选携带交付说明与凭证截图)
- */
 export function sellerShip(orderId: number, data?: SellerShipPayload): Promise<void> {
   return request<void>({
     url: `/order/${orderId}/ship`,
@@ -132,9 +148,6 @@ export function sellerShip(orderId: number, data?: SellerShipPayload): Promise<v
   })
 }
 
-/**
- * 买方获取线下订单实时动态核销凭证（30s动态数字码 + 10s防截图动态二维码载荷）
- */
 export function getOfflineVerifyCredential(orderId: number): Promise<OrderVerifyCredential> {
   return request<OrderVerifyCredential>({
     url: `/order/${orderId}/verify-credential`,
@@ -142,20 +155,22 @@ export function getOfflineVerifyCredential(orderId: number): Promise<OrderVerify
   })
 }
 
-/**
- * 校内线下交易当面核销码结单（卖家输入买家30秒动态6位核销码）
- */
-export function verifyOfflineCode(orderId: number, verifyCode: string): Promise<void> {
+export function verifyOfflineCode(
+  orderId: number,
+  verifyCode: string,
+  coords?: { verifierLat?: number; verifierLng?: number }
+): Promise<void> {
   return request<void>({
     url: `/order/${orderId}/verify-code`,
     method: 'post',
-    data: { verifyCode }
+    data: {
+      verifyCode,
+      verifierLat: coords?.verifierLat,
+      verifierLng: coords?.verifierLng
+    }
   })
 }
 
-/**
- * 校内线下交易实时摄像头动态二维码核销结单（10秒有效期，禁用截图识别）
- */
 export function verifyOfflineQr(data: OrderVerifyQrPayload): Promise<number> {
   return request<number>({
     url: '/order/verify-qr',
@@ -164,12 +179,6 @@ export function verifyOfflineQr(data: OrderVerifyQrPayload): Promise<number> {
   })
 }
 
-/**
- * Seller handle refund request (卖家处理退款) - v2.0 new
- * @param orderId Order ID
- * @param data Handle refund data (approve/reject)
- * @returns Success status
- */
 export function sellerHandleRefund(orderId: number, data: SellerHandleRefundRequest): Promise<void> {
   return request<void>({
     url: `/order/${orderId}/handleRefund`,
@@ -178,24 +187,10 @@ export function sellerHandleRefund(orderId: number, data: SellerHandleRefundRequ
   })
 }
 
-/**
- * @deprecated Use sellerShip instead (v2.0)
- * Seller confirm order (卖家确认订单) - 已废弃
- * @param orderId Order ID
- * @returns Success status
- */
 export function sellerConfirm(orderId: number): Promise<void> {
-  console.warn('sellerConfirm is deprecated, use sellerShip instead')
   return sellerShip(orderId)
 }
 
-/**
- * Apply for refund
- * @param orderId Order ID
- * @param reason Refund reason
- * @param remark Optional remark
- * @returns void
- */
 export function applyRefund(orderId: number, reason: string, remark?: string): Promise<void> {
   return request<void>({
     url: `/order/${orderId}/refund`,
@@ -204,26 +199,10 @@ export function applyRefund(orderId: number, reason: string, remark?: string): P
   })
 }
 
-// ==================== Helper Functions ====================
-
-/**
- * Build order detail URL
- * @param orderId Order ID
- * @returns Full URL for order detail page
- */
 export function buildOrderDetailUrl(orderId: number | string): string {
   return `/orders/${orderId}`
 }
 
-/**
- * Format order list for display
- * Adds computed fields for UI display
- * @param orders Original order list
- * @returns Enhanced order list
- */
 export function formatOrderList(orders: OrderListItem[]): OrderListItem[] {
-  return orders.map(order => ({
-    ...order,
-    // Add any computed fields if needed
-  }))
+  return orders.map(order => ({ ...order }))
 }

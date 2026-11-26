@@ -9,11 +9,15 @@ import java.util.List;
 public class ServicePublishRequest {
     private String serviceTitle;
     private String serviceDescription;
+    private Long campusId;
     private Long tagId;
     private Integer tradeType;
     private Long tradeLocationId;
     private BigDecimal price;
     private Integer maxPurchases;
     private Integer isPhysical;
+    private Integer requireSlot;
+    private Integer cancelFreeHours;
+    private Integer requireBleVerify;
     private List<String> images;
 }

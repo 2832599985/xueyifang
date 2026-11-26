@@ -1,0 +1,65 @@
+{
+  "name": "学艺坊校园技能交易",
+  "appid": "__UNI__XUEYIFANG30",
+  "description": "面向高校大学生的实名技能服务预约、双向地图选点与蓝牙加密当面核销平台",
+  "versionName": "3.0.0",
+  "versionCode": "300",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "nvueStyleCompiler": "uni-app",
+    "compilerVersion": 3,
+    "distribute": {
+      "android": {
+        "minSdkVersion": 24,
+        "targetSdkVersion": 34,
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+          "<uses-permission android:name=\"android.permission.CAMERA\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_ADMIN\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_SCAN\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_ADVERTISE\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\"/>",
+          "<uses-feature android:name=\"android.hardware.bluetooth_le\" android:required=\"false\"/>"
+        ]
+      },
+      "sdkConfigs": {
+        "maps": {
+          "amap": {
+            "appkey_android": "YOUR_AMAP_ANDROID_KEY"
+          }
+        },
+        "payment": {
+          "weixin": {
+            "appid": "wx_your_open_platform_appid"
+          }
+        }
+      }
+    }
+  },
+  "mp-weixin": {
+    "appid": "wx_your_miniprogram_appid",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "minified": true
+    },
+    "usingComponents": true,
+    "requiredPrivateInfos": [
+      "getLocation",
+      "chooseLocation"
+    ],
+    "permission": {
+      "scope.userLocation": {
+        "desc": "用于校验您所选的线下交接地点是否位于本校安全电子围栏内，并在近场核销时存证防伪"
+      },
+      "scope.bluetooth": {
+        "desc": "用于买卖双方线下碰面时通过低功耗蓝牙进行近场挑战签名，防止远程伪造核销"
+      }
+    }
+  },
+  "vueVersion": "3"
+}

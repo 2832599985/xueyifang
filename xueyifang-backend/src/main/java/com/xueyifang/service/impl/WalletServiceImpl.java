@@ -40,11 +40,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * 钱包服务实现类
- * <p>
- * 包含悲观锁账本一致性保障、单笔/单日充值与提现风控限额及批量关联订单号无 N+1 查询。
- */
 @Service
 @Slf4j
 public class WalletServiceImpl implements IWalletService {
@@ -89,7 +84,6 @@ public class WalletServiceImpl implements IWalletService {
 
         QueryWrapper<WalletTransaction> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", currentUserId);
-
         if (request.getTransactionType() != null) {
             queryWrapper.eq("transaction_type", request.getTransactionType());
         }
@@ -111,7 +105,6 @@ public class WalletServiceImpl implements IWalletService {
             return voPage;
         }
 
-        // 批量加载关联订单号，避免逐行 N+1 查询
         Set<Long> orderIds = records.stream()
                 .map(WalletTransaction::getRelatedOrderId)
                 .filter(Objects::nonNull)
@@ -138,6 +131,14 @@ public class WalletServiceImpl implements IWalletService {
         BigDecimal amount = request != null ? request.getAmount() : null;
         validateMonetaryAmount(amount, "充值");
 
+        // 生产商业模式下默认关闭无真实支付渠道背书的虚拟直充（规避无牌照预付资金池风险，引导走 /payment/escrow/prepay）
+        if (sysConfigService != null) {
+            String demoFlag = sysConfigService.getConfigValue(SysConfigConstant.WALLET_DEMO_RECHARGE_ENABLED, "1");
+            if ("0".equals(demoFlag)) {
+                throw new BusinessException(ErrorCode.WALLET_DEMO_DISABLED);
+            }
+        }
+
         int singleLimitInt = sysConfigService != null
                 ? sysConfigService.getIntValue(SysConfigConstant.WALLET_SINGLE_RECHARGE_LIMIT, DEFAULT_SINGLE_RECHARGE_LIMIT)
                 : DEFAULT_SINGLE_RECHARGE_LIMIT;
@@ -155,7 +156,6 @@ public class WalletServiceImpl implements IWalletService {
             throw new BusinessException(ErrorCode.FORBIDDEN_ERROR, "账户已被限制交易，无法充值");
         }
 
-        // 校验当日累计充值上限
         int dailyLimitInt = sysConfigService != null
                 ? sysConfigService.getIntValue(SysConfigConstant.WALLET_DAILY_RECHARGE_LIMIT, DEFAULT_DAILY_RECHARGE_LIMIT)
                 : DEFAULT_DAILY_RECHARGE_LIMIT;
@@ -191,7 +191,7 @@ public class WalletServiceImpl implements IWalletService {
         }
 
         recordTransaction(currentUserId, WalletConstant.TRANSACTION_TYPE_RECHARGE, amount,
-                balanceBefore, balanceAfter, frozenBefore, frozenBefore, null, "校园钱包充值");
+                balanceBefore, balanceAfter, frozenBefore, frozenBefore, null, "沙盒联调钱包充值");
 
         return getCurrentUserWalletBalance();
     }
@@ -221,7 +221,7 @@ public class WalletServiceImpl implements IWalletService {
 
         if (balanceBefore.compareTo(amount) < 0) {
             throw new BusinessException(ErrorCode.WALLET_BALANCE_NOT_ENOUGH,
-                    String.format("可用余额不足，当前余额：%s，提现金额：%s", balanceBefore, amount));
+                    String.format("可提现收益余额不足，当前余额：%s，提现金额：%s", balanceBefore, amount));
         }
 
         BigDecimal balanceAfter = balanceBefore.subtract(amount);
@@ -233,7 +233,7 @@ public class WalletServiceImpl implements IWalletService {
         }
 
         recordTransaction(currentUserId, WalletConstant.TRANSACTION_TYPE_WITHDRAW, amount,
-                balanceBefore, balanceAfter, frozenBefore, frozenBefore, null, "用户提现");
+                balanceBefore, balanceAfter, frozenBefore, frozenBefore, null, "服务收益提现出账");
 
         return getCurrentUserWalletBalance();
     }
@@ -265,7 +265,6 @@ public class WalletServiceImpl implements IWalletService {
         transaction.setCreateTime(LocalDateTime.now());
 
         if (!walletTransactionService.save(transaction)) {
-            log.error("保存钱包交易流水失败，userId：{}，transactionType：{}", userId, transactionType);
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "保存钱包交易流水失败");
         }
     }

@@ -66,7 +66,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 订单核心流程单元测试：重点验证并发超卖防护、行锁状态校验、退款日志/库存归还、流水号唯一性、定时任务事务隔离
+ * 订单核心流程单元测试：重点验证并发超卖防护、行锁状态校验、退款日志/库存归还、流水号唯一性、米级半径围栏核销强校验
  */
 @ExtendWith(MockitoExtension.class)
 class ServiceOrderServiceImplTest {
@@ -103,6 +103,8 @@ class ServiceOrderServiceImplTest {
     private TransactionTemplate transactionTemplate;
     @Mock
     private com.xueyifang.utils.RedisUtils redisUtils;
+    @Mock
+    private com.xueyifang.mapper.EscrowPaymentOrderMapper escrowPaymentOrderMapper;
 
     @InjectMocks
     private ServiceOrderServiceImpl orderService;
@@ -114,6 +116,7 @@ class ServiceOrderServiceImplTest {
         TableInfoHelper.initTableInfo(assistant, User.class);
         TableInfoHelper.initTableInfo(assistant, ServiceOrder.class);
         TableInfoHelper.initTableInfo(assistant, com.xueyifang.domain.po.ServiceDispute.class);
+        TableInfoHelper.initTableInfo(assistant, com.xueyifang.domain.po.EscrowPaymentOrder.class);
     }
 
     @BeforeEach
@@ -190,13 +193,10 @@ class ServiceOrderServiceImplTest {
 
         orderService.sellerHandleRefund(102L, true, null);
 
-        // 归还库存
         verify(serviceMapper).decrementPurchaseCount(5L, 2);
-        // 订单状态与退款状态正确更新
         assertEquals(OrderConstant.ORDER_FAILED, order.getOrderStatus());
         assertEquals(OrderConstant.REFUND_COMPLETED, order.getRefundStatus());
         assertEquals(BigDecimal.ZERO, order.getFrozenAmount());
-        // 只记一次日志，且 previousStatus 为变更前的 ORDER_PENDING_RECEIPT (3)，而不是 6 -> 6
         verify(orderLogService, times(1)).recordLog(
                 eq(102L),
                 eq(OrderConstant.ORDER_PENDING_RECEIPT),
@@ -289,7 +289,6 @@ class ServiceOrderServiceImplTest {
 
         orderService.autoCancelUnpaidOrders();
 
-        // 第一个订单失败不应阻断第二个订单被取消并记日志
         assertEquals(OrderConstant.ORDER_CANCELLED, good.getOrderStatus());
         verify(orderLogService, times(1)).recordLog(
                 eq(202L),
@@ -346,7 +345,6 @@ class ServiceOrderServiceImplTest {
         assertNotNull(offlineOrder.getVerifyCode());
         assertEquals(16, offlineOrder.getVerifyCode().length(), "库内应存储16位高熵核销密钥种子");
 
-        // 买家查看详情：可见实时派生的 6 位动态核销码（非原始种子）
         when(serviceOrderMapper.selectById(401L)).thenReturn(offlineOrder);
         when(userService.listByIds(any())).thenReturn(Arrays.asList(buyer, seller));
         com.xueyifang.domain.vo.OrderDetailVO buyerView = orderService.getOrderDetail(401L);
@@ -354,18 +352,15 @@ class ServiceOrderServiceImplTest {
         assertTrue(buyerView.getVerifyCode().matches("^\\d{6}$"), "前端下发的动态核销码必须为6位数字");
         assertNotEquals(offlineOrder.getVerifyCode(), buyerView.getVerifyCode());
 
-        // 买家拉取实时动态凭证（同时含30s码与10s防截图二维码）
         com.xueyifang.domain.vo.OrderVerifyCredentialVO cred = orderService.getOfflineVerifyCredential(401L);
         assertEquals(30, cred.getCodePeriodSeconds());
         assertEquals(10, cred.getQrPeriodSeconds());
         assertTrue(cred.getVerifyCode().matches("^\\d{6}$"));
         assertTrue(cred.getQrToken().startsWith("XYF1:401:"));
 
-        // 卖家查看详情：核销码必须被严格抹除（null）
         UserContext.setCurrentUser(seller);
         com.xueyifang.domain.vo.OrderDetailVO sellerView = orderService.getOrderDetail(401L);
         org.junit.jupiter.api.Assertions.assertNull(sellerView.getVerifyCode(), "卖家端严禁直接读取买家的当面核销码");
-        // 卖家直接调取买家凭证接口必须被拦截
         assertThrows(BusinessException.class, () -> orderService.getOfflineVerifyCredential(401L));
     }
 
@@ -379,11 +374,9 @@ class ServiceOrderServiceImplTest {
         offlineOrder.setFrozenAmount(new BigDecimal("100.00"));
         offlineOrder.setVerifyCode("K8M2P5Q9W3X7Z4N6");
 
-        // 买方获取当前30s动态核销码
         when(serviceOrderMapper.selectById(402L)).thenReturn(offlineOrder);
         String liveCode = orderService.getOfflineVerifyCredential(402L).getVerifyCode();
 
-        // 卖方输入该动态核销码结单
         UserContext.setCurrentUser(seller);
         when(serviceOrderMapper.selectForUpdate(402L)).thenReturn(offlineOrder);
         when(userMapper.selectForUpdate(10L)).thenReturn(buyer);
@@ -405,6 +398,52 @@ class ServiceOrderServiceImplTest {
     }
 
     @Test
+    void verifyOfflineCode_enforcesConfiguredLocationRadiusInMeters() {
+        User seller = buildUser(20L, "50.00", "0.00");
+        User buyer = buildUser(10L, "200.00", "100.00");
+
+        ServiceOrder offlineOrder = buildOrder(406L, 10L, 20L, OrderConstant.ORDER_PENDING_SHIP, OrderConstant.REFUND_NONE);
+        offlineOrder.setTradeType(OrderConstant.TRADE_TYPE_OFFLINE);
+        offlineOrder.setFrozenAmount(new BigDecimal("100.00"));
+        offlineOrder.setVerifyCode("M7N4P8Q2R6T9W1X5");
+        // 设定图书馆监控区坐标与 60 米严格有效核销半径
+        offlineOrder.setMeetupPoiName("主图书馆正门监控区");
+        offlineOrder.setMeetupLat(new BigDecimal("30.514000"));
+        offlineOrder.setMeetupLng(new BigDecimal("114.354400"));
+        offlineOrder.setMeetupRadiusMeters(60);
+
+        when(serviceOrderMapper.selectById(406L)).thenReturn(offlineOrder);
+        String liveCode = orderService.getOfflineVerifyCredential(406L).getVerifyCode();
+
+        UserContext.setCurrentUser(seller);
+        when(serviceOrderMapper.selectForUpdate(406L)).thenReturn(offlineOrder);
+
+        // 1. 核销人距离约 220 米（超出 60 米半径）：必须被 GEOFENCE_OUT_OF_BOUNDS 拦截
+        BusinessException outEx = assertThrows(BusinessException.class, () ->
+                orderService.verifyOfflineCode(
+                        406L,
+                        liveCode,
+                        new BigDecimal("30.516000"),
+                        new BigDecimal("114.354400")
+                )
+        );
+        assertEquals(ErrorCode.GEOFENCE_OUT_OF_BOUNDS.getCode(), outEx.getCode());
+        assertEquals(OrderConstant.ORDER_PENDING_SHIP, offlineOrder.getOrderStatus());
+
+        // 2. 核销人走进约 30 米范围内（<= 60 米半径）：验证通过并结算资金
+        when(userMapper.selectForUpdate(10L)).thenReturn(buyer);
+        when(userMapper.selectForUpdate(20L)).thenReturn(seller);
+        orderService.verifyOfflineCode(
+                406L,
+                liveCode,
+                new BigDecimal("30.514250"),
+                new BigDecimal("114.354400")
+        );
+        assertEquals(OrderConstant.ORDER_COMPLETED, offlineOrder.getOrderStatus());
+        assertEquals(BigDecimal.ZERO, offlineOrder.getFrozenAmount());
+    }
+
+    @Test
     void verifyOfflineQr_live10SecondToken_completesAndRejectsExpiredScreenshot() {
         User seller = buildUser(20L, "50.00", "0.00");
         User buyer = buildUser(10L, "200.00", "100.00");
@@ -417,7 +456,6 @@ class ServiceOrderServiceImplTest {
         when(serviceOrderMapper.selectById(404L)).thenReturn(offlineOrder);
         String liveQrToken = orderService.getOfflineVerifyCredential(404L).getQrToken();
 
-        // 模拟 30 秒前的历史截图二维码：必须拒绝
         UserContext.setCurrentUser(seller);
         when(serviceOrderMapper.selectForUpdate(404L)).thenReturn(offlineOrder);
         String expiredQr = com.xueyifang.utils.OfflineVerifyCodeUtils.generateQrToken(
@@ -427,7 +465,6 @@ class ServiceOrderServiceImplTest {
                 () -> orderService.verifyOfflineQr(expiredQr, 404L));
         assertTrue(expiredEx.getMessage().contains("已过期"));
 
-        // 扫描实时动态二维码：立即完结并结算
         when(userMapper.selectForUpdate(10L)).thenReturn(buyer);
         when(userMapper.selectForUpdate(20L)).thenReturn(seller);
         Long verifiedId = orderService.verifyOfflineQr(liveQrToken, 404L);
@@ -455,6 +492,28 @@ class ServiceOrderServiceImplTest {
         assertEquals(OrderConstant.ORDER_PENDING_RECEIPT, onlineOrder.getOrderStatus());
         assertEquals("已完成全栈架构辅导，架构图与排障记录见附件", onlineOrder.getDeliveryNote());
         assertEquals("delivery_image/20/202611/proof1.png,delivery_image/20/202611/proof2.png", onlineOrder.getDeliveryImages());
+    }
+
+    @Test
+    void requestRefund_whenPaidByEscrowGateway_doesNotInflateWalletBalance() {
+        ServiceOrder gatewayOrder = buildOrder(405L, 10L, 20L, OrderConstant.ORDER_PENDING_SHIP, OrderConstant.REFUND_NONE);
+        gatewayOrder.setPaymentMethod(2);
+        gatewayOrder.setFrozenAmount(new BigDecimal("100.00"));
+
+        User buyer = buildUser(10L, "0.00", "100.00");
+        when(serviceOrderMapper.selectForUpdate(405L)).thenReturn(gatewayOrder);
+        when(userMapper.selectForUpdate(10L)).thenReturn(buyer);
+
+        orderService.requestRefund(405L, "行程冲突协商取消");
+
+        assertEquals(OrderConstant.ORDER_FAILED, gatewayOrder.getOrderStatus());
+        assertEquals(BigDecimal.ZERO, gatewayOrder.getFrozenAmount());
+        ArgumentCaptor<WalletTransaction> txCaptor = ArgumentCaptor.forClass(WalletTransaction.class);
+        verify(walletTransactionService, times(2)).save(txCaptor.capture());
+        for (WalletTransaction tx : txCaptor.getAllValues()) {
+            assertEquals(0, BigDecimal.ZERO.compareTo(tx.getBalanceAfter()));
+        }
+        verify(escrowPaymentOrderMapper, times(1)).update(eq(null), any());
     }
 
     private static ServiceOrder buildOrder(Long id, Long buyerId, Long sellerId, int status, int refundStatus) {

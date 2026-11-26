@@ -15,6 +15,7 @@
     "echarts": "^5.4.3",
     "element-plus": "^2.3.14",
     "jsqr": "^1.4.0",
+    "leaflet": "^1.9.4",
     "pinia": "^2.1.6",
     "qrcode": "^1.5.4",
     "vue": "^3.3.4",
@@ -22,6 +23,7 @@
     "vue3-eventbus": "^2.0.0"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.23",
     "@types/node": "^20.6.0",
     "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-vue": "^4.3.4",

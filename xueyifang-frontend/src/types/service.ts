@@ -1,11 +1,19 @@
-/**
- * Service-related type definitions aligned with backend VOs and DTOs
- */
-export type { ServiceTag, Professional, TradeLocation } from '@/types/dict'
+export type { ServiceTag, Professional, TradeLocation, CampusInfo } from '@/types/dict'
 import type { TradeLocation } from '@/types/dict'
 import { formatPrice as sharedFormatPrice, formatCompactNumber } from '@/utils/format'
 
 export const formatPrice = sharedFormatPrice
+
+export interface ServiceTimeSlot {
+  id: number
+  serviceId: number
+  slotStart: string
+  slotEnd: string
+  maxCapacity: number
+  bookedCount: number
+  remainingCapacity: number
+  status: number
+}
 
 export interface ServiceListItem {
   id: number
@@ -13,7 +21,7 @@ export interface ServiceListItem {
   price: number
   tagId: number
   tagName?: string
-  tradeType: number // 1=offline, 2=online escrow
+  tradeType: number
   coverImage: string
   viewCount: number
   collectionCount?: number
@@ -37,19 +45,29 @@ export interface ServiceDetail {
   sellerGrade?: string
   sellerBio?: string
   sellerCompletedOrders?: number
+  sellerEduVerified?: number
+  sellerCreditScore?: number
+  campusId?: number
+  campusName?: string
   tagId: number
   tagName?: string
-  tradeType: number // 1=offline, 2=online escrow
+  tradeType: number
   tradeTypeText?: string
   tradeLocationId?: number
   tradeLocationName?: string
+  tradeLocationLat?: number
+  tradeLocationLng?: number
   tradeLocation?: TradeLocation
   price: number
-  maxPurchases: number // -1 means unlimited
+  maxPurchases: number
   currentPurchaseCount: number
-  isPhysical: number // 1=physical goods, 0=virtual/service
-  status: number // 1=online, 2=offline, 3=pending review, 4=rejected
-  reviewStatus: number // 1=approved, 2=pending, 3=rejected
+  isPhysical: number
+  requireSlot?: number
+  cancelFreeHours?: number
+  requireBleVerify?: number
+  availableSlots?: ServiceTimeSlot[]
+  status: number
+  reviewStatus: number
   reviewReason?: string
   viewCount: number
   collectionCount: number
@@ -81,12 +99,16 @@ export interface ServiceQueryParams {
 export interface ServiceFormData {
   serviceTitle: string
   serviceDescription: string
+  campusId?: number
   tagId: number
   price: number
   tradeType: number
   tradeLocationId?: number
   maxPurchases: number
   isPhysical: number
+  requireSlot?: number
+  cancelFreeHours?: number
+  requireBleVerify?: number
   images: string[]
 }
 
