@@ -83,6 +83,15 @@
           @verified="fetchDetail"
         />
 
+        <!-- Bidirectional Campus Map Meetup Negotiation Card -->
+        <MeetupProposalCard
+          v-if="orderDetail.tradeType === TradeType.OFFLINE"
+          :order="orderDetail"
+          :current-user-id="userStore.userInfo?.id"
+          style="margin-bottom: 16px"
+          @updated="fetchDetail"
+        />
+
         <!-- Action Bar -->
         <section class="xyf-surface-card action-toolbar" v-if="hasAnyAction">
           <div class="action-buttons">
@@ -487,6 +496,8 @@ import { uploadFile } from '@/api/file'
 import {
   getOrderDetail,
   payOrder,
+  createEscrowPrepay,
+  triggerSandboxEscrowWebhook,
   cancelOrder,
   buyerConfirm,
   sellerShip,
@@ -524,6 +535,7 @@ import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import TradeLocationBadge from '@/components/business/TradeLocationBadge.vue'
 import OrderTimeline from '@/components/business/OrderTimeline.vue'
 import OfflineMeetupPassCard from '@/components/business/OfflineMeetupPassCard.vue'
+import MeetupProposalCard from '@/components/business/MeetupProposalCard.vue'
 import OfflineVerifyDialog from '@/components/business/OfflineVerifyDialog.vue'
 import ServiceReviewDialog from '@/components/review/ServiceReviewDialog.vue'
 
@@ -645,10 +657,19 @@ async function handlePayOrder() {
       { confirmButtonText: '确认支付', cancelButtonText: '取消', type: 'info' }
     )
     actionLoading.value = true
-    await payOrder(orderDetail.value.id, {
-      orderId: orderDetail.value.id,
-      paymentMethod: PaymentMethod.WALLET
-    })
+    const prepay = await createEscrowPrepay(orderDetail.value.id, 'WECHAT_MINI')
+    if (prepay.sandboxCallbackSign) {
+      await triggerSandboxEscrowWebhook({
+        paymentNo: prepay.paymentNo,
+        paidAmount: prepay.amount,
+        signature: prepay.sandboxCallbackSign
+      })
+    } else {
+      await payOrder(orderDetail.value.id, {
+        orderId: orderDetail.value.id,
+        paymentMethod: PaymentMethod.WALLET
+      })
+    }
     ElMessage.success('支付成功，款项已进入平台担保')
     await fetchDetail()
   } catch (err) {

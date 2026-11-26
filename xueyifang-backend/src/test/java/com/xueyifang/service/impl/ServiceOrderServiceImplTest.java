@@ -103,6 +103,8 @@ class ServiceOrderServiceImplTest {
     private TransactionTemplate transactionTemplate;
     @Mock
     private com.xueyifang.utils.RedisUtils redisUtils;
+    @Mock
+    private com.xueyifang.mapper.EscrowPaymentOrderMapper escrowPaymentOrderMapper;
 
     @InjectMocks
     private ServiceOrderServiceImpl orderService;
@@ -114,6 +116,7 @@ class ServiceOrderServiceImplTest {
         TableInfoHelper.initTableInfo(assistant, User.class);
         TableInfoHelper.initTableInfo(assistant, ServiceOrder.class);
         TableInfoHelper.initTableInfo(assistant, com.xueyifang.domain.po.ServiceDispute.class);
+        TableInfoHelper.initTableInfo(assistant, com.xueyifang.domain.po.EscrowPaymentOrder.class);
     }
 
     @BeforeEach
@@ -455,6 +458,28 @@ class ServiceOrderServiceImplTest {
         assertEquals(OrderConstant.ORDER_PENDING_RECEIPT, onlineOrder.getOrderStatus());
         assertEquals("已完成全栈架构辅导，架构图与排障记录见附件", onlineOrder.getDeliveryNote());
         assertEquals("delivery_image/20/202611/proof1.png,delivery_image/20/202611/proof2.png", onlineOrder.getDeliveryImages());
+    }
+
+    @Test
+    void requestRefund_whenPaidByEscrowGateway_doesNotInflateWalletBalance() {
+        ServiceOrder gatewayOrder = buildOrder(405L, 10L, 20L, OrderConstant.ORDER_PENDING_SHIP, OrderConstant.REFUND_NONE);
+        gatewayOrder.setPaymentMethod(2);
+        gatewayOrder.setFrozenAmount(new BigDecimal("100.00"));
+
+        User buyer = buildUser(10L, "0.00", "100.00");
+        when(serviceOrderMapper.selectForUpdate(405L)).thenReturn(gatewayOrder);
+        when(userMapper.selectForUpdate(10L)).thenReturn(buyer);
+
+        orderService.requestRefund(405L, "行程冲突协商取消");
+
+        assertEquals(OrderConstant.ORDER_FAILED, gatewayOrder.getOrderStatus());
+        assertEquals(BigDecimal.ZERO, gatewayOrder.getFrozenAmount());
+        ArgumentCaptor<WalletTransaction> txCaptor = ArgumentCaptor.forClass(WalletTransaction.class);
+        verify(walletTransactionService, times(2)).save(txCaptor.capture());
+        for (WalletTransaction tx : txCaptor.getAllValues()) {
+            assertEquals(0, BigDecimal.ZERO.compareTo(tx.getBalanceAfter()));
+        }
+        verify(escrowPaymentOrderMapper, times(1)).update(eq(null), any());
     }
 
     private static ServiceOrder buildOrder(Long id, Long buyerId, Long sellerId, int status, int refundStatus) {

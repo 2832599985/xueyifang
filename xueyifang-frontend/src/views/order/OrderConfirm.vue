@@ -108,21 +108,14 @@
 
                 <el-form-item
                   v-if="form.tradeType === TradeType.OFFLINE"
-                  label="约定校内交易地点"
+                  label="校园电子围栏地图选点（下单后支持买卖双方确认或改约）"
                   required
                 >
-                  <el-select
-                    v-model="form.tradeLocationId"
-                    placeholder="请选择校内会面地点"
+                  <CampusMapPicker
+                    :campus-id="service.campusId || 1"
+                    v-model="mapLocation"
                     style="width: 100%"
-                  >
-                    <el-option
-                      v-for="loc in dictStore.tradeLocations"
-                      :key="loc.id"
-                      :label="`${loc.locationName}（${loc.locationAddress || '校内地点'}）`"
-                      :value="loc.id"
-                    />
-                  </el-select>
+                  />
                 </el-form-item>
 
                 <el-form-item label="期望履约或会面时段（选填，点击快捷填入）">
@@ -200,11 +193,11 @@
                   type="primary"
                   size="large"
                   class="pay-btn"
-                  :disabled="isOwnService || isSoldOut || isInsufficientBalance"
+                  :disabled="isOwnService || isSoldOut"
                   :loading="submittingPay"
                   @click="handleSubmitOrder(true)"
                 >
-                  提交订单并立即支付
+                  提交订单并开启担保支付
                 </el-button>
 
                 <el-button
@@ -268,7 +261,8 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useDictStore } from '@/stores/dict'
 import { getServiceDetail, buildImageUrl } from '@/api/service'
-import { createOrder, payOrder } from '@/api/order'
+import { createOrder, payOrder, createEscrowPrepay, triggerSandboxEscrowWebhook } from '@/api/order'
+import CampusMapPicker, { type MapLocationValue } from '@/components/business/CampusMapPicker.vue'
 import { getWalletInfo, rechargeWallet } from '@/api/wallet'
 import { notifyFallbackError } from '@/api/request'
 import { formatPrice } from '@/utils/format'
@@ -297,6 +291,12 @@ const rechargeVisible = ref(false)
 const rechargeAmount = ref(50)
 const recharging = ref(false)
 const selectedSlot = ref('')
+const mapLocation = ref<MapLocationValue>({
+  latitude: undefined,
+  longitude: undefined,
+  poiName: '',
+  detailAddress: ''
+})
 
 const campusTimeSlots = computed(() =>
   form.tradeType === TradeType.OFFLINE
@@ -372,8 +372,8 @@ async function confirmQuickRecharge() {
 
 async function handleSubmitOrder(payImmediately: boolean) {
   if (!service.value) return
-  if (form.tradeType === TradeType.OFFLINE && !form.tradeLocationId) {
-    ElMessage.warning('请选择校内线下交易地点')
+  if (form.tradeType === TradeType.OFFLINE && !mapLocation.value.poiName && !form.tradeLocationId) {
+    ElMessage.warning('请在校园地图上选择会面地点')
     return
   }
 
@@ -386,19 +386,37 @@ async function handleSubmitOrder(payImmediately: boolean) {
       quantity: form.quantity,
       tradeType: form.tradeType,
       tradeLocationId: form.tradeType === TradeType.OFFLINE ? form.tradeLocationId : undefined,
+      meetupLat: form.tradeType === TradeType.OFFLINE ? mapLocation.value.latitude : undefined,
+      meetupLng: form.tradeType === TradeType.OFFLINE ? mapLocation.value.longitude : undefined,
+      meetupPoiName: form.tradeType === TradeType.OFFLINE ? mapLocation.value.poiName : undefined,
+      meetupAddress: form.tradeType === TradeType.OFFLINE ? mapLocation.value.detailAddress : undefined,
       remark: form.remark.trim() || undefined
     })
 
     if (payImmediately) {
-      await payOrder(orderId, { orderId, paymentMethod: PaymentMethod.WALLET })
-      ElMessage.success('下单并支付成功，款项已进入平台担保')
+      if (!isInsufficientBalance.value) {
+        await payOrder(orderId, { orderId, paymentMethod: PaymentMethod.WALLET })
+        ElMessage.success('担保支付完成，款项已由平台托管冻结')
+      } else {
+        const prepay = await createEscrowPrepay(orderId, 'WECHAT_MINI')
+        if (prepay.sandboxCallbackSign) {
+          await triggerSandboxEscrowWebhook({
+            paymentNo: prepay.paymentNo,
+            paidAmount: prepay.amount,
+            signature: prepay.sandboxCallbackSign
+          })
+          ElMessage.success('担保支付完成，款项已由平台托管冻结')
+        } else {
+          ElMessage.info(`担保支付单 ${prepay.paymentNo} 已创建，请在收银台完成微信/支付宝付款`)
+        }
+      }
     } else {
-      ElMessage.success('订单已创建，请在详情页尽快完成支付')
+      ElMessage.success('订单已创建，请在详情页尽快完成担保支付')
     }
 
     router.replace(`/orders/${orderId}`)
   } catch (err) {
-    notifyFallbackError(err, payImmediately ? '下单或支付失败' : '创建订单失败')
+    notifyFallbackError(err, payImmediately ? '下单或担保支付失败' : '创建订单失败')
   } finally {
     submittingPay.value = false
     submittingCreate.value = false

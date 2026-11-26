@@ -228,7 +228,7 @@
                 <div class="seller-card__info">
                   <div class="seller-name-row">
                     <span class="seller-name">{{ service.sellerName || `校园创作者 #${service.sellerId}` }}</span>
-                    <span class="alumni-verify-tag">实名学籍已核验</span>
+                    <span class="alumni-verify-tag" :style="service.sellerEduVerified === 1 ? 'background:#ecfdf5;color:#047857;border-color:#a7f3d0' : ''">{{ service.sellerEduVerified === 1 ? '教育邮箱已核验' : '学籍待核验' }} · 信用 {{ service.sellerCreditScore ?? 100 }}</span>
                   </div>
                   <div class="seller-meta">
                     <span v-if="service.sellerGrade">{{ service.sellerGrade }}</span>
@@ -245,7 +245,7 @@
 
               <div class="seller-trust-grid xyf-tabular">
                 <div class="trust-cell">
-                  <strong>{{ service.averageRating || service.sellerRating ? Number(service.averageRating || service.sellerRating).toFixed(1) : '5.0' }}</strong>
+                  <strong>{{ (service.reviewCount && (service.averageRating || service.sellerRating)) ? Number(service.averageRating || service.sellerRating).toFixed(1) : '暂无' }}</strong>
                   <span>综合评分</span>
                 </div>
                 <div class="trust-cell">

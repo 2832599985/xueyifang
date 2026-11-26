@@ -15,10 +15,13 @@ import com.xueyifang.constant.WalletConstant;
 import com.xueyifang.domain.dto.OrderCreateRequest;
 import com.xueyifang.domain.dto.OrderPayRequest;
 import com.xueyifang.domain.dto.SellerShipRequest;
+import com.xueyifang.domain.po.EscrowPaymentOrder;
+import com.xueyifang.domain.po.PlatformRevenueLedger;
 import com.xueyifang.domain.po.Professional;
 import com.xueyifang.domain.po.Service;
 import com.xueyifang.domain.po.ServiceDispute;
 import com.xueyifang.domain.po.ServiceOrder;
+import com.xueyifang.domain.po.ServiceTimeSlot;
 import com.xueyifang.domain.po.TradeLocation;
 import com.xueyifang.domain.po.User;
 import com.xueyifang.domain.po.WalletTransaction;
@@ -27,10 +30,15 @@ import com.xueyifang.domain.vo.OrderListItemVO;
 import com.xueyifang.domain.vo.OrderVerifyCredentialVO;
 import com.xueyifang.domain.vo.SellerOrderListItemVO;
 import com.xueyifang.exception.BusinessException;
+import com.xueyifang.mapper.EscrowPaymentOrderMapper;
+import com.xueyifang.mapper.PlatformRevenueLedgerMapper;
 import com.xueyifang.mapper.ServiceDisputeMapper;
 import com.xueyifang.mapper.ServiceMapper;
 import com.xueyifang.mapper.ServiceOrderMapper;
+import com.xueyifang.mapper.ServiceTimeSlotMapper;
 import com.xueyifang.mapper.UserMapper;
+import com.xueyifang.service.ICampusService;
+import com.xueyifang.service.ICreditScoreService;
 import com.xueyifang.service.INotificationService;
 import com.xueyifang.service.IProfessionalService;
 import com.xueyifang.service.IServiceImageService;
@@ -42,12 +50,14 @@ import com.xueyifang.service.ISysConfigService;
 import com.xueyifang.service.ITradeLocationService;
 import com.xueyifang.service.IUserService;
 import com.xueyifang.service.IWalletTransactionService;
+import com.xueyifang.utils.FileUrlResolver;
 import com.xueyifang.utils.OfflineVerifyCodeUtils;
 import com.xueyifang.utils.RedisUtils;
 import com.xueyifang.utils.SerialNoGenerator;
 import com.xueyifang.utils.TransactionUtils;
 import com.xueyifang.utils.UserContext;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,9 +65,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -66,36 +78,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.apache.commons.lang3.StringUtils;
 
-/**
- * 服务订单表 服务实现类
- *
- * <h3>交易流程 v2.0</h3>
- * <ol>
- *   <li>买家下单 → 待支付(1)</li>
- *   <li>买家支付 → 待发货(2)，资金冻结在买家账户，占用库存</li>
- *   <li>卖家发货 → 待收货(3)</li>
- *   <li>买家确认收货 → 已完成(4)，资金释放给卖家</li>
- * </ol>
- *
- * <h3>退款流程</h3>
- * <ul>
- *   <li>待发货(2)：买家可直接退款，无需卖家同意</li>
- *   <li>待收货(3)：买家申请 → 卖家同意/拒绝 → 超时自动退款</li>
- *   <li>退款成功后解冻资金退回买家，并归还库存</li>
- * </ul>
- *
- * <h3>并发控制约定</h3>
- * <ul>
- *   <li>所有修改订单状态/资金的操作，先 {@code SELECT ... FOR UPDATE} 锁订单行，再锁用户行</li>
- *   <li>同时涉及买卖双方资金时，按 userId 升序加锁，避免死锁</li>
- *   <li>库存通过带条件的原子 UPDATE 占用，杜绝超卖</li>
- * </ul>
- *
- * @author luoyi
- * @since 2025-11-19
- */
 @Slf4j
 @org.springframework.stereotype.Service
 public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, ServiceOrder> implements IServiceOrderService {
@@ -154,9 +137,22 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
     private RedisUtils redisUtils;
 
     @Resource
-    private com.xueyifang.utils.FileUrlResolver fileUrlResolver;
+    private FileUrlResolver fileUrlResolver;
 
-    // ==================== 订单创建与支付 ====================
+    @Resource
+    private ICampusService campusService;
+
+    @Resource
+    private ServiceTimeSlotMapper serviceTimeSlotMapper;
+
+    @Resource
+    private PlatformRevenueLedgerMapper platformRevenueLedgerMapper;
+
+    @Resource
+    private EscrowPaymentOrderMapper escrowPaymentOrderMapper;
+
+    @Resource
+    private ICreditScoreService creditScoreService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -168,7 +164,16 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "购买数量必须大于0");
         }
 
-        // 1. 验证服务是否存在且上架
+        // 校验买方最低校园履约信用分
+        User currentUser = UserContext.getCurrentUser();
+        if (currentUser != null && currentUser.getCreditScore() != null && sysConfigService != null) {
+            int minCredit = sysConfigService.getIntValue(SysConfigConstant.MIN_CREDIT_SCORE_FOR_ORDER, 60);
+            if (currentUser.getCreditScore() < minCredit) {
+                throw new BusinessException(ErrorCode.USER_CREDIT_TOO_LOW,
+                        "您的履约信用分为 " + currentUser.getCreditScore() + "，低于下单门槛 " + minCredit);
+            }
+        }
+
         Service service = serviceService.getById(serviceId);
         if (service == null) {
             throw new BusinessException(ErrorCode.SERVICE_NOT_EXIST);
@@ -176,38 +181,79 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         if (!Objects.equals(service.getStatus(), ServiceConstant.STATUS_ONLINE)) {
             throw new BusinessException(ErrorCode.SERVICE_OFFLINE);
         }
-
-        // 2. 不能购买自己的服务
         if (service.getSellerId().equals(userId)) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "不能购买自己发布的服务");
         }
-
-        // 3. 库存预检查（仅用于友好提示，真正的库存占用在支付时原子完成）
         if (!hasStock(service, quantity)) {
             throw new BusinessException(ErrorCode.SERVICE_SOLD_OUT, "服务库存不足");
         }
 
-        // 4. 交易类型以服务发布时的设定为准；线下交易必须具有有效地点（默认继承服务预设地点）
+        Long campusId = service.getCampusId() != null ? service.getCampusId() : 1L;
         Integer effectiveTradeType = service.getTradeType() != null ? service.getTradeType() : request.getTradeType();
         Long effectiveLocationId = null;
+        BigDecimal meetupLat = request.getMeetupLat();
+        BigDecimal meetupLng = request.getMeetupLng();
+        String meetupPoiName = request.getMeetupPoiName();
+        String meetupAddress = request.getMeetupAddress();
+
         if (Objects.equals(effectiveTradeType, OrderConstant.TRADE_TYPE_OFFLINE)) {
-            effectiveLocationId = request.getTradeLocationId() != null
-                    ? request.getTradeLocationId()
-                    : service.getTradeLocationId();
-            if (effectiveLocationId == null) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "线下交易必须选择交易地点");
-            }
-            TradeLocation location = tradeLocationService.getById(effectiveLocationId);
-            if (location == null) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "交易地点不存在");
+            boolean hasCustomMapPoint = meetupLat != null && meetupLng != null && StringUtils.isNotBlank(meetupPoiName);
+            if (hasCustomMapPoint) {
+                if (campusService != null) {
+                    campusService.validateCoordinateInCampusFence(
+                            campusId, meetupLat.doubleValue(), meetupLng.doubleValue());
+                }
+            } else {
+                effectiveLocationId = request.getTradeLocationId() != null
+                        ? request.getTradeLocationId()
+                        : service.getTradeLocationId();
+                if (effectiveLocationId == null) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "线下交易请在地图上选点或选择预设校内地点");
+                }
+                TradeLocation location = tradeLocationService.getById(effectiveLocationId);
+                if (location == null) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "交易地点不存在");
+                }
+                meetupLat = location.getLatitude();
+                meetupLng = location.getLongitude();
+                meetupPoiName = location.getLocationName();
+                meetupAddress = location.getLocationAddress();
             }
         }
 
-        // 5. 生成订单
+        // 若服务开启了时间段档期预约，原子占用档期名额
+        LocalDateTime scheduledStart = request.getScheduledStart();
+        LocalDateTime scheduledEnd = null;
+        if (Integer.valueOf(1).equals(service.getRequireSlot()) || request.getSlotId() != null) {
+            if (request.getSlotId() == null) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "该技能服务需选择预约档期时段");
+            }
+            if (serviceTimeSlotMapper != null) {
+                ServiceTimeSlot slot = serviceTimeSlotMapper.selectById(request.getSlotId());
+                if (slot == null || !Objects.equals(slot.getServiceId(), serviceId)) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "预约档期不存在");
+                }
+                int occupied = serviceTimeSlotMapper.occupySlotIfAvailable(request.getSlotId(), quantity);
+                if (occupied == 0) {
+                    throw new BusinessException(ErrorCode.SERVICE_SLOT_FULL);
+                }
+                scheduledStart = slot.getSlotStart();
+                scheduledEnd = slot.getSlotEnd();
+            }
+        }
+
         ServiceOrder order = new ServiceOrder();
         BeanUtils.copyProperties(request, order);
+        order.setCampusId(campusId);
         order.setTradeType(effectiveTradeType);
         order.setTradeLocationId(effectiveLocationId);
+        order.setScheduledStart(scheduledStart);
+        order.setScheduledEnd(scheduledEnd);
+        order.setMeetupLat(meetupLat);
+        order.setMeetupLng(meetupLng);
+        order.setMeetupPoiName(meetupPoiName);
+        order.setMeetupAddress(meetupAddress);
+        order.setMeetupConfirmed(0);
         order.setOrderNumber(SerialNoGenerator.nextOrderNo());
         order.setBuyerId(userId);
         order.setSellerId(service.getSellerId());
@@ -229,7 +275,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
     public void payOrder(Long orderId, OrderPayRequest request) {
         Long userId = requireLogin();
 
-        // 1. 锁定订单并校验
         ServiceOrder order = lockOrder(orderId);
         if (!order.getBuyerId().equals(userId)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "只能支付自己的订单");
@@ -238,20 +283,17 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
             throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "订单状态不是待支付");
         }
 
-        // 2. 原子占用库存（并发下不会超卖；失败时整个事务回滚）
         int stockUpdated = serviceMapper.incrementPurchaseCountIfAvailable(order.getServiceId(), order.getQuantity());
         if (stockUpdated == 0) {
             throw new BusinessException(ErrorCode.SERVICE_SOLD_OUT, "服务库存不足，无法支付");
         }
 
-        // 3. 锁定买家账户并校验余额
         User buyer = userMapper.selectForUpdate(userId);
         BigDecimal amount = order.getTotalAmount();
         if (buyer.getWalletBalance().compareTo(amount) < 0) {
             throw new BusinessException(ErrorCode.ORDER_BALANCE_NOT_ENOUGH);
         }
 
-        // 4. 扣减可用余额，增加冻结金额（无论线上线下统一走担保冻结）
         BigDecimal balanceBefore = buyer.getWalletBalance();
         BigDecimal frozenBefore = buyer.getFrozenAmount();
         BigDecimal newBalance = balanceBefore.subtract(amount);
@@ -268,7 +310,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
                 newBalance, newBalance, frozenBefore, newFrozen,
                 order.getId(), "冻结订单资金 " + order.getOrderNumber());
 
-        // 5. 更新订单状态为待发货（线下交易同步生成高熵核销种子，用于派生 30s 动态码与 10s 动态二维码）
         order.setFrozenAmount(amount);
         order.setOrderStatus(OrderConstant.ORDER_PENDING_SHIP);
         order.setPaymentStatus(OrderConstant.PAYMENT_PAID);
@@ -289,7 +330,57 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
                         buyer.getNickname(), order.getOrderNumber(), getServiceTitle(order.getServiceId()), amount));
     }
 
-    // ==================== 交易流程操作 ====================
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void markOrderPaidByEscrowGateway(Long orderId, Long buyerId, String payChannel, String paymentNo) {
+        ServiceOrder order = lockOrder(orderId);
+        if (Objects.equals(order.getOrderStatus(), OrderConstant.ORDER_PENDING_SHIP)
+                && Objects.equals(order.getPaymentStatus(), OrderConstant.PAYMENT_PAID)) {
+            return;
+        }
+        if (order.getOrderStatus() != OrderConstant.ORDER_UNPAID) {
+            throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "订单状态异常，无法入账托管款");
+        }
+
+        int stockUpdated = serviceMapper.incrementPurchaseCountIfAvailable(order.getServiceId(), order.getQuantity());
+        if (stockUpdated == 0) {
+            throw new BusinessException(ErrorCode.SERVICE_SOLD_OUT, "服务库存不足，无法完成托管入账");
+        }
+
+        User buyer = userMapper.selectForUpdate(buyerId);
+        BigDecimal amount = order.getTotalAmount();
+        BigDecimal balanceBefore = buyer.getWalletBalance() != null ? buyer.getWalletBalance() : BigDecimal.ZERO;
+        BigDecimal frozenBefore = buyer.getFrozenAmount() != null ? buyer.getFrozenAmount() : BigDecimal.ZERO;
+        BigDecimal newFrozen = frozenBefore.add(amount);
+
+        // 第三方担保直付：资金直接进入买方担保冻结账目，不污染可用充值余额池
+        userMapper.update(null, new LambdaUpdateWrapper<User>()
+                .eq(User::getId, buyerId)
+                .set(User::getFrozenAmount, newFrozen));
+
+        recordOrderTransaction(buyerId, WalletConstant.TRANSACTION_TYPE_FREEZE, amount,
+                balanceBefore, balanceBefore, frozenBefore, newFrozen,
+                order.getId(), payChannel + " 单笔担保托管冻结（单号 " + paymentNo + "）");
+
+        order.setFrozenAmount(amount);
+        order.setOrderStatus(OrderConstant.ORDER_PENDING_SHIP);
+        order.setPaymentStatus(OrderConstant.PAYMENT_PAID);
+        order.setPaymentMethod(2);
+        order.setPaymentTime(LocalDateTime.now());
+        if (Integer.valueOf(OrderConstant.TRADE_TYPE_OFFLINE).equals(order.getTradeType())) {
+            order.setVerifyCode(OfflineVerifyCodeUtils.generateOrderSeed());
+        }
+        this.updateById(order);
+
+        orderLogService.recordLog(order.getId(), OrderConstant.ORDER_UNPAID, OrderConstant.ORDER_PENDING_SHIP,
+                OrderLogConstant.ACTION_ESCROW_PAY,
+                "买方通过 " + payChannel + " 完成单笔担保支付（支付单 " + paymentNo + "），资金已托管冻结");
+
+        evictServiceDetailCacheAfterCommit(order.getServiceId());
+        notificationService.sendOrderNotification(order.getSellerId(), order.getId(), "新担保订单通知",
+                String.format("买家 %s 已通过担保收银台支付订单 %s，金额 %.2f 元，请确认会面地点并履约",
+                        buyer.getNickname(), order.getOrderNumber(), amount));
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -364,7 +455,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         if (order == null) {
             throw new BusinessException(ErrorCode.ORDER_NOT_EXIST);
         }
-        // 严格权限隔离：仅买方本人可拉取实时动态核销凭证，严禁泄露给卖方或第三方
         if (!order.getBuyerId().equals(userId)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "仅买方本人可查看动态当面核销凭证");
         }
@@ -381,7 +471,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         vo.setQrPeriodSeconds((int) OfflineVerifyCodeUtils.QR_PERIOD_SECONDS);
         vo.setServerTimestamp(nowEpoch);
 
-        // 若已被卖方扫码/输码核销完结，平稳返回终态状态供买方端即时感知刷新，不抛报错弹窗
         if (Integer.valueOf(OrderConstant.ORDER_COMPLETED).equals(order.getOrderStatus())) {
             vo.setCodeRemainingSeconds(0);
             vo.setQrRemainingSeconds(0);
@@ -426,6 +515,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "动态核销码不正确或已过期（每30秒自动刷新），请核对买家最新6位数字");
         }
 
+        order.setVerifyChannel("TOTP_30S");
         finishOfflineVerification(order, failKey,
                 "校内当面 30s 动态核销码验证通过，当面交接完成并结算资金",
                 "动态核销码");
@@ -461,10 +551,36 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "动态核销二维码签名无效，请确认扫描的是真实订单实时动态码");
         }
 
+        order.setVerifyChannel("QR_10S");
         finishOfflineVerification(order, failKey,
                 "校内当面 10s 动态二维码实时扫码核销通过，当面交接完成并结算资金",
                 "现场动态二维码");
         return order.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void completeOfflineOrderByBle(Long orderId, Integer rssiDbm, BigDecimal distanceMeters) {
+        ServiceOrder order = lockOrder(orderId);
+        if (order.getOrderStatus() != OrderConstant.ORDER_PENDING_SHIP
+                && order.getOrderStatus() != OrderConstant.ORDER_PENDING_RECEIPT) {
+            throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "当前订单状态不支持蓝牙核销结单");
+        }
+        if (order.getRefundStatus() == OrderConstant.REFUND_PENDING) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "订单存在待处理的退款申请，请先协商处理");
+        }
+        if (order.getSellerShipTime() == null) {
+            order.setSellerShipTime(LocalDateTime.now());
+        }
+        order.setVerifyChannel("BLE_CRYPTO");
+        closeActiveDisputesForOrder(order.getId(), "低功耗蓝牙近场加密碰面核销通过，关联纠纷自动结案");
+
+        String distInfo = distanceMeters != null ? String.format("，距约定点 %.1f 米", distanceMeters) : "";
+        completeOrder(order, OrderLogConstant.ACTION_BLE_VERIFY,
+                String.format("低功耗蓝牙(BLE)双端加密挑战签名碰面核销通过（RSSI %d dBm%s），资金已分账结算", rssiDbm, distInfo));
+
+        notificationService.sendOrderNotification(order.getBuyerId(), order.getId(), "蓝牙近场碰面核销完成",
+                String.format("您的线下订单 %s 已通过低功耗蓝牙近场加密感应完成交接结算", order.getOrderNumber()));
     }
 
     private void checkVerifyRateLimit(String failKey) {
@@ -530,13 +646,16 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
             throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "订单状态不是待收货，无法确认收货");
         }
 
-        // 买家主动确认收货视为撤回退款申请及已解决关联纠纷
+        if (order.getVerifyChannel() == null) {
+            order.setVerifyChannel("ONLINE");
+        }
         closeActiveDisputesForOrder(order.getId(), "买方已主动确认收货并完成担保结算，平台纠纷自动结案");
         completeOrder(order, OrderLogConstant.ACTION_BUYER_CONFIRM, "买家确认收货，交易完成，资金已结算给卖家");
 
         notificationService.sendOrderNotification(order.getSellerId(), order.getId(), "交易完成通知",
-                String.format("买家 %s 已确认收货，订单 %s 交易完成，金额 %.2f 元已结算到您的钱包",
-                        getNickname(userId), order.getOrderNumber(), order.getTotalAmount()));
+                String.format("买家 %s 已确认收货，订单 %s 交易完成，净收入 %.2f 元已结算到您的钱包",
+                        getNickname(userId), order.getOrderNumber(),
+                        order.getSellerSettleAmount() != null ? order.getSellerSettleAmount() : order.getTotalAmount()));
     }
 
     @Override
@@ -552,14 +671,16 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
             throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "只能取消待支付状态的订单");
         }
 
+        if (order.getSlotId() != null && serviceTimeSlotMapper != null) {
+            serviceTimeSlotMapper.releaseSlot(order.getSlotId(), order.getQuantity() != null ? order.getQuantity() : 1);
+        }
+
         order.setOrderStatus(OrderConstant.ORDER_CANCELLED);
         this.updateById(order);
 
         orderLogService.recordLog(order.getId(), OrderConstant.ORDER_UNPAID, OrderConstant.ORDER_CANCELLED,
                 OrderLogConstant.ACTION_CANCEL, "买家取消未支付订单");
     }
-
-    // ==================== 退款相关操作 ====================
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -582,12 +703,10 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         }
 
         if (order.getOrderStatus() == OrderConstant.ORDER_PENDING_SHIP) {
-            // 待发货：直接退款，无需卖家同意
             processRefund(order, reason, OrderLogConstant.ACTION_REFUND, "买家在发货前申请退款，系统自动退款");
             return;
         }
 
-        // 待收货：创建退款申请，等待卖家处理
         order.setRefundStatus(OrderConstant.REFUND_PENDING);
         order.setRefundReason(reason);
         order.setRefundRequestTime(LocalDateTime.now());
@@ -617,7 +736,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         }
 
         if (approve) {
-            // processRefund 内部会记录日志并通知买家
             processRefund(order, order.getRefundReason(), OrderLogConstant.ACTION_SELLER_APPROVE_REFUND, "卖家同意退款");
             return;
         }
@@ -637,8 +755,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
                         order.getOrderNumber(), getServiceTitle(order.getServiceId()), getNickname(userId), rejectReason));
     }
 
-    // ==================== 管理员方法 ====================
-
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void adminRefundOrder(Long orderId, String reason) {
@@ -651,14 +767,16 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
 
         processRefund(order, reason, OrderLogConstant.ACTION_ADMIN_REFUND, "管理员强制退款：" + reason);
 
+        // 纠纷败诉强制退款扣减卖家信用分 5 分
+        if (creditScoreService != null) {
+            creditScoreService.adjustCreditScore(order.getSellerId(), -5, "DISPUTE_LOST",
+                    "订单仲裁强制退款扣除履约信用分", order.getId());
+        }
+
         notificationService.sendOrderNotification(order.getSellerId(), order.getId(), "订单退款通知",
                 String.format("订单 %s 已由管理员处理退款，金额 %.2f 元已退回买家。原因：%s",
                         order.getOrderNumber(), order.getTotalAmount(), reason));
     }
-
-    // ==================== 定时任务方法 ====================
-    // 注意：批处理方法本身不开启事务，每个订单在独立事务中处理，
-    // 单个订单失败只回滚自身，不会拖垮整批，也不会长时间持有大量行锁。
 
     @Override
     public void autoCancelUnpaidOrders() {
@@ -703,8 +821,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         int success = runEachInTransaction(timeoutOrders, order -> processAutoRefund(order.getId(), timeoutDays), "自动退款");
         log.info("超时自动退款完成：候选{}个，成功{}个", timeoutOrders.size(), success);
     }
-
-    // ==================== 查询方法 ====================
 
     @Override
     public Page<OrderListItemVO> getMyOrders(Integer pageNum, Integer pageSize, Integer orderStatus) {
@@ -781,8 +897,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         if (order == null) {
             throw new BusinessException(ErrorCode.ORDER_NOT_EXIST);
         }
-
-        // 买家、卖家或管理员可查看
         if (!UserContext.isAdmin() && !order.getBuyerId().equals(userId) && !order.getSellerId().equals(userId)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权查看该订单");
         }
@@ -794,10 +908,11 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         if (service != null) {
             vo.setServiceTitle(service.getServiceTitle());
             vo.setServiceDescription(service.getServiceDescription());
+            vo.setRequireBleVerify(service.getRequireBleVerify());
         }
         vo.setServiceImage(serviceImageService.getCoverImage(order.getServiceId()));
 
-        Map<Long, User> users = toMap(userService.listByIds(java.util.Arrays.asList(order.getBuyerId(), order.getSellerId())), User::getId);
+        Map<Long, User> users = toMap(userService.listByIds(Arrays.asList(order.getBuyerId(), order.getSellerId())), User::getId);
         Set<Long> professionalIds = users.values().stream()
                 .map(User::getProfessionalId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, Professional> professionals = professionalIds.isEmpty()
@@ -821,11 +936,17 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
             TradeLocation location = tradeLocationService.getById(order.getTradeLocationId());
             if (location != null) {
                 vo.setTradeLocationName(location.getLocationName());
+                if (vo.getMeetupPoiName() == null) {
+                    vo.setMeetupPoiName(location.getLocationName());
+                    vo.setMeetupLat(location.getLatitude());
+                    vo.setMeetupLng(location.getLongitude());
+                }
             }
+        } else if (vo.getMeetupPoiName() != null) {
+            vo.setTradeLocationName(vo.getMeetupPoiName());
         }
 
         vo.setDeliveryImages(parsePublicUrlList(order.getDeliveryImages()));
-        // 严格权限隔离：仅买方本人在待发货/待收货阶段派生实时 30s 动态 6 位核销码，永不暴露库内密钥种子，卖方始终为 null
         boolean showVerifyCode = order.getBuyerId().equals(userId)
                 && Integer.valueOf(OrderConstant.TRADE_TYPE_OFFLINE).equals(order.getTradeType())
                 && (Integer.valueOf(OrderConstant.ORDER_PENDING_SHIP).equals(order.getOrderStatus())
@@ -841,11 +962,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         return vo;
     }
 
-    // ==================== 私有辅助方法：状态流转 ====================
-
-    /**
-     * 锁定订单行（FOR UPDATE），订单不存在则抛异常
-     */
     private ServiceOrder lockOrder(Long orderId) {
         if (orderId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "订单ID不能为空");
@@ -857,10 +973,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         return order;
     }
 
-    /**
-     * 完成订单：释放资金给卖家 + 更新订单状态 + 记录日志
-     * 调用方必须已持有订单行锁且已校验状态
-     */
     private void completeOrder(ServiceOrder order, String action, String logMessage) {
         Integer previousStatus = order.getOrderStatus();
         releaseFundsToSeller(order);
@@ -874,6 +986,14 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         orderLogService.recordLog(order.getId(), previousStatus, OrderConstant.ORDER_COMPLETED,
                 action, logMessage);
 
+        // 履约完成双向奖励信用分 +2（上限120）
+        if (creditScoreService != null) {
+            creditScoreService.adjustCreditScore(order.getSellerId(), 2, "ORDER_COMPLETE",
+                    "按约完成担保服务履约奖励", order.getId());
+            creditScoreService.adjustCreditScore(order.getBuyerId(), 1, "ORDER_COMPLETE",
+                    "诚信验收担保订单奖励", order.getId());
+        }
+
         evictServiceDetailCacheAfterCommit(order.getServiceId());
         if (redisUtils != null) {
             Long sellerId = order.getSellerId();
@@ -881,22 +1001,13 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         }
     }
 
-    /**
-     * 执行退款：解冻资金退回买家、归还库存、更新订单、记录日志、通知买家
-     * 调用方必须已持有订单行锁
-     *
-     * @param action     订单日志操作类型（区分买家直退/卖家同意/管理员/系统自动）
-     * @param logMessage 日志描述
-     */
     private void processRefund(ServiceOrder order, String reason, String action, String logMessage) {
         BigDecimal refundAmount = order.getFrozenAmount();
         if (refundAmount == null || refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "订单没有可退款的冻结金额");
         }
-        // 记录变更前状态，用于日志
         Integer previousStatus = order.getOrderStatus();
 
-        // 1. 锁定买家账户，解冻并退回余额
         User buyer = userMapper.selectForUpdate(order.getBuyerId());
         if (buyer.getFrozenAmount().compareTo(refundAmount) < 0) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "买家冻结金额不足");
@@ -904,7 +1015,9 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         BigDecimal balanceBefore = buyer.getWalletBalance();
         BigDecimal frozenBefore = buyer.getFrozenAmount();
         BigDecimal newFrozen = frozenBefore.subtract(refundAmount);
-        BigDecimal newBalance = balanceBefore.add(refundAmount);
+        boolean isEscrowGateway = Integer.valueOf(2).equals(order.getPaymentMethod());
+        // 第三方担保直付退款仅核减托管冻结并原路退回支付渠道，严禁将渠道资金误入账为可提现钱包余额
+        BigDecimal newBalance = isEscrowGateway ? balanceBefore : balanceBefore.add(refundAmount);
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, order.getBuyerId())
                 .set(User::getFrozenAmount, newFrozen)
@@ -915,12 +1028,21 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
                 order.getId(), "退款解冻订单资金 " + order.getOrderNumber());
         recordOrderTransaction(order.getBuyerId(), WalletConstant.TRANSACTION_TYPE_REFUND, refundAmount,
                 balanceBefore, newBalance, newFrozen, newFrozen,
-                order.getId(), "订单退款 " + order.getOrderNumber());
+                order.getId(), (isEscrowGateway ? "第三方担保支付原路退回 " : "订单退款 ") + order.getOrderNumber());
 
-        // 2. 归还库存（支付时占用的购买名额）
+        if (isEscrowGateway && escrowPaymentOrderMapper != null) {
+            escrowPaymentOrderMapper.update(null, new LambdaUpdateWrapper<EscrowPaymentOrder>()
+                    .eq(EscrowPaymentOrder::getOrderId, order.getId())
+                    .eq(EscrowPaymentOrder::getPayStatus, 1)
+                    .set(EscrowPaymentOrder::getPayStatus, 3)
+                    .set(EscrowPaymentOrder::getUpdateTime, LocalDateTime.now()));
+        }
+
         serviceMapper.decrementPurchaseCount(order.getServiceId(), order.getQuantity());
+        if (order.getSlotId() != null && serviceTimeSlotMapper != null) {
+            serviceTimeSlotMapper.releaseSlot(order.getSlotId(), order.getQuantity() != null ? order.getQuantity() : 1);
+        }
 
-        // 3. 更新订单状态（保留买家原始下单备注 remark，将退款/仲裁原因写入 refundReason）
         order.setPaymentStatus(OrderConstant.PAYMENT_REFUNDED);
         order.setOrderStatus(OrderConstant.ORDER_FAILED);
         order.setFrozenAmount(BigDecimal.ZERO);
@@ -930,24 +1052,21 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         }
         this.updateById(order);
 
-        // 4. 记录日志（使用变更前的状态）
         orderLogService.recordLog(order.getId(), previousStatus, OrderConstant.ORDER_FAILED, action, logMessage);
 
-        // 非管理员仲裁触发的退款（如卖家同意退款、系统超时自动退款）自动完结该单关联的待处理纠纷
         if (!OrderLogConstant.ACTION_ADMIN_REFUND.equals(action)) {
             closeActiveDisputesForOrder(order.getId(), "订单已完成全额退款，关联纠纷自动结案");
         }
 
         evictServiceDetailCacheAfterCommit(order.getServiceId());
-
-        // 5. 通知买家
+        String refundChannelDesc = isEscrowGateway ? "已原路退回您的原支付渠道" : "已退回您的钱包账户";
         notificationService.sendOrderNotification(order.getBuyerId(), order.getId(), "退款成功通知",
-                String.format("订单 %s（服务：%s）退款成功，金额 %.2f 元已退回您的钱包",
-                        order.getOrderNumber(), getServiceTitle(order.getServiceId()), refundAmount));
+                String.format("订单 %s（服务：%s）退款成功，金额 %.2f 元%s",
+                        order.getOrderNumber(), getServiceTitle(order.getServiceId()), refundAmount, refundChannelDesc));
     }
 
     /**
-     * 释放冻结资金给卖家（按 userId 升序加锁，避免死锁）
+     * 释放冻结资金给卖家并执行商业化平台抽佣分账（严格按 userId 升序加锁防死锁）
      */
     private void releaseFundsToSeller(ServiceOrder order) {
         BigDecimal amount = order.getFrozenAmount();
@@ -971,6 +1090,21 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "买家冻结金额不足");
         }
 
+        // 计算平台技术服务费（基点制，例如 500 bps = 5.00%；未配置或单测默认 0 时全额结算）
+        int commissionBps = sysConfigService != null
+                ? sysConfigService.getIntValue(SysConfigConstant.PLATFORM_COMMISSION_BPS, 0)
+                : 0;
+        commissionBps = Math.max(0, Math.min(3000, commissionBps));
+        BigDecimal platformFee = BigDecimal.ZERO;
+        if (commissionBps > 0) {
+            platformFee = amount.multiply(BigDecimal.valueOf(commissionBps))
+                    .divide(BigDecimal.valueOf(10000), 2, RoundingMode.HALF_UP);
+        }
+        BigDecimal sellerNet = amount.subtract(platformFee);
+
+        order.setPlatformFee(platformFee);
+        order.setSellerSettleAmount(sellerNet);
+
         BigDecimal buyerBalanceBefore = buyer.getWalletBalance();
         BigDecimal buyerFrozenBefore = buyer.getFrozenAmount();
         BigDecimal sellerBalanceBefore = seller.getWalletBalance();
@@ -981,7 +1115,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
                 .eq(User::getId, buyerId)
                 .set(User::getFrozenAmount, buyerFrozenAfter));
 
-        BigDecimal sellerBalanceAfter = sellerBalanceBefore.add(amount);
+        BigDecimal sellerBalanceAfter = sellerBalanceBefore.add(sellerNet);
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, sellerId)
                 .set(User::getWalletBalance, sellerBalanceAfter));
@@ -989,16 +1123,26 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         recordOrderTransaction(buyerId, WalletConstant.TRANSACTION_TYPE_UNFREEZE, amount,
                 buyerBalanceBefore, buyerBalanceBefore, buyerFrozenBefore, buyerFrozenAfter,
                 order.getId(), "确认收货解冻资金 " + order.getOrderNumber());
-        recordOrderTransaction(sellerId, WalletConstant.TRANSACTION_TYPE_INCOME, amount,
+        recordOrderTransaction(sellerId, WalletConstant.TRANSACTION_TYPE_INCOME, sellerNet,
                 sellerBalanceBefore, sellerBalanceAfter, sellerFrozenBefore, sellerFrozenBefore,
-                order.getId(), "订单收入 " + order.getOrderNumber());
+                order.getId(), platformFee.compareTo(BigDecimal.ZERO) > 0
+                        ? String.format("订单分账净收入 %s（已扣平台服务费 %.2f 元）", order.getOrderNumber(), platformFee)
+                        : "订单收入 " + order.getOrderNumber());
+
+        if (platformFee.compareTo(BigDecimal.ZERO) > 0 && platformRevenueLedgerMapper != null) {
+            PlatformRevenueLedger ledger = new PlatformRevenueLedger();
+            ledger.setLedgerNo(SerialNoGenerator.nextRevenueLedgerNo(order.getId()));
+            ledger.setOrderId(order.getId());
+            ledger.setSellerId(sellerId);
+            ledger.setOrderTotalAmount(amount);
+            ledger.setCommissionBps(commissionBps);
+            ledger.setCommissionAmount(platformFee);
+            ledger.setSellerNetAmount(sellerNet);
+            ledger.setCreateTime(LocalDateTime.now());
+            platformRevenueLedgerMapper.insert(ledger);
+        }
     }
 
-    // ==================== 私有辅助方法：定时任务 ====================
-
-    /**
-     * 对每个订单开启独立事务执行处理逻辑，返回成功数量
-     */
     private int runEachInTransaction(List<ServiceOrder> orders, java.util.function.Consumer<ServiceOrder> handler, String taskName) {
         int success = 0;
         for (ServiceOrder order : orders) {
@@ -1021,10 +1165,11 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         ServiceOrder order = lockOrder(orderId);
         if (order.getOrderStatus() != OrderConstant.ORDER_UNPAID
                 || order.getPaymentStatus() != OrderConstant.PAYMENT_UNPAID) {
-            log.info("订单{}状态已变更，跳过自动取消", orderId);
             return;
         }
-
+        if (order.getSlotId() != null && serviceTimeSlotMapper != null) {
+            serviceTimeSlotMapper.releaseSlot(order.getSlotId(), order.getQuantity() != null ? order.getQuantity() : 1);
+        }
         order.setOrderStatus(OrderConstant.ORDER_CANCELLED);
         this.updateById(order);
 
@@ -1040,15 +1185,12 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         ServiceOrder order = lockOrder(orderId);
         if (order.getOrderStatus() != OrderConstant.ORDER_PENDING_RECEIPT
                 || order.getRefundStatus() == OrderConstant.REFUND_PENDING) {
-            log.info("订单{}状态已变更或有待处理退款，跳过自动确认收货", orderId);
             return;
         }
         if (hasActiveDispute(orderId)) {
-            log.info("订单{}存在未解决的纠纷，跳过自动确认收货", orderId);
             return;
         }
 
-        BigDecimal amount = order.getFrozenAmount();
         completeOrder(order, OrderLogConstant.ACTION_AUTO_CONFIRM_RECEIPT,
                 String.format("系统自动确认收货：发货超过%d天", timeoutDays));
 
@@ -1057,14 +1199,14 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
                 String.format("订单 %s（服务：%s）发货超过%d天，系统已自动确认收货",
                         order.getOrderNumber(), serviceTitle, timeoutDays));
         notificationService.sendOrderNotification(order.getSellerId(), order.getId(), "订单完成通知",
-                String.format("订单 %s 系统自动确认收货，金额 %.2f 元已结算到您的钱包",
-                        order.getOrderNumber(), amount == null ? order.getTotalAmount() : amount));
+                String.format("订单 %s 系统自动确认收货，净收入 %.2f 元已结算到您的钱包",
+                        order.getOrderNumber(),
+                        order.getSellerSettleAmount() != null ? order.getSellerSettleAmount() : order.getTotalAmount()));
     }
 
     private void processAutoRefund(Long orderId, int timeoutDays) {
         ServiceOrder order = lockOrder(orderId);
         if (order.getRefundStatus() != OrderConstant.REFUND_PENDING) {
-            log.info("订单{}退款申请已被处理，跳过自动退款", orderId);
             return;
         }
 
@@ -1115,8 +1257,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         return urls;
     }
 
-    // ==================== 私有辅助方法：通用 ====================
-
     private void evictServiceDetailCacheAfterCommit(Long serviceId) {
         if (redisUtils == null || serviceId == null) {
             return;
@@ -1163,9 +1303,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         return list.stream().collect(Collectors.toMap(keyMapper, Function.identity(), (a, b) -> a));
     }
 
-    /**
-     * 订单列表关联数据（服务、用户、封面），一次性批量加载，避免 N+1 查询
-     */
     private static class OrderRelations {
         Map<Long, Service> services = Collections.emptyMap();
         Map<Long, User> users = Collections.emptyMap();
@@ -1190,9 +1327,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         return rel;
     }
 
-    /**
-     * 记录订单相关的钱包交易流水
-     */
     private void recordOrderTransaction(Long userId, Integer transactionType, BigDecimal amount,
                                         BigDecimal balanceBefore, BigDecimal balanceAfter,
                                         BigDecimal frozenBefore, BigDecimal frozenAfter,
@@ -1211,12 +1345,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         transaction.setCreateTime(LocalDateTime.now());
 
         if (!walletTransactionService.save(transaction)) {
-            log.error("保存订单交易流水失败，userId：{}，transactionType：{}，orderId：{}",
-                    userId, transactionType, relatedOrderId);
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "保存交易流水失败");
         }
-
-        log.info("记录订单交易流水成功，流水号：{}，交易类型：{}，金额：{}，订单ID：{}",
-                transaction.getTransactionNo(), WalletConstant.getTransactionTypeName(transactionType), amount, relatedOrderId);
     }
 }

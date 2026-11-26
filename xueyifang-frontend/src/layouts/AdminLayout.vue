@@ -190,7 +190,8 @@ const menuItems: Array<MenuItem | MenuGroup> = [
     children: [
       { path: '/admin/resource/service-tags', title: '服务分类标签', icon: CollectionTag },
       { path: '/admin/resource/professionals', title: '专业目录管理', icon: School },
-      { path: '/admin/resource/trade-locations', title: '交易地点管理', icon: Location }
+      { path: '/admin/resource/campuses', title: '校区围栏与分账', icon: Location },
+      { path: '/admin/resource/trade-locations', title: '预设交接点管理', icon: Location }
     ]
   },
   { path: '/admin/settings', title: '系统配置与导入', icon: Setting }

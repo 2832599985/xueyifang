@@ -226,6 +226,12 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: '专业目录管理', requiresAdmin: true }
       },
       {
+        path: 'resource/campuses',
+        name: 'AdminCampusGeofenceList',
+        component: () => import('@/views/admin/resource/CampusGeofenceList.vue'),
+        meta: { title: '多校区围栏与分账', requiresAdmin: true }
+      },
+      {
         path: 'resource/trade-locations',
         name: 'AdminTradeLocationList',
         component: () => import('@/views/admin/resource/TradeLocationList.vue'),

@@ -1,6 +1,3 @@
-/**
- * Order-related type definitions aligned with backend OrderConstant and VOs
- */
 import type { TradeLocation } from '@/types/dict'
 
 export enum OrderStatus {
@@ -27,7 +24,8 @@ export enum PaymentStatus {
 }
 
 export enum PaymentMethod {
-  WALLET = 1
+  WALLET = 1,
+  ESCROW_GATEWAY = 2
 }
 
 export enum TradeType {
@@ -36,6 +34,33 @@ export enum TradeType {
 }
 
 export type OrderRole = 'BUYER' | 'SELLER'
+
+export interface MeetupProposal {
+  id: number
+  orderId: number
+  proposerId: number
+  proposerName?: string
+  proposerRole: number
+  latitude: number
+  longitude: number
+  poiName: string
+  detailAddress?: string
+  proposedTime?: string
+  remark?: string
+  proposalStatus: number // 0=pending, 1=accepted, 2=rejected, 3=superseded
+  rejectReason?: string
+  respondTime?: string
+  createTime: string
+}
+
+export interface EscrowPrepayResult {
+  paymentNo: string
+  orderId: number
+  payChannel: string
+  amount: number
+  sdkPayParams: Record<string, string>
+  sandboxCallbackSign?: string
+}
 
 export interface OrderListItem {
   id: number
@@ -84,13 +109,26 @@ export interface OrderDetail {
   quantity: number
   totalAmount: number
   tradeType: TradeType
+  campusId?: number
   tradeLocationId?: number
   tradeLocationName?: string
   tradeLocation?: TradeLocation
+  slotId?: number
+  scheduledStart?: string
+  scheduledEnd?: string
+  meetupLat?: number
+  meetupLng?: number
+  meetupPoiName?: string
+  meetupAddress?: string
+  meetupConfirmed?: number
+  requireBleVerify?: number
   orderStatus: OrderStatus
   paymentStatus: PaymentStatus
   paymentMethod?: PaymentMethod
   frozenAmount?: number
+  platformFee?: number
+  sellerSettleAmount?: number
+  verifyChannel?: string
   buyerId: number
   buyerName: string
   buyerAvatar?: string
@@ -142,6 +180,12 @@ export interface CreateOrderRequest {
   quantity: number
   tradeType: TradeType
   tradeLocationId?: number
+  slotId?: number
+  scheduledStart?: string
+  meetupLat?: number
+  meetupLng?: number
+  meetupPoiName?: string
+  meetupAddress?: string
   remark?: string
 }
 
