@@ -17,6 +17,7 @@ public class MeetupProposalCreateRequest implements Serializable {
     private BigDecimal longitude;
     private String poiName;
     private String detailAddress;
+    private Integer radiusMeters;
     private LocalDateTime proposedTime;
     private String remark;
 }

@@ -1,7 +1,6 @@
 package com.xueyifang.domain.dto;
 
 import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
@@ -23,6 +22,7 @@ public class TradeLocationAddRequest implements Serializable {
     private String locationAddress;
     private BigDecimal latitude;
     private BigDecimal longitude;
+    private Integer validRadiusMeters;
     private Integer hasCctv;
     private Integer isAvailable;
 }

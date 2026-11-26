@@ -60,6 +60,7 @@ export function proposeMeetupLocation(
     longitude: number
     poiName: string
     detailAddress?: string
+    radiusMeters?: number
     proposedTime?: string
     remark?: string
   }
@@ -154,11 +155,19 @@ export function getOfflineVerifyCredential(orderId: number): Promise<OrderVerify
   })
 }
 
-export function verifyOfflineCode(orderId: number, verifyCode: string): Promise<void> {
+export function verifyOfflineCode(
+  orderId: number,
+  verifyCode: string,
+  coords?: { verifierLat?: number; verifierLng?: number }
+): Promise<void> {
   return request<void>({
     url: `/order/${orderId}/verify-code`,
     method: 'post',
-    data: { verifyCode }
+    data: {
+      verifyCode,
+      verifierLat: coords?.verifierLat,
+      verifierLng: coords?.verifierLng
+    }
   })
 }
 

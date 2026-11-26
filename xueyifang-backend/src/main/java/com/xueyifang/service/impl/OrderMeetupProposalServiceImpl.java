@@ -116,6 +116,8 @@ public class OrderMeetupProposalServiceImpl extends ServiceImpl<OrderMeetupPropo
         proposal.setLongitude(request.getLongitude());
         proposal.setPoiName(request.getPoiName().trim());
         proposal.setDetailAddress(StringUtils.trimToNull(request.getDetailAddress()));
+        int r = (request.getRadiusMeters() != null && request.getRadiusMeters() >= 10 && request.getRadiusMeters() <= 2000) ? request.getRadiusMeters() : 80;
+        proposal.setRadiusMeters(r);
         proposal.setProposedTime(request.getProposedTime());
         proposal.setRemark(StringUtils.trimToNull(request.getRemark()));
         proposal.setProposalStatus(STATUS_PENDING);
@@ -173,6 +175,7 @@ public class OrderMeetupProposalServiceImpl extends ServiceImpl<OrderMeetupPropo
             updateOrder.setMeetupLng(proposal.getLongitude());
             updateOrder.setMeetupPoiName(proposal.getPoiName());
             updateOrder.setMeetupAddress(proposal.getDetailAddress());
+            updateOrder.setMeetupRadiusMeters(proposal.getRadiusMeters() != null ? proposal.getRadiusMeters() : 80);
             updateOrder.setMeetupConfirmed(1);
             if (proposal.getProposedTime() != null) {
                 updateOrder.setScheduledStart(proposal.getProposedTime());

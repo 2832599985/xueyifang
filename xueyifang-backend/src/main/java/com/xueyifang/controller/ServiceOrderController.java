@@ -110,7 +110,7 @@ public class ServiceOrderController {
         if (orderId == null || request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        serviceOrderService.verifyOfflineCode(orderId, request.getVerifyCode());
+        serviceOrderService.verifyOfflineCode(orderId, request.getVerifyCode(), request.getVerifierLat(), request.getVerifierLng());
         return ResultUtils.success();
     }
 
@@ -120,7 +120,7 @@ public class ServiceOrderController {
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        Long verifiedOrderId = serviceOrderService.verifyOfflineQr(request.getQrToken(), request.getExpectedOrderId());
+        Long verifiedOrderId = serviceOrderService.verifyOfflineQr(request.getQrToken(), request.getExpectedOrderId(), request.getVerifierLat(), request.getVerifierLng());
         return ResultUtils.success(verifiedOrderId);
     }
 

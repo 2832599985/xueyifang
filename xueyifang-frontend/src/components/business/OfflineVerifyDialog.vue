@@ -7,6 +7,25 @@
     @update:model-value="handleVisibleChange"
   >
     <div class="verify-shell">
+      <!-- Live GPS Radius Fence Status Strip -->
+      <div class="gps-fence-bar" :class="{ 'is-ready': Boolean(verifierCoords), 'is-warn': gpsDenied }">
+        <span class="gps-dot" />
+        <span class="gps-text">
+          <template v-if="verifierCoords">
+            已获取实时核销定位（{{ verifierCoords.lat.toFixed(5) }}, {{ verifierCoords.lng.toFixed(5) }}）· 服务端将校验约定地点半径围栏
+          </template>
+          <template v-else-if="locatingGps">
+            正在获取现场 GPS 定位以校验交接点有效半径...
+          </template>
+          <template v-else>
+            未授权浏览器定位，若订单绑定严苛围栏建议点击右侧刷新定位
+          </template>
+        </span>
+        <button type="button" class="gps-refresh-btn" @click="acquireVerifierLocation">
+          刷新定位
+        </button>
+      </div>
+
       <!-- Monochrome Segmented Mode Switch -->
       <div class="mode-switch" role="tablist">
         <button
@@ -93,7 +112,7 @@
         </div>
 
         <p class="anti-fraud-note">
-          安全机制：动态二维码每 10 秒自动失效重签，且系统仅采集实时视频流解码，严禁识别相册截图或静态图片。
+          安全机制：动态二维码每 10 秒自动失效重签，且服务端同步核验您当前定位是否处于约定交易点设定的米级半径范围内。
         </p>
 
         <!-- Hidden offscreen canvas strictly for live video frame sampling -->
@@ -133,7 +152,7 @@
         />
 
         <p class="anti-fraud-note">
-          核销码每 30 秒动态刷新一次；连续输错 5 次将自动触发 15 分钟防暴力枚举锁定。
+          核销码每 30 秒动态刷新一次；超出交易地点设定的米级有效半径或连续输错 5 次将被系统拦截。
         </p>
       </div>
     </div>
@@ -186,6 +205,10 @@ const selectedOrderId = ref<number | undefined>(undefined)
 const codeInput = ref('')
 const submitting = ref(false)
 
+const verifierCoords = ref<{ lat: number; lng: number } | null>(null)
+const locatingGps = ref(false)
+const gpsDenied = ref(false)
+
 const videoRef = ref<HTMLVideoElement | null>(null)
 const decodeCanvasRef = ref<HTMLCanvasElement | null>(null)
 const cameraStarting = ref(false)
@@ -206,6 +229,34 @@ const dialogTitle = computed(() =>
 )
 
 const effectiveOrderId = computed(() => props.orderId || selectedOrderId.value || null)
+
+function acquireVerifierLocation(): Promise<{ lat: number; lng: number } | null> {
+  if (!navigator.geolocation) {
+    gpsDenied.value = true
+    return Promise.resolve(null)
+  }
+  locatingGps.value = true
+  gpsDenied.value = false
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = {
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6))
+        }
+        verifierCoords.value = coords
+        locatingGps.value = false
+        resolve(coords)
+      },
+      () => {
+        locatingGps.value = false
+        gpsDenied.value = true
+        resolve(verifierCoords.value)
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 15000 }
+    )
+  })
+}
 
 function handleVisibleChange(val: boolean) {
   emit('update:visible', val)
@@ -259,7 +310,6 @@ async function startCamera() {
       audio: false
     })
 
-    // 若弹窗在授权期间已关闭或切换模式，立刻释放摄像头
     if (!props.visible || activeMode.value !== 'qr') {
       stream.getTracks().forEach((t) => t.stop())
       return
@@ -313,7 +363,6 @@ function startLiveDecodeLoop() {
     const canvas = decodeCanvasRef.value
     if (!video || !canvas || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return
 
-    // 校验视频轨必须是存活的实时流
     const videoTrack = activeStream?.getVideoTracks()?.[0]
     if (!videoTrack || videoTrack.readyState !== 'live') return
 
@@ -359,7 +408,6 @@ function startLiveDecodeLoop() {
 
 async function handleScannedQrToken(rawToken: string) {
   const now = Date.now()
-  // 同一错误二维码 2.5 秒内防重复刷接口，避免瞬间触发暴力限流
   if (rawToken === lastRejectedToken && now - lastRejectedAt < 2500) {
     return
   }
@@ -372,12 +420,15 @@ async function handleScannedQrToken(rawToken: string) {
 
   submitting.value = true
   try {
+    const coords = verifierCoords.value || (await acquireVerifierLocation())
     const verifiedOrderId = await verifyOfflineQr({
       qrToken: rawToken,
-      expectedOrderId: props.orderId || undefined
+      expectedOrderId: props.orderId || undefined,
+      verifierLat: coords?.lat,
+      verifierLng: coords?.lng
     })
     stopCamera()
-    ElMessage.success('实时扫码核销成功，担保资金已结算至您的钱包')
+    ElMessage.success('实时扫码与半径围栏核验成功，担保资金已结算至您的钱包')
     emit('verified', verifiedOrderId)
     emit('update:visible', false)
   } catch (err) {
@@ -403,8 +454,12 @@ async function submitCodeVerify() {
 
   submitting.value = true
   try {
-    await verifyOfflineCode(targetId, code)
-    ElMessage.success('当面动态核销码验证通过，资金已结算至您的钱包')
+    const coords = verifierCoords.value || (await acquireVerifierLocation())
+    await verifyOfflineCode(targetId, code, {
+      verifierLat: coords?.lat,
+      verifierLng: coords?.lng
+    })
+    ElMessage.success('当面动态核销码与地点半径验证通过，资金已结算至您的钱包')
     emit('verified', targetId)
     emit('update:visible', false)
   } catch (err) {
@@ -422,6 +477,7 @@ watch(
       codeInput.value = ''
       lastRejectedToken = ''
       selectedOrderId.value = props.orderId || props.pendingOfflineOrders?.[0]?.id
+      acquireVerifierLocation()
       if (activeMode.value === 'qr') {
         startCamera()
       }
@@ -440,7 +496,64 @@ onUnmounted(() => {
 .verify-shell {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+}
+
+.gps-fence-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  font-size: 12px;
+  color: var(--xyf-ink-2);
+
+  .gps-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #a1a1aa;
+    flex-shrink: 0;
+  }
+
+  &.is-ready {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+
+    .gps-dot {
+      background: #10b981;
+    }
+  }
+
+  &.is-warn {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+
+    .gps-dot {
+      background: #f59e0b;
+    }
+  }
+
+  .gps-text {
+    flex: 1;
+    line-height: 1.4;
+  }
+
+  .gps-refresh-btn {
+    border: 1px solid rgba(24, 24, 27, 0.16);
+    background: #ffffff;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 11.5px;
+    font-family: inherit;
+    cursor: pointer;
+    color: var(--xyf-ink);
+    flex-shrink: 0;
+  }
 }
 
 .mode-switch {

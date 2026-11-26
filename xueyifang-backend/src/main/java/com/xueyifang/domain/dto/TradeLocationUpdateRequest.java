@@ -22,6 +22,7 @@ public class TradeLocationUpdateRequest implements Serializable {
     private String locationAddress;
     private BigDecimal latitude;
     private BigDecimal longitude;
+    private Integer validRadiusMeters;
     private Integer hasCctv;
     private Integer isAvailable;
 }

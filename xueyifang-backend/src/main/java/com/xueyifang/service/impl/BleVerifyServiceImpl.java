@@ -204,6 +204,14 @@ public class BleVerifyServiceImpl extends ServiceImpl<BleVerifyRecordMapper, Ble
                     request.getSellerLat().doubleValue(), request.getSellerLng().doubleValue()
             );
             distMeters = BigDecimal.valueOf(d).setScale(2, RoundingMode.HALF_UP);
+            int allowedRadius = (order.getMeetupRadiusMeters() != null && order.getMeetupRadiusMeters() > 0)
+                    ? order.getMeetupRadiusMeters()
+                    : (sysConfigService != null ? sysConfigService.getIntValue(SysConfigConstant.MEETUP_GEOFENCE_TOLERANCE_METERS, 150) : 150);
+            if (d > allowedRadius) {
+                throw new BusinessException(ErrorCode.GEOFENCE_OUT_OF_BOUNDS,
+                        String.format("蓝牙碰面位置偏离约定点「%s」%.0f 米（要求 %d 米内），请前往约定点或先在订单内改约位置",
+                                StringUtils.defaultIfBlank(order.getMeetupPoiName(), "约定交接点"), d, allowedRadius));
+            }
         }
 
         // 5. 落库防篡改蓝牙握手密码学存证

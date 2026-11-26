@@ -14,14 +14,11 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * 校内推荐安全交接地点表（v3.0 含经纬度与监控区标识）
- */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
 @TableName("trade_location")
-@ApiModel(value = "TradeLocation对象", description = "交易地点表")
+@ApiModel(value = "TradeLocation对象", description = "校内线下交易地点表（含真实坐标与可配置有效核销半径）")
 public class TradeLocation implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -41,11 +38,14 @@ public class TradeLocation implements Serializable {
     @ApiModelProperty(value = "详细地址")
     private String locationAddress;
 
-    @ApiModelProperty(value = "纬度（GCJ-02）")
+    @ApiModelProperty(value = "真实地图纬度（GCJ-02）")
     private BigDecimal latitude;
 
-    @ApiModelProperty(value = "经度（GCJ-02）")
+    @ApiModelProperty(value = "真实地图经度（GCJ-02）")
     private BigDecimal longitude;
+
+    @ApiModelProperty(value = "允许当面核销的有效半径（米，默认80米，可自由设置10~2000米）")
+    private Integer validRadiusMeters;
 
     @ApiModelProperty(value = "是否有校园监控覆盖（1=是, 0=否）")
     private Integer hasCctv;

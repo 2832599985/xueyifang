@@ -62,6 +62,7 @@ public class ServiceOrder implements Serializable {
 
     @ApiModelProperty(value = "约定会面详细说明")
     private String meetupAddress;
+    private Integer meetupRadiusMeters;
 
     @ApiModelProperty(value = "双方是否已确认锁定会面地点（0=初始, 1=双方已确认锁定）")
     private Integer meetupConfirmed;

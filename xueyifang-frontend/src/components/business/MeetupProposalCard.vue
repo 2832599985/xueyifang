@@ -4,7 +4,7 @@
       <div>
         <h2>线下会面位置双向确认</h2>
         <p class="sub-text">
-          买卖双方均可在校园电子围栏内发起位置/时间变更提案，对方点击同意后正式锁定并计入平台仲裁凭证
+          买卖双方均可在真实校园地图上标记会面点与有效核销半径，对方同意后正式锁定并执行当面围栏半径强校验
         </p>
       </div>
       <XyfStatusBadge
@@ -21,6 +21,7 @@
         <p v-if="order.meetupAddress">{{ order.meetupAddress }}</p>
         <div class="spot-meta xyf-mono" v-if="order.meetupLat && order.meetupLng">
           <span>坐标：{{ Number(order.meetupLat).toFixed(6) }}, {{ Number(order.meetupLng).toFixed(6) }}</span>
+          <span>· 有效核销范围：{{ effectiveRadiusMeters }} 米内</span>
           <span v-if="order.scheduledStart">· 约定时间：{{ formatDateTime(order.scheduledStart) }}</span>
         </div>
       </div>
@@ -29,7 +30,7 @@
         v-if="canNegotiate"
         plain
         size="small"
-        @click="proposeDialogVisible = true"
+        @click="openProposeDialog"
       >
         发起新位置/改期提案
       </el-button>
@@ -41,6 +42,7 @@
         <span class="badge-pill">待确认新提案</span>
         <strong>
           {{ pendingProposal.proposerRole === 1 ? '买家' : '卖家' }}（{{ pendingProposal.proposerName }}）提议改至「{{ pendingProposal.poiName }}」
+          <span v-if="pendingProposal.radiusMeters">（{{ pendingProposal.radiusMeters }} 米内有效）</span>
         </strong>
         <p v-if="pendingProposal.detailAddress">具体方位：{{ pendingProposal.detailAddress }}</p>
         <p v-if="pendingProposal.remark">协商留言：{{ pendingProposal.remark }}</p>
@@ -58,7 +60,7 @@
     </div>
 
     <!-- Propose Dialog -->
-    <el-dialog v-model="proposeDialogVisible" title="在校园地图上提议新会面地点" width="560px">
+    <el-dialog v-model="proposeDialogVisible" title="在真实校园地图上提议新会面地点" width="600px">
       <CampusMapPicker
         :campus-id="order.campusId || 1"
         v-model="draftLocation"
@@ -78,7 +80,7 @@
           <el-input
             v-model="draftRemark"
             maxlength="120"
-            placeholder="例如：刚下高数课在南区，我们在图书馆一楼监控区碰面可以吗？"
+            placeholder="例如：刚下高数课在南区，我们在图书馆一楼监控区 60 米内碰面可以吗？"
           />
         </el-form-item>
       </el-form>
@@ -122,11 +124,17 @@ const submitting = ref(false)
 const isFenceOk = ref(true)
 const draftTime = ref<string>('')
 const draftRemark = ref('')
+
+const effectiveRadiusMeters = computed(
+  () => props.order.meetupRadiusMeters || props.order.tradeLocation?.validRadiusMeters || 80
+)
+
 const draftLocation = ref<MapLocationValue>({
   latitude: props.order.meetupLat,
   longitude: props.order.meetupLng,
   poiName: props.order.meetupPoiName || '',
-  detailAddress: props.order.meetupAddress || ''
+  detailAddress: props.order.meetupAddress || '',
+  radiusMeters: effectiveRadiusMeters.value
 })
 
 const canNegotiate = computed(() => {
@@ -135,6 +143,17 @@ const canNegotiate = computed(() => {
 })
 
 const pendingProposal = computed(() => proposals.value.find(p => p.proposalStatus === 0) || null)
+
+function openProposeDialog() {
+  draftLocation.value = {
+    latitude: props.order.meetupLat,
+    longitude: props.order.meetupLng,
+    poiName: props.order.meetupPoiName || '',
+    detailAddress: props.order.meetupAddress || '',
+    radiusMeters: effectiveRadiusMeters.value
+  }
+  proposeDialogVisible.value = true
+}
 
 async function loadProposals() {
   if (!props.order?.id) return
@@ -157,6 +176,7 @@ async function submitProposal() {
       longitude: draftLocation.value.longitude,
       poiName: draftLocation.value.poiName.trim(),
       detailAddress: draftLocation.value.detailAddress?.trim() || undefined,
+      radiusMeters: draftLocation.value.radiusMeters || 80,
       proposedTime: draftTime.value || undefined,
       remark: draftRemark.value.trim() || undefined
     })
@@ -189,7 +209,7 @@ async function handleRespond(proposalId: number, accept: boolean) {
   submitting.value = true
   try {
     await respondMeetupProposal(proposalId, accept, rejectReason)
-    ElMessage.success(accept ? '已同意并锁定线下会面位置' : '已告知对方重新协商位置')
+    ElMessage.success(accept ? '已同意并锁定线下会面位置与核销半径' : '已告知对方重新协商位置')
     await loadProposals()
     emit('updated')
   } catch (err) {

@@ -99,7 +99,7 @@
                         {{
                           form.tradeType === TradeType.ONLINE
                             ? '线上交付成果，平台全程托管担保资金'
-                            : '按约定校内地点会面交付，平台同样提供资金担保'
+                            : '按约定校内地点与有效米数围栏会面交付，平台托管资金'
                         }}
                       </span>
                     </div>
@@ -108,7 +108,7 @@
 
                 <el-form-item
                   v-if="form.tradeType === TradeType.OFFLINE"
-                  label="校园电子围栏地图选点（下单后支持买卖双方确认或改约）"
+                  label="真实校园地图选点与有效核销半径（下单后支持买卖双方确认或改约）"
                   required
                 >
                   <CampusMapPicker
@@ -212,7 +212,7 @@
               </div>
 
               <p class="escrow-guarantee">
-                点击支付即表示资金进入平台托管账户，仅在您点击「确认收货」后划转至卖家。
+                点击支付即表示资金进入平台托管账户，仅在您点击「确认收货」或当面核销后划转至卖家。
               </p>
             </section>
           </aside>
@@ -295,7 +295,8 @@ const mapLocation = ref<MapLocationValue>({
   latitude: undefined,
   longitude: undefined,
   poiName: '',
-  detailAddress: ''
+  detailAddress: '',
+  radiusMeters: 80
 })
 
 const campusTimeSlots = computed(() =>
@@ -390,6 +391,7 @@ async function handleSubmitOrder(payImmediately: boolean) {
       meetupLng: form.tradeType === TradeType.OFFLINE ? mapLocation.value.longitude : undefined,
       meetupPoiName: form.tradeType === TradeType.OFFLINE ? mapLocation.value.poiName : undefined,
       meetupAddress: form.tradeType === TradeType.OFFLINE ? mapLocation.value.detailAddress : undefined,
+      meetupRadiusMeters: form.tradeType === TradeType.OFFLINE ? mapLocation.value.radiusMeters || 80 : undefined,
       remark: form.remark.trim() || undefined
     })
 

@@ -4,7 +4,7 @@
       <header class="center-head">
         <div>
           <h1>个人中心</h1>
-          <p>管理你的校内实名资料、创作者认证与账号安全设置</p>
+          <p>管理你的校内实名资料、校园邮箱核验、履约信用分与创作者认证</p>
         </div>
         <div class="center-head__actions">
           <button type="button" class="btn-secondary" @click="router.push('/wallet')">
@@ -74,6 +74,16 @@
               </span>
             </div>
 
+            <!-- Trust & Credit Badges -->
+            <div class="trust-pills" @click="switchTab('edu')">
+              <span class="trust-pill" :class="{ 'is-ok': isEduVerified }">
+                {{ isEduVerified ? 'edu.cn 已核验' : '校园邮箱待核验' }}
+              </span>
+              <span class="trust-pill is-credit xyf-tabular">
+                信用分 {{ currentCreditScore }}
+              </span>
+            </div>
+
             <nav class="side-nav" aria-label="个人中心菜单">
               <button
                 type="button"
@@ -83,6 +93,15 @@
               >
                 <el-icon><User /></el-icon>
                 <span>基本资料</span>
+              </button>
+              <button
+                type="button"
+                class="side-nav__item"
+                :class="{ 'is-active': activeTab === 'edu' }"
+                @click="switchTab('edu')"
+              >
+                <el-icon><Medal /></el-icon>
+                <span>校园邮箱与信用</span>
               </button>
               <button
                 type="button"
@@ -204,7 +223,118 @@
             </el-form>
           </section>
 
-          <!-- Tab 2: Publish Permission -->
+          <!-- Tab 2: Campus Edu Email Verification & Credit Score Ledger -->
+          <div v-else-if="activeTab === 'edu'" class="edu-credit-stack">
+            <section class="xyf-surface-card panel-card">
+              <div class="xyf-section-heading">
+                <h2>高校 .edu.cn 邮箱实名核验</h2>
+              </div>
+
+              <div v-if="isEduVerified" class="edu-verified-banner">
+                <div>
+                  <span class="kicker">已完成高校身份核验</span>
+                  <strong class="xyf-mono">{{ userStore.userInfo?.verifiedEduEmail || userStore.userInfo?.email }}</strong>
+                  <p>您已获得校园实名认证标识与初始信用加成，可享受校内担保交易绿色通道。</p>
+                </div>
+                <el-tag type="success" effect="dark">已实名核验</el-tag>
+              </div>
+
+              <template v-else>
+                <p class="edu-intro">
+                  绑定并验证本校 <code>.edu.cn</code> 教育邮箱，完成后立即点亮「本校实名认证」勋章并获得履约信用分奖励。
+                </p>
+
+                <el-form label-position="top" style="max-width: 500px">
+                  <el-form-item label="高校教育邮箱（需以 .edu.cn 结尾）">
+                    <div class="edu-code-row">
+                      <el-input
+                        v-model="eduForm.eduEmail"
+                        placeholder="例如 student2026@whu.edu.cn"
+                        clearable
+                      />
+                      <el-button
+                        plain
+                        :disabled="eduCountdown > 0"
+                        :loading="sendingEduCode"
+                        @click="handleSendEduCode"
+                      >
+                        {{ eduCountdown > 0 ? `${eduCountdown}s 后重发` : '发送 6 位验证码' }}
+                      </el-button>
+                    </div>
+                    <div v-if="devPreviewHint" class="dev-code-hint xyf-mono">
+                      开发环境验证码预览：{{ devPreviewHint }}
+                    </div>
+                  </el-form-item>
+
+                  <el-form-item label="6 位邮箱验证码">
+                    <el-input
+                      v-model="eduForm.verifyCode"
+                      maxlength="6"
+                      placeholder="输入收到的 6 位数字验证码"
+                      class="xyf-mono"
+                    />
+                  </el-form-item>
+
+                  <el-button
+                    type="primary"
+                    :loading="confirmingEdu"
+                    @click="handleConfirmEduVerify"
+                  >
+                    完成校园邮箱认证
+                  </el-button>
+                </el-form>
+              </template>
+            </section>
+
+            <section class="xyf-surface-card panel-card">
+              <div class="credit-head">
+                <div>
+                  <h2>校园履约信用账户</h2>
+                  <p>按时交付、当面核销与真实好评可稳步提升信用分；违约爽约或恶意仲裁败诉将扣减信用分</p>
+                </div>
+                <div class="credit-score-card">
+                  <span class="score-label">当前履约信用分</span>
+                  <strong class="score-num xyf-tabular">{{ currentCreditScore }}</strong>
+                  <span class="score-tier">{{ creditTierLabel }}</span>
+                </div>
+              </div>
+
+              <div v-if="creditLoading" style="margin-top: 16px">
+                <el-skeleton :rows="3" animated />
+              </div>
+
+              <el-table
+                v-else-if="creditLogs.length > 0"
+                :data="creditLogs"
+                stripe
+                style="width: 100%; margin-top: 16px"
+              >
+                <el-table-column prop="reasonDesc" label="信用变动事项" min-width="200" />
+                <el-table-column label="分值变动" width="110" align="center">
+                  <template #default="{ row }">
+                    <span
+                      class="delta-tag xyf-tabular"
+                      :class="row.delta >= 0 ? 'is-plus' : 'is-minus'"
+                    >
+                      {{ row.delta >= 0 ? `+${row.delta}` : row.delta }}
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="变动后信用分" width="120" align="center">
+                  <template #default="{ row }">
+                    <strong class="xyf-tabular">{{ row.scoreAfter }}</strong>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="createTime" label="记录时间" width="180" />
+              </el-table>
+
+              <div v-else class="empty-credit-note">
+                当前信用分保持初始良好状态（{{ currentCreditScore }} 分），完成首笔校园邮箱核验或担保订单后将在此展示履约明细。
+              </div>
+            </section>
+          </div>
+
+          <!-- Tab 3: Publish Permission -->
           <section v-else-if="activeTab === 'permission'" class="xyf-surface-card panel-card">
             <div class="xyf-section-heading">
               <h2>技能发布权限认证</h2>
@@ -284,7 +414,7 @@
             </template>
           </section>
 
-          <!-- Tab 3: Security & Password -->
+          <!-- Tab 4: Security & Password -->
           <section v-else class="xyf-surface-card panel-card">
             <div class="xyf-section-heading">
               <h2>账号安全与密码修改</h2>
@@ -326,7 +456,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   ElMessage,
@@ -335,7 +465,7 @@ import {
   type FormRules,
   type UploadRequestOptions
 } from 'element-plus'
-import { User, Stamp, Lock } from '@element-plus/icons-vue'
+import { User, Stamp, Lock, Medal } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useDictStore } from '@/stores/dict'
 import { authApi } from '@/api/auth'
@@ -343,9 +473,10 @@ import { uploadFile } from '@/api/file'
 import { getPermissionStatus, applyPermission } from '@/api/permission'
 import { notifyFallbackError } from '@/api/request'
 import { PERMISSION_REVIEW_STATUS, type PermissionStatus } from '@/types/permission'
+import type { CreditScoreLogItem } from '@/types/auth'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 
-type CenterTab = 'profile' | 'permission' | 'security'
+type CenterTab = 'profile' | 'edu' | 'permission' | 'security'
 
 const router = useRouter()
 const route = useRoute()
@@ -361,6 +492,19 @@ const savingPwd = ref(false)
 const permissionInfo = ref<PermissionStatus | null>(null)
 const applyReason = ref('')
 const originalProfessionalId = ref<number | undefined>(undefined)
+
+// Edu Email & Credit Score state
+const eduForm = reactive({
+  eduEmail: '',
+  verifyCode: ''
+})
+const sendingEduCode = ref(false)
+const confirmingEdu = ref(false)
+const eduCountdown = ref(0)
+const devPreviewHint = ref('')
+const creditLogs = ref<CreditScoreLogItem[]>([])
+const creditLoading = ref(false)
+let countdownTimer: number | null = null
 
 const profileFormRef = ref<FormInstance>()
 const pwdFormRef = ref<FormInstance>()
@@ -383,6 +527,16 @@ const pwdForm = reactive({
 })
 
 const gradeOptions = ['大一', '大二', '大三', '大四', '研一', '研二', '研三']
+
+const isEduVerified = computed(() => userStore.userInfo?.eduVerified === 1)
+const currentCreditScore = computed(() => userStore.userInfo?.creditScore ?? 100)
+const creditTierLabel = computed(() => {
+  const s = currentCreditScore.value
+  if (s >= 110) return '极好 · 优先展示'
+  if (s >= 90) return '优秀 · 正常履约'
+  if (s >= 60) return '一般 · 需谨慎履约'
+  return '受限 · 低于下单门槛'
+})
 
 const profileRules: FormRules = {
   nickname: [
@@ -435,6 +589,9 @@ const permissionStatusLabel = computed(() => {
 function switchTab(tab: CenterTab) {
   activeTab.value = tab
   router.replace({ path: '/user/center', query: { tab } })
+  if (tab === 'edu') {
+    fetchCreditLogs()
+  }
 }
 
 function hydrateProfileForm() {
@@ -449,6 +606,72 @@ function hydrateProfileForm() {
   profileForm.grade = u.grade || ''
   profileForm.dormitory = u.dormitory || ''
   profileForm.bio = u.bio || ''
+  if (!eduForm.eduEmail && u.email && u.email.endsWith('.edu.cn')) {
+    eduForm.eduEmail = u.email
+  }
+}
+
+async function fetchCreditLogs() {
+  creditLoading.value = true
+  try {
+    creditLogs.value = await authApi.getCreditLogs()
+  } catch {
+    creditLogs.value = []
+  } finally {
+    creditLoading.value = false
+  }
+}
+
+async function handleSendEduCode() {
+  const email = eduForm.eduEmail.trim().toLowerCase()
+  if (!email || !email.endsWith('.edu.cn')) {
+    ElMessage.warning('请输入以 .edu.cn 结尾的高校教育邮箱')
+    return
+  }
+  sendingEduCode.value = true
+  try {
+    const res = await authApi.sendEduVerifyCode(email)
+    devPreviewHint.value = res?.devPreviewCode || ''
+    ElMessage.success('验证码已发送至您的高校邮箱，请在 10 分钟内完成验证')
+    eduCountdown.value = 60
+    if (countdownTimer) clearInterval(countdownTimer)
+    countdownTimer = window.setInterval(() => {
+      eduCountdown.value -= 1
+      if (eduCountdown.value <= 0 && countdownTimer) {
+        clearInterval(countdownTimer)
+        countdownTimer = null
+      }
+    }, 1000)
+  } catch (err) {
+    notifyFallbackError(err, '发送教育邮箱验证码失败')
+  } finally {
+    sendingEduCode.value = false
+  }
+}
+
+async function handleConfirmEduVerify() {
+  const email = eduForm.eduEmail.trim().toLowerCase()
+  const code = eduForm.verifyCode.trim()
+  if (!email.endsWith('.edu.cn')) {
+    ElMessage.warning('请输入正确的 .edu.cn 校园邮箱')
+    return
+  }
+  if (!/^\d{6}$/.test(code)) {
+    ElMessage.warning('请输入 6 位数字验证码')
+    return
+  }
+  confirmingEdu.value = true
+  try {
+    await authApi.confirmEduVerify(email, code)
+    ElMessage.success('校园教育邮箱实名核验成功，信用分奖励已发放')
+    devPreviewHint.value = ''
+    eduForm.verifyCode = ''
+    await Promise.all([userStore.fetchCurrentUser(), fetchCreditLogs()])
+  } catch (err) {
+    notifyFallbackError(err, '校园邮箱验证码校验失败')
+  } finally {
+    confirmingEdu.value = false
+  }
 }
 
 async function handleAvatarUpload(options: UploadRequestOptions) {
@@ -575,7 +798,7 @@ async function handleChangePassword() {
 watch(
   () => route.query.tab,
   (tab) => {
-    if (tab === 'permission' || tab === 'security' || tab === 'profile') {
+    if (tab === 'permission' || tab === 'security' || tab === 'profile' || tab === 'edu') {
       activeTab.value = tab
     }
   },
@@ -586,9 +809,14 @@ onMounted(async () => {
   await Promise.all([
     userStore.ensureUserInfo().catch(() => {}),
     dictStore.fetchProfessionals().catch(() => {}),
-    fetchPermission()
+    fetchPermission(),
+    fetchCreditLogs()
   ])
   hydrateProfileForm()
+})
+
+onUnmounted(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
 })
 </script>
 
@@ -732,7 +960,38 @@ onMounted(async () => {
 .profile-student-id {
   font-size: 12.5px;
   color: var(--xyf-ink-3);
-  margin-bottom: 18px;
+  margin-bottom: 12px;
+}
+
+.trust-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  cursor: pointer;
+
+  .trust-pill {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    background: #f4f4f5;
+    color: #52525b;
+    border: 1px solid #e4e4e7;
+
+    &.is-ok {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #a7f3d0;
+    }
+
+    &.is-credit {
+      background: #18181b;
+      color: #ffffff;
+      border-color: #18181b;
+    }
+  }
 }
 
 .side-nav {
@@ -798,6 +1057,132 @@ onMounted(async () => {
 
 .panel-card {
   padding: 24px 28px;
+}
+
+.edu-credit-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.edu-intro {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  color: var(--xyf-ink-2);
+  line-height: 1.6;
+}
+
+.edu-code-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.dev-code-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #047857;
+}
+
+.edu-verified-banner {
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  .kicker {
+    display: block;
+    font-size: 12px;
+    color: #047857;
+    margin-bottom: 4px;
+  }
+
+  strong {
+    font-size: 16px;
+    color: #064e3b;
+  }
+
+  p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #065f46;
+  }
+}
+
+.credit-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--xyf-ink);
+  }
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--xyf-ink-muted);
+    max-width: 520px;
+  }
+}
+
+.credit-score-card {
+  padding: 14px 22px;
+  border-radius: 14px;
+  background: #18181b;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 150px;
+
+  .score-label {
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .score-num {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 2px 0;
+  }
+
+  .score-tier {
+    font-size: 11.5px;
+    color: #34d399;
+    font-weight: 600;
+  }
+}
+
+.delta-tag {
+  font-weight: 700;
+  &.is-plus {
+    color: #059669;
+  }
+  &.is-minus {
+    color: #dc2626;
+  }
+}
+
+.empty-credit-note {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--xyf-surface-soft);
+  border: 1px solid var(--xyf-border);
+  font-size: 13px;
+  color: var(--xyf-ink-2);
 }
 
 .form-row-2 {

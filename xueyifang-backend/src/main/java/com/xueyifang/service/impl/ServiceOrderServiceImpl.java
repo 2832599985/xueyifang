@@ -51,6 +51,7 @@ import com.xueyifang.service.ITradeLocationService;
 import com.xueyifang.service.IUserService;
 import com.xueyifang.service.IWalletTransactionService;
 import com.xueyifang.utils.FileUrlResolver;
+import com.xueyifang.utils.GeofenceUtils;
 import com.xueyifang.utils.OfflineVerifyCodeUtils;
 import com.xueyifang.utils.RedisUtils;
 import com.xueyifang.utils.SerialNoGenerator;
@@ -195,6 +196,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         BigDecimal meetupLng = request.getMeetupLng();
         String meetupPoiName = request.getMeetupPoiName();
         String meetupAddress = request.getMeetupAddress();
+        Integer meetupRadiusMeters = request.getMeetupRadiusMeters();
 
         if (Objects.equals(effectiveTradeType, OrderConstant.TRADE_TYPE_OFFLINE)) {
             boolean hasCustomMapPoint = meetupLat != null && meetupLng != null && StringUtils.isNotBlank(meetupPoiName);
@@ -218,6 +220,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
                 meetupLng = location.getLongitude();
                 meetupPoiName = location.getLocationName();
                 meetupAddress = location.getLocationAddress();
+                meetupRadiusMeters = location.getValidRadiusMeters() != null ? location.getValidRadiusMeters() : 80;
             }
         }
 
@@ -253,6 +256,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         order.setMeetupLng(meetupLng);
         order.setMeetupPoiName(meetupPoiName);
         order.setMeetupAddress(meetupAddress);
+        order.setMeetupRadiusMeters(meetupRadiusMeters != null ? Math.max(10, Math.min(2000, meetupRadiusMeters)) : 80);
         order.setMeetupConfirmed(0);
         order.setOrderNumber(SerialNoGenerator.nextOrderNo());
         order.setBuyerId(userId);
@@ -495,6 +499,12 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void verifyOfflineCode(Long orderId, String verifyCode) {
+        verifyOfflineCode(orderId, verifyCode, null, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void verifyOfflineCode(Long orderId, String verifyCode, BigDecimal verifierLat, BigDecimal verifierLng) {
         Long userId = requireLogin();
         if (StringUtils.isBlank(verifyCode)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入6位动态核销码");
@@ -506,6 +516,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
 
         ServiceOrder order = lockOrder(orderId);
         validateOfflineVerifyEligibility(order, userId);
+        validateVerifierWithinLocationRadius(order, verifierLat, verifierLng);
 
         long nowEpoch = Instant.now().getEpochSecond();
         boolean matched = OfflineVerifyCodeUtils.verifyCode(
@@ -524,6 +535,12 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long verifyOfflineQr(String qrToken, Long expectedOrderId) {
+        return verifyOfflineQr(qrToken, expectedOrderId, null, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long verifyOfflineQr(String qrToken, Long expectedOrderId, BigDecimal verifierLat, BigDecimal verifierLng) {
         Long userId = requireLogin();
         OfflineVerifyCodeUtils.ParsedQrToken parsed = OfflineVerifyCodeUtils.parseQrToken(qrToken);
         if (parsed == null) {
@@ -538,6 +555,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
 
         ServiceOrder order = lockOrder(parsed.getOrderId());
         validateOfflineVerifyEligibility(order, userId);
+        validateVerifierWithinLocationRadius(order, verifierLat, verifierLng);
 
         long nowEpoch = Instant.now().getEpochSecond();
         OfflineVerifyCodeUtils.QrVerifyStatus status = OfflineVerifyCodeUtils.verifyQrToken(
@@ -595,6 +613,47 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
     private void recordVerifyFailure(String failKey) {
         if (redisUtils != null) {
             redisUtils.incrementWithExpire(failKey, VERIFY_FAIL_WINDOW_SECONDS);
+        }
+    }
+
+    private void validateVerifierWithinLocationRadius(ServiceOrder order, BigDecimal verifierLat, BigDecimal verifierLng) {
+        if (verifierLat == null || verifierLng == null) {
+            return;
+        }
+        if (!GeofenceUtils.isValidCoordinate(verifierLat.doubleValue(), verifierLng.doubleValue())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "上报的核销定位坐标无效");
+        }
+        BigDecimal targetLat = order.getMeetupLat();
+        BigDecimal targetLng = order.getMeetupLng();
+        Integer allowedRadius = order.getMeetupRadiusMeters();
+        String spotName = order.getMeetupPoiName();
+
+        if ((targetLat == null || targetLng == null) && order.getTradeLocationId() != null && tradeLocationService != null) {
+            TradeLocation loc = tradeLocationService.getById(order.getTradeLocationId());
+            if (loc != null) {
+                targetLat = loc.getLatitude();
+                targetLng = loc.getLongitude();
+                if (allowedRadius == null) {
+                    allowedRadius = loc.getValidRadiusMeters();
+                }
+                if (StringUtils.isBlank(spotName)) {
+                    spotName = loc.getLocationName();
+                }
+            }
+        }
+        if (targetLat != null && targetLng != null) {
+            int maxMeters = (allowedRadius != null && allowedRadius > 0)
+                    ? allowedRadius
+                    : (sysConfigService != null ? sysConfigService.getIntValue(SysConfigConstant.MEETUP_GEOFENCE_TOLERANCE_METERS, 150) : 150);
+            double dist = GeofenceUtils.distanceMeters(
+                    targetLat.doubleValue(), targetLng.doubleValue(),
+                    verifierLat.doubleValue(), verifierLng.doubleValue()
+            );
+            if (dist > maxMeters) {
+                throw new BusinessException(ErrorCode.GEOFENCE_OUT_OF_BOUNDS,
+                        String.format("超出约定交接地点有效范围：当前距「%s」约 %.0f 米，需进入 %d 米范围内当面核销",
+                                StringUtils.defaultIfBlank(spotName, "约定交接点"), dist, maxMeters));
+            }
         }
     }
 

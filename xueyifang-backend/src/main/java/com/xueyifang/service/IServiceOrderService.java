@@ -33,9 +33,13 @@ public interface IServiceOrderService extends IService<ServiceOrder> {
 
     void verifyOfflineCode(Long orderId, String verifyCode);
 
+    void verifyOfflineCode(Long orderId, String verifyCode, BigDecimal verifierLat, BigDecimal verifierLng);
+
     OrderVerifyCredentialVO getOfflineVerifyCredential(Long orderId);
 
     Long verifyOfflineQr(String qrToken, Long expectedOrderId);
+
+    Long verifyOfflineQr(String qrToken, Long expectedOrderId, BigDecimal verifierLat, BigDecimal verifierLng);
 
     void completeOfflineOrderByBle(Long orderId, Integer rssiDbm, BigDecimal distanceMeters);
 

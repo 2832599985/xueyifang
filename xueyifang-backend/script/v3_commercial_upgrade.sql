@@ -53,11 +53,12 @@ ALTER TABLE `trade_location`
   ADD COLUMN `campus_id` bigint DEFAULT 1 COMMENT '所属校区ID' AFTER `id`,
   ADD COLUMN `latitude` decimal(10,6) DEFAULT NULL COMMENT '纬度（GCJ-02）' AFTER `location_address`,
   ADD COLUMN `longitude` decimal(10,6) DEFAULT NULL COMMENT '经度（GCJ-02）' AFTER `latitude`,
-  ADD COLUMN `has_cctv` tinyint DEFAULT 1 COMMENT '是否位于校园监控覆盖安全区（1=是, 0=否）' AFTER `longitude`;
+  ADD COLUMN `valid_radius_meters` int DEFAULT 80 COMMENT '允许当面核销的有效范围半径（米，可自由配置10~2000）' AFTER `longitude`,
+  ADD COLUMN `has_cctv` tinyint DEFAULT 1 COMMENT '是否位于校园监控覆盖安全区（1=是, 0=否）' AFTER `valid_radius_meters`;
 
-UPDATE `trade_location` SET `campus_id` = 1, `latitude` = 30.513620, `longitude` = 114.355810, `has_cctv` = 1 WHERE `id` = 1 AND `latitude` IS NULL;
-UPDATE `trade_location` SET `campus_id` = 1, `latitude` = 30.511450, `longitude` = 114.357920, `has_cctv` = 1 WHERE `id` = 2 AND `latitude` IS NULL;
-UPDATE `trade_location` SET `campus_id` = 1, `latitude` = 30.514980, `longitude` = 114.353400, `has_cctv` = 1 WHERE `latitude` IS NULL;
+UPDATE `trade_location` SET `campus_id` = 1, `latitude` = 30.513620, `longitude` = 114.355810, `valid_radius_meters` = 60, `has_cctv` = 1 WHERE `id` = 1 AND `latitude` IS NULL;
+UPDATE `trade_location` SET `campus_id` = 1, `latitude` = 30.511450, `longitude` = 114.357920, `valid_radius_meters` = 80, `has_cctv` = 1 WHERE `id` = 2 AND `latitude` IS NULL;
+UPDATE `trade_location` SET `campus_id` = 1, `latitude` = 30.514980, `longitude` = 114.353400, `valid_radius_meters` = 100, `has_cctv` = 1 WHERE `latitude` IS NULL;
 
 -- 4. 服务表扩展：多校区、档期预约开关、退改规则与高价值蓝牙核销开关
 ALTER TABLE `service`
@@ -92,7 +93,8 @@ ALTER TABLE `service_order`
   ADD COLUMN `meetup_lng` decimal(10,6) DEFAULT NULL COMMENT '约定会面经度（GCJ-02）' AFTER `meetup_lat`,
   ADD COLUMN `meetup_poi_name` varchar(120) DEFAULT NULL COMMENT '约定会面地图建筑/POI名称' AFTER `meetup_lng`,
   ADD COLUMN `meetup_address` varchar(255) DEFAULT NULL COMMENT '约定会面详细说明（如楼栋门厅/监控点）' AFTER `meetup_poi_name`,
-  ADD COLUMN `meetup_confirmed` tinyint DEFAULT 0 COMMENT '双方是否已协商锁定会面点（0=初始选点, 1=双方已确认锁定）' AFTER `meetup_address`,
+  ADD COLUMN `meetup_radius_meters` int DEFAULT 80 COMMENT '本单约定会面点允许当面核销的有效半径（米）' AFTER `meetup_address`,
+  ADD COLUMN `meetup_confirmed` tinyint DEFAULT 0 COMMENT '双方是否已协商锁定会面点（0=初始选点, 1=双方已确认锁定）' AFTER `meetup_radius_meters`,
   ADD COLUMN `platform_fee` decimal(10,2) DEFAULT '0.00' COMMENT '平台技术服务费（抽佣金额）' AFTER `frozen_amount`,
   ADD COLUMN `seller_settle_amount` decimal(10,2) DEFAULT '0.00' COMMENT '卖方扣除服务费后实际结算金额' AFTER `platform_fee`,
   ADD COLUMN `verify_channel` varchar(32) DEFAULT NULL COMMENT '完结核销通道（QR_10S / TOTP_30S / BLE_CRYPTO / ONLINE）' AFTER `verify_code`;
@@ -107,6 +109,7 @@ CREATE TABLE IF NOT EXISTS `order_meetup_proposal` (
   `longitude` decimal(10,6) NOT NULL COMMENT '提议会面经度（GCJ-02）',
   `poi_name` varchar(120) NOT NULL COMMENT '地图选点名称（如：南湖图书馆正门）',
   `detail_address` varchar(255) DEFAULT NULL COMMENT '具体楼层或地标补充说明',
+  `radius_meters` int DEFAULT 80 COMMENT '提议会面点允许核销有效半径（米）',
   `proposed_time` datetime DEFAULT NULL COMMENT '提议会面时间（可选）',
   `remark` varchar(255) DEFAULT NULL COMMENT '协商留言',
   `proposal_status` tinyint NOT NULL DEFAULT 0 COMMENT '状态（0=待对方确认, 1=对方已同意锁定, 2=对方已拒绝, 3=已被新提案覆盖）',

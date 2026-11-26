@@ -13,30 +13,17 @@ public class TradeLocationVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(value = "地点ID")
     private Long id;
-
-    @ApiModelProperty(value = "所属校区ID")
     private Long campusId;
-
-    @ApiModelProperty(value = "地点名称")
     private String locationName;
-
-    @ApiModelProperty(value = "地点描述")
     private String locationDescription;
-
-    @ApiModelProperty(value = "详细地址")
     private String locationAddress;
-
-    @ApiModelProperty(value = "纬度（GCJ-02）")
     private BigDecimal latitude;
-
-    @ApiModelProperty(value = "经度（GCJ-02）")
     private BigDecimal longitude;
 
-    @ApiModelProperty(value = "是否监控覆盖安全区（1=是, 0=否）")
-    private Integer hasCctv;
+    @ApiModelProperty(value = "允许当面核销的有效半径（米）")
+    private Integer validRadiusMeters;
 
-    @ApiModelProperty(value = "是否可用（1=可用, 0=不可用）")
+    private Integer hasCctv;
     private Integer isAvailable;
 }

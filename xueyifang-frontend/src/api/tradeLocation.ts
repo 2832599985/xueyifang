@@ -1,7 +1,3 @@
-/**
- * 管理员-交易地点管理 API 模块
- */
-
 import request from '@/api/request'
 import type { PageResult } from '@/types/http'
 import type { TradeLocation } from '@/types/dict'
@@ -17,15 +13,17 @@ export interface TradeLocationQueryParams {
 
 export interface TradeLocationForm {
   id?: number
+  campusId?: number
   locationName: string
   locationDescription?: string
   locationAddress?: string
+  latitude?: number
+  longitude?: number
+  validRadiusMeters?: number
+  hasCctv?: number
   isAvailable?: number
 }
 
-/**
- * 分页查询交易地点列表
- */
 export function listTradeLocations(params: TradeLocationQueryParams): Promise<PageResult<TradeLocation>> {
   return request<PageResult<TradeLocation>>({
     url: `${BASE_URL}/list`,
@@ -39,9 +37,6 @@ export function listTradeLocations(params: TradeLocationQueryParams): Promise<Pa
   })
 }
 
-/**
- * 添加交易地点
- */
 export function addTradeLocation(data: TradeLocationForm): Promise<boolean> {
   return request<boolean>({
     url: `${BASE_URL}/add`,
@@ -50,9 +45,6 @@ export function addTradeLocation(data: TradeLocationForm): Promise<boolean> {
   })
 }
 
-/**
- * 更新交易地点
- */
 export function updateTradeLocation(data: TradeLocationForm): Promise<boolean> {
   return request<boolean>({
     url: `${BASE_URL}/update`,
@@ -61,9 +53,6 @@ export function updateTradeLocation(data: TradeLocationForm): Promise<boolean> {
   })
 }
 
-/**
- * 删除交易地点
- */
 export function deleteTradeLocation(id: number): Promise<boolean> {
   return request<boolean>({
     url: `${BASE_URL}/${id}`,

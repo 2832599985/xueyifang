@@ -46,6 +46,7 @@ public class OrderCreateRequest implements Serializable {
 
     @ApiModelProperty(value = "会面详细楼层/地标说明")
     private String meetupAddress;
+    private Integer meetupRadiusMeters;
 
     @ApiModelProperty(value = "买家下单备注")
     private String remark;

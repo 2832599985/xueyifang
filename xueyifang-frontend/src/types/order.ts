@@ -45,6 +45,7 @@ export interface MeetupProposal {
   longitude: number
   poiName: string
   detailAddress?: string
+  radiusMeters?: number
   proposedTime?: string
   remark?: string
   proposalStatus: number // 0=pending, 1=accepted, 2=rejected, 3=superseded
@@ -120,6 +121,7 @@ export interface OrderDetail {
   meetupLng?: number
   meetupPoiName?: string
   meetupAddress?: string
+  meetupRadiusMeters?: number
   meetupConfirmed?: number
   requireBleVerify?: number
   orderStatus: OrderStatus
@@ -173,6 +175,8 @@ export interface OrderVerifyCredential {
 export interface OrderVerifyQrPayload {
   qrToken: string
   expectedOrderId?: number
+  verifierLat?: number
+  verifierLng?: number
 }
 
 export interface CreateOrderRequest {
@@ -186,6 +190,7 @@ export interface CreateOrderRequest {
   meetupLng?: number
   meetupPoiName?: string
   meetupAddress?: string
+  meetupRadiusMeters?: number
   remark?: string
 }
 

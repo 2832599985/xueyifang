@@ -52,6 +52,7 @@ public class OrderDetailVO implements Serializable {
 
     @ApiModelProperty(value = "约定会面详细补充说明")
     private String meetupAddress;
+    private Integer meetupRadiusMeters;
 
     @ApiModelProperty(value = "双方是否已确认锁定会面点（0=初始, 1=已双方锁定）")
     private Integer meetupConfirmed;

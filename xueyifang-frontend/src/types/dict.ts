@@ -19,6 +19,7 @@ export interface TradeLocation {
   locationAddress: string
   latitude?: number
   longitude?: number
+  validRadiusMeters?: number
   hasCctv?: number
   isAvailable: number
 }
