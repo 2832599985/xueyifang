@@ -215,6 +215,27 @@
               </div>
             </section>
 
+            <!-- Staged Milestone Escrow Card -->
+            <OrderMilestoneCard
+              :order="orderDetail"
+              :is-buyer="isBuyer"
+              :is-seller="isSeller"
+              @updated="fetchDetail"
+            />
+
+            <!-- Appointment No-Show Automatic Compensation Card -->
+            <OrderNoShowCompensationCard
+              :order="orderDetail"
+              :is-buyer="isBuyer"
+              :is-seller="isSeller"
+              @updated="fetchDetail"
+            />
+
+            <!-- SHA-256 Digital Fulfillment & Campus Skill Practice Certificate Card -->
+            <OrderDeliveryCertificateCard
+              :order="orderDetail"
+            />
+
             <!-- Service & Trade Details -->
             <section class="xyf-surface-card panel-card">
               <div class="xyf-section-heading">
@@ -534,6 +555,9 @@ import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import TradeLocationBadge from '@/components/business/TradeLocationBadge.vue'
 import OrderTimeline from '@/components/business/OrderTimeline.vue'
+import OrderMilestoneCard from '@/components/business/OrderMilestoneCard.vue'
+import OrderNoShowCompensationCard from '@/components/order/OrderNoShowCompensationCard.vue'
+import OrderDeliveryCertificateCard from '@/components/order/OrderDeliveryCertificateCard.vue'
 import OfflineMeetupPassCard from '@/components/business/OfflineMeetupPassCard.vue'
 import MeetupProposalCard from '@/components/business/MeetupProposalCard.vue'
 import OfflineVerifyDialog from '@/components/business/OfflineVerifyDialog.vue'

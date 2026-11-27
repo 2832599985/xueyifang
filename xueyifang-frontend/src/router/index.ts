@@ -48,6 +48,42 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: '服务详情' }
       },
       {
+        path: 'demands',
+        name: 'DemandHall',
+        component: () => import('@/views/demand/DemandHall.vue'),
+        meta: { title: '悬赏大厅' }
+      },
+      {
+        path: 'demands/:id',
+        name: 'DemandDetail',
+        component: () => import('@/views/demand/DemandDetail.vue'),
+        meta: { title: '悬赏详情与竞标' }
+      },
+      {
+        path: 'groups',
+        name: 'GroupSessionHall',
+        component: () => import('@/views/group/GroupSessionHall.vue'),
+        meta: { title: '拼班团课大厅' }
+      },
+      {
+        path: 'groups/:id',
+        name: 'GroupSessionDetail',
+        component: () => import('@/views/group/GroupSessionDetail.vue'),
+        meta: { title: '拼班团课详情' }
+      },
+      {
+        path: 'leaderboard',
+        name: 'CreatorLeaderboard',
+        component: () => import('@/views/user/CreatorLeaderboard.vue'),
+        meta: { title: '校友创作者技能风云榜' }
+      },
+      {
+        path: 'creators/:id',
+        name: 'CreatorProfile',
+        component: () => import('@/views/user/CreatorProfile.vue'),
+        meta: { title: '创作者数字信用主页' }
+      },
+      {
         path: 'about',
         name: 'About',
         component: () => import('@/views/about/About.vue'),
@@ -196,6 +232,30 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: '服务审核详情', requiresAdmin: true, hideInMenu: true }
       },
       {
+        path: 'demands',
+        name: 'AdminDemandList',
+        component: () => import('@/views/admin/demand/AdminDemandList.vue'),
+        meta: { title: '悬赏需求巡检', requiresAdmin: true }
+      },
+      {
+        path: 'risk-radar',
+        name: 'AdminRiskRadar',
+        component: () => import('@/views/admin/risk/AdminRiskRadar.vue'),
+        meta: { title: '异常互刷风控雷达', requiresAdmin: true }
+      },
+      {
+        path: 'finance',
+        name: 'AdminFinanceReconciliation',
+        component: () => import('@/views/admin/finance/AdminFinanceReconciliation.vue'),
+        meta: { title: '财务日终对账与爽约赔付', requiresAdmin: true }
+      },
+      {
+        path: 'system-health',
+        name: 'AdminSystemHealth',
+        component: () => import('@/views/admin/system/AdminSystemHealth.vue'),
+        meta: { title: '全链路安全与索引巡检', requiresAdmin: true }
+      },
+      {
         path: 'disputes',
         name: 'AdminDisputeList',
         component: () => import('@/views/admin/dispute/AdminDisputeList.vue'),
@@ -303,7 +363,6 @@ router.beforeEach(async (to) => {
     if (!token) {
       return { path: '/login', query: { redirect: to.fullPath } }
     }
-    // 统一在进入任何私有页前确保 userInfo 已水合（避免 F5 刷新后组件内 userInfo 为空导致误判无权限）
     const userInfo = await ensureUserInfo()
     if (!userInfo) {
       ElMessage.warning('登录已过期，请重新登录')

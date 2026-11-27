@@ -195,6 +195,23 @@
           </div>
         </section>
 
+        <!-- Seller Margin Deposit Pool Card -->
+        <section class="xyf-surface-card" style="padding: 20px 24px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap">
+          <div>
+            <div style="font-size: 16px; font-weight: 700; color: var(--xyf-ink)">
+              创作者履约保证金专户：
+              <strong class="xyf-tabular" style="font-size: 20px; color: #047857">¥{{ Number(sellerDepositBalance).toFixed(2) }}</strong>
+            </div>
+            <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--xyf-ink-muted)">
+              缴纳保证金可在个人主页与悬赏竞标中点亮「已缴保证金」高信誉标识；无在途销售单与未结纠纷时可随时全额无息退回可用余额。
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px">
+            <el-button type="primary" plain @click="handlePayDeposit">缴纳保证金</el-button>
+            <el-button v-if="sellerDepositBalance > 0" plain @click="handleWithdrawDeposit">退还至余额</el-button>
+          </div>
+        </section>
+
         <!-- Clean Recent Transactions Ledger -->
         <section class="ledger-card">
           <div class="ledger-head">
@@ -315,7 +332,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowRight } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { getSellerDepositInfo, paySellerDeposit, withdrawSellerDeposit } from '@/api/milestone'
 import {
   getWalletInfo,
   getTransactionHistory,
@@ -340,6 +359,50 @@ const userStore = useUserStore()
 const loading = ref(true)
 const submitting = ref(false)
 const wallet = ref<WalletInfo | null>(null)
+const sellerDepositBalance = ref(0)
+
+async function refreshDepositBalance() {
+  try {
+    const info = await getSellerDepositInfo()
+    sellerDepositBalance.value = Number(info.sellerDeposit || 0)
+  } catch {
+    sellerDepositBalance.value = 0
+  }
+}
+
+async function handlePayDeposit() {
+  try {
+    const res = await ElMessageBox.prompt('请输入从钱包可用余额划转缴纳的履约保证金金额（最低 10 元）：', '缴纳创作者履约保证金', {
+      confirmButtonText: '确认缴纳',
+      cancelButtonText: '取消',
+      inputValue: '100',
+      inputPattern: /^\d+(\.\d{1,2})?$/,
+      inputErrorMessage: '请输入正确的金额数字'
+    })
+    await paySellerDeposit(Number(res.value))
+    ElMessage.success('履约保证金缴纳成功，专属信誉标识已点亮')
+    await Promise.all([fetchWalletData(), refreshDepositBalance()])
+  } catch (err: any) {
+    if (err !== 'cancel' && err?.message) notifyFallbackError(err, '缴纳保证金失败')
+  }
+}
+
+async function handleWithdrawDeposit() {
+  try {
+    const res = await ElMessageBox.prompt(`当前保证金余额 ¥${sellerDepositBalance.value.toFixed(2)}，请输入退还金额（最低 10 元）：`, '退还创作者履约保证金', {
+      confirmButtonText: '申请退还',
+      cancelButtonText: '取消',
+      inputValue: String(sellerDepositBalance.value),
+      inputPattern: /^\d+(\.\d{1,2})?$/,
+      inputErrorMessage: '请输入正确的金额数字'
+    })
+    await withdrawSellerDeposit(Number(res.value))
+    ElMessage.success('履约保证金已无责退回您的钱包可用余额')
+    await Promise.all([fetchWalletData(), refreshDepositBalance()])
+  } catch (err: any) {
+    if (err !== 'cancel' && err?.message) notifyFallbackError(err, '退还保证金失败')
+  }
+}
 const recentTransactions = ref<WalletTransaction[]>([])
 
 const rechargeVisible = ref(false)
@@ -487,6 +550,7 @@ async function handleWithdraw() {
 
 onMounted(() => {
   fetchWalletData()
+  refreshDepositBalance()
 })
 </script>
 

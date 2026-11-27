@@ -1,7 +1,7 @@
 package com.xueyifang.common;
 
 /**
- * 错误码枚举（v3.0 商业化扩展）
+ * 错误码枚举（v4.2 拼班团课与全纵深扩展）
  *
  * @author xueyifang
  */
@@ -76,7 +76,17 @@ public enum ErrorCode {
     CHAT_CONTENT_EMPTY(40703, "消息内容不能为空"),
     CHAT_CANNOT_SEND_TO_SELF(40704, "不能给自己发送消息"),
     CHAT_RECEIVER_ACCOUNT_DISABLED(40705, "接收者账号已被禁用"),
-    CHAT_BYPASS_BLOCKED(40706, "禁止发送站外收款链接，请通过平台担保订单交易");
+    CHAT_BYPASS_BLOCKED(40706, "禁止发送站外收款链接，请通过平台担保订单交易"),
+
+    // 悬赏需求与反向竞标相关错误码
+    DEMAND_NOT_EXIST(40901, "悬赏需求不存在"),
+    DEMAND_STATUS_ERROR(40902, "当前悬赏需求已截止或不可操作"),
+    DEMAND_BID_INVALID(40903, "竞标报价不存在或状态异常"),
+
+    // 拼班团课与共享档期相关错误码
+    GROUP_SESSION_NOT_EXIST(41001, "拼班团课不存在"),
+    GROUP_SESSION_FULL(41002, "该拼班团课名额已满"),
+    GROUP_SESSION_STATUS_ERROR(41003, "当前拼班状态不支持该操作");
 
     private final int code;
     private final String message;

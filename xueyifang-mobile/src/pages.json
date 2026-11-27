@@ -14,6 +14,13 @@
       }
     },
     {
+      "path": "pages/demand/index",
+      "style": {
+        "navigationBarTitleText": "校园悬赏需求池",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
       "path": "pages/service/detail",
       "style": {
         "navigationBarTitleText": "技能详情与档期预约"
@@ -68,6 +75,10 @@
       {
         "pagePath": "pages/index/index",
         "text": "发现技能"
+      },
+      {
+        "pagePath": "pages/demand/index",
+        "text": "悬赏大厅"
       },
       {
         "pagePath": "pages/order/list",

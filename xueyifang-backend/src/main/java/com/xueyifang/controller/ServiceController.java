@@ -1,25 +1,26 @@
 package com.xueyifang.controller;
 
-
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.xueyifang.annotation.RateLimit;
-import org.springframework.web.bind.annotation.RequestMapping;
-
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.*;
-import javax.annotation.Resource;
 import com.xueyifang.common.BaseResponse;
 import com.xueyifang.common.ResultUtils;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.xueyifang.domain.dto.ServicePublishRequest;
 import com.xueyifang.domain.dto.ServiceUpdateRequest;
-import com.xueyifang.domain.vo.ServiceListItemVO;
+import com.xueyifang.domain.vo.PricingBenchmarkVO;
 import com.xueyifang.domain.vo.ServiceDetailVO;
+import com.xueyifang.domain.vo.ServiceListItemVO;
+import com.xueyifang.service.IPricingBenchmarkService;
 import com.xueyifang.service.IServiceService;
 import com.xueyifang.utils.UserContext;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.web.bind.annotation.*;
+
+import javax.annotation.Resource;
+import java.math.BigDecimal;
 
 /**
  * <p>
- * 服务表 前端控制器
+ * 服务表 前端控制器（v4.3 含历史成交分位数智能定价参考区间接口）
  * </p>
  *
  * @author luoyi
@@ -30,6 +31,20 @@ import com.xueyifang.utils.UserContext;
 public class ServiceController {
     @Resource
     private IServiceService serviceService;
+
+    @Resource
+    private IPricingBenchmarkService pricingBenchmarkService;
+
+    @GetMapping("/pricing-benchmark")
+    @ApiOperation("查询技能分类历史成交分位数（P25/P50/P75/P90）智能定价参考区间")
+    public BaseResponse<PricingBenchmarkVO> getPricingBenchmark(
+            @RequestParam(value = "tagId", required = false) Long tagId,
+            @RequestParam(value = "campusId", required = false) Long campusId,
+            @RequestParam(value = "tradeType", required = false) Integer tradeType,
+            @RequestParam(value = "proposedPrice", required = false) BigDecimal proposedPrice
+    ) {
+        return ResultUtils.success(pricingBenchmarkService.getPricingBenchmark(tagId, campusId, tradeType, proposedPrice));
+    }
 
     @PostMapping("/publish")
     public BaseResponse<Long> publish(@RequestBody ServicePublishRequest request) {

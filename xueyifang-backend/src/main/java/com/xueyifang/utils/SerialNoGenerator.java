@@ -6,7 +6,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 业务流水号生成器（支持订单、钱包、第三方担保支付单与平台抽佣台账单号）
+ * 业务流水号生成器（支持订单、钱包、悬赏、第三方担保支付单与平台抽佣台账单号）
  */
 public final class SerialNoGenerator {
 
@@ -17,12 +17,21 @@ public final class SerialNoGenerator {
     private static final String TRANSACTION_PREFIX = "WT";
     private static final String PAYMENT_PREFIX = "PAY";
     private static final String REVENUE_PREFIX = "REV";
+    private static final String DEMAND_PREFIX = "DEMAND";
 
     private SerialNoGenerator() {
     }
 
     public static String nextOrderNo() {
         return build(ORDER_PREFIX, null);
+    }
+
+    public static String nextDemandNo() {
+        return build(DEMAND_PREFIX, null);
+    }
+
+    public static String next(String prefix) {
+        return build(prefix != null ? prefix : "NO", null);
     }
 
     public static String nextTransactionNo(Long userId) {

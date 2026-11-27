@@ -150,6 +150,13 @@
                 </div>
               </dl>
 
+              <SmartPricingCompassCard
+                :tag-id="service.tagId"
+                :trade-type="service.tradeType"
+                :proposed-price="Number(service.price || 0)"
+                :interactive="false"
+              />
+
               <!-- Admin Inspection vs Owner Actions vs Buyer Actions -->
               <div v-if="userStore.isAdmin" class="owner-box">
                 <el-alert
@@ -261,9 +268,9 @@
               <el-button
                 plain
                 class="seller-works-btn"
-                @click="router.push({ path: '/services', query: { sellerId: String(service.sellerId) } })"
+                @click="router.push(`/creators/${service.sellerId}`)"
               >
-                查看 TA 的全部在架服务
+                查看创作者数字信用主页与在架服务
               </el-button>
             </section>
           </aside>
@@ -297,6 +304,7 @@ import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import TradeLocationBadge from '@/components/business/TradeLocationBadge.vue'
 import ServiceReviewList from './components/ServiceReviewList.vue'
+import SmartPricingCompassCard from '@/components/service/SmartPricingCompassCard.vue'
 
 const router = useRouter()
 const route = useRoute()

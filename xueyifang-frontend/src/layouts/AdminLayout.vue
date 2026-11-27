@@ -184,6 +184,10 @@ const menuItems: Array<MenuItem | MenuGroup> = [
   { path: '/admin/users', title: '用户与账号治理', icon: User },
   { path: '/admin/permissions', title: '发布权限审核', icon: Stamp },
   { path: '/admin/services', title: '服务审核与巡检', icon: Checked },
+  { path: '/admin/demands', title: '悬赏需求巡检', icon: Checked },
+  { path: '/admin/risk-radar', title: '异常互刷风控雷达', icon: WarnTriangleFilled },
+  { path: '/admin/finance', title: '财务对账与爽约赔付', icon: Stamp },
+  { path: '/admin/system-health', title: '安全与索引健康巡检', icon: Odometer },
   { path: '/admin/disputes', title: '订单纠纷仲裁', icon: WarnTriangleFilled },
   {
     title: '平台字典管理',

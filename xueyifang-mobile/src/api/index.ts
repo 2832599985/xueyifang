@@ -85,6 +85,99 @@ export const mobileApi = {
     return httpRequest<any>({ url: `/service/${id}` })
   },
 
+  listDemands(params?: { keyword?: string; pageNum?: number; pageSize?: number }) {
+    const q: string[] = [`pageNum=${params?.pageNum || 1}`, `pageSize=${params?.pageSize || 15}`]
+    if (params?.keyword) q.push(`keyword=${encodeURIComponent(params.keyword)}`)
+    return httpRequest<{ records: any[]; total: number }>({
+      url: `/demand/list?${q.join('&')}`
+    })
+  },
+
+  publishDemand(payload: Record<string, any>) {
+    return httpRequest<number>({
+      url: '/demand/publish',
+      method: 'POST',
+      data: payload
+    })
+  },
+
+  submitDemandBid(demandId: number, payload: { bidPrice: number; estimatedHours: number; bidPlan: string }) {
+    return httpRequest<number>({
+      url: `/demand/${demandId}/bid`,
+      method: 'POST',
+      data: payload
+    })
+  },
+
+  listGroupSessions(params?: { keyword?: string; pageNum?: number; pageSize?: number }) {
+    const q: string[] = [`pageNum=${params?.pageNum || 1}`, `pageSize=${params?.pageSize || 15}`]
+    if (params?.keyword) q.push(`keyword=${encodeURIComponent(params.keyword)}`)
+    return httpRequest<{ records: any[]; total: number }>({
+      url: `/group-session/list?${q.join('&')}`
+    })
+  },
+
+  joinGroupSession(sessionId: number) {
+    return httpRequest<number>({
+      url: `/group-session/${sessionId}/join`,
+      method: 'POST'
+    })
+  },
+
+  getPricingBenchmark(params: { tagId?: number; campusId?: number; tradeType?: number; proposedPrice?: number }) {
+    const q: string[] = []
+    if (params.tagId) q.push(`tagId=${params.tagId}`)
+    if (params.campusId) q.push(`campusId=${params.campusId}`)
+    if (params.tradeType) q.push(`tradeType=${params.tradeType}`)
+    if (params.proposedPrice !== undefined) q.push(`proposedPrice=${params.proposedPrice}`)
+    return httpRequest<any>({
+      url: `/service/pricing-benchmark${q.length ? '?' + q.join('&') : ''}`
+    })
+  },
+
+  getRiskRadarOverview() {
+    return httpRequest<any>({
+      url: '/admin/risk-radar/overview'
+    })
+  },
+
+  getOrderNoShowClaim(orderId: number) {
+    return httpRequest<any>({
+      url: `/order/noshow/${orderId}`
+    })
+  },
+
+  claimSellerNoShow(orderId: number, evidenceNote?: string) {
+    return httpRequest<any>({
+      url: `/order/noshow/${orderId}/claim`,
+      method: 'POST',
+      data: { evidenceNote }
+    })
+  },
+
+  getOrderCertificate(orderId: number) {
+    return httpRequest<any>({
+      url: `/order/certificate/${orderId}`
+    })
+  },
+
+  verifyOrderCertificateSeal(orderId: number, sealHash: string) {
+    return httpRequest<any>({
+      url: `/order/certificate/${orderId}/verify?sealHash=${encodeURIComponent(sealHash)}`
+    })
+  },
+
+  getCreatorLeaderboard(params?: { campusId?: number; tagId?: number; rankBy?: string; limit?: number }) {
+    const q: string[] = []
+    if (params?.campusId) q.push(`campusId=${params.campusId}`)
+    if (params?.tagId) q.push(`tagId=${params.tagId}`)
+    if (params?.rankBy) q.push(`rankBy=${encodeURIComponent(params.rankBy)}`)
+    if (params?.limit) q.push(`limit=${params.limit}`)
+    return httpRequest<any[]>({
+      url: `/creator/leaderboard${q.length ? '?' + q.join('&') : ''}`
+    })
+  },
+
   createOrder(payload: Record<string, any>) {
     return httpRequest<number>({
       url: '/order/create',
@@ -150,11 +243,11 @@ export const mobileApi = {
     return httpRequest<any>({ url: `/order/${orderId}/verify-credential` })
   },
 
-  verifyQrToken(qrToken: string, expectedOrderId?: number) {
+  verifyQrToken(qrToken: string, expectedOrderId?: number, verifierLat?: number, verifierLng?: number) {
     return httpRequest<number>({
       url: '/order/verify-qr',
       method: 'POST',
-      data: { qrToken, expectedOrderId }
+      data: { qrToken, expectedOrderId, verifierLat, verifierLng }
     })
   },
 

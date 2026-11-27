@@ -29,6 +29,27 @@
               服务大厅
             </router-link>
             <router-link
+              to="/demands"
+              class="main-nav__link"
+              :class="{ 'is-active': route.path.startsWith('/demands') }"
+            >
+              悬赏大厅
+            </router-link>
+            <router-link
+              to="/groups"
+              class="main-nav__link"
+              :class="{ 'is-active': route.path.startsWith('/groups') }"
+            >
+              拼班团课
+            </router-link>
+            <router-link
+              to="/leaderboard"
+              class="main-nav__link"
+              :class="{ 'is-active': route.path.startsWith('/leaderboard') }"
+            >
+              技能风云榜
+            </router-link>
+            <router-link
               to="/about"
               class="main-nav__link"
               :class="{ 'is-active': route.path === '/about' }"
@@ -247,6 +268,8 @@
             <h4>发现服务</h4>
             <router-link to="/">发现主页</router-link>
             <router-link to="/services">全部技能</router-link>
+            <router-link to="/demands">悬赏大厅</router-link>
+            <router-link to="/groups">拼班团课</router-link>
             <router-link to="/about">交易保障</router-link>
             <router-link v-if="!userStore.isAdmin" to="/service/publish">成为创作者</router-link>
           </div>
