@@ -1,20 +1,15 @@
 <template>
   <div class="disputes-page xyf-page">
     <div class="xyf-container">
-      <header class="disputes-head">
-        <div>
-          <h1>我的纠纷</h1>
-          <p>查看已提交仲裁的订单进展与平台裁决结果</p>
-        </div>
-        <div class="disputes-head__actions">
-          <button type="button" class="btn-secondary" @click="router.push('/orders')">
-            购买订单
-          </button>
-          <button type="button" class="btn-primary" @click="router.push('/orders/sales')">
-            销售订单
-          </button>
-        </div>
-      </header>
+      <XyfPageHeader title="我的纠纷">
+        <template #meta>
+          <span class="head-count xyf-tabular">共 {{ total }} 条</span>
+        </template>
+        <template #actions>
+          <el-button @click="router.push('/orders')">购买订单</el-button>
+          <el-button type="primary" @click="router.push('/orders/sales')">销售订单</el-button>
+        </template>
+      </XyfPageHeader>
 
       <div v-if="loading" class="xyf-surface-card loading-card">
         <el-skeleton :rows="5" animated />
@@ -35,7 +30,7 @@
         <article
           v-for="item in disputes"
           :key="item.disputeId"
-          class="dispute-card"
+          class="xyf-surface-card dispute-card"
         >
           <div class="dispute-card__head">
             <div class="dispute-card__meta">
@@ -46,50 +41,66 @@
                 class="order-ref xyf-mono"
                 @click="router.push(`/orders/${item.orderId}`)"
               >
-                关联订单 {{ item.orderNumber }}
+                订单 {{ item.orderNumber }}
               </button>
               <span class="meta-sep">·</span>
               <span class="dispute-time xyf-tabular">{{ formatDateTimeMinute(item.createTime) }}</span>
             </div>
 
-            <span class="dispute-status" :class="`state-${item.disputeStatus}`">
-              {{ getDisputeStatusText(item.disputeStatus) }}
-            </span>
+            <XyfStatusBadge
+              :tone="disputeTone(item.disputeStatus)"
+              :label="getDisputeStatusText(item.disputeStatus)"
+              :dot="item.disputeStatus === DISPUTE_STATUS.PENDING || item.disputeStatus === DISPUTE_STATUS.PROCESSING"
+            />
           </div>
 
           <div class="dispute-card__body">
             <div class="dispute-card__info">
               <div class="dispute-reason">
-                {{ item.serviceTitle ? `${item.serviceTitle} · ` : '' }}{{ getDisputeTypeText(item.disputeType) }}
+                <span>{{ item.serviceTitle ? `${item.serviceTitle} · ` : '' }}{{ getDisputeTypeText(item.disputeType) }}</span>
                 <span v-if="item.totalAmount !== undefined" class="dispute-amt xyf-tabular">
-                  {{ formatPrice(item.totalAmount) }}
+                  争议金额 {{ formatPrice(item.totalAmount) }}
                 </span>
               </div>
               <div class="dispute-sub">{{ getStatusSummary(item.disputeStatus) }}</div>
+
+              <!-- 3-Step Dateless Arbitration Progress Rail -->
+              <div class="progress-rail" aria-label="仲裁阶段">
+                <div
+                  v-for="(stage, idx) in getRailStages(item.disputeStatus)"
+                  :key="stage.label"
+                  class="rail-step"
+                  :class="{
+                    'is-done': stage.state === 'done',
+                    'is-current': stage.state === 'current',
+                    'is-danger': stage.state === 'danger'
+                  }"
+                >
+                  <span class="rail-dot" />
+                  <span>{{ stage.label }}</span>
+                  <span v-if="idx < 2" class="rail-line" />
+                </div>
+              </div>
             </div>
 
             <div class="dispute-card__actions">
-              <button
-                type="button"
-                class="card-btn-secondary"
-                @click="router.push(`/orders/${item.orderId}`)"
-              >
+              <el-button size="small" @click="router.push(`/orders/${item.orderId}`)">
                 原订单
-              </button>
-              <button
-                type="button"
-                class="card-btn-primary"
+              </el-button>
+              <el-button
+                size="small"
+                type="primary"
                 @click="router.push(`/disputes/${item.disputeId}`)"
               >
                 查看详情
-                <el-icon><ArrowRight /></el-icon>
-              </button>
+                <el-icon style="margin-left: 4px"><ArrowRight /></el-icon>
+              </el-button>
             </div>
           </div>
         </article>
       </div>
 
-      <div v-if="total > pageSize" class="pagination-wrap">
+      <div v-if="total > pageSize" class="xyf-pagination">
         <el-pagination
           v-model:current-page="pageNum"
           :page-size="pageSize"
@@ -116,6 +127,8 @@ import {
   getDisputeStatusText,
   type DisputeListItem
 } from '@/types/dispute'
+import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
+import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 
 const router = useRouter()
@@ -125,6 +138,43 @@ const disputes = ref<DisputeListItem[]>([])
 const total = ref(0)
 const pageNum = ref(1)
 const pageSize = 10
+
+function disputeTone(status: number): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
+  if (status === DISPUTE_STATUS.PENDING) return 'warning'
+  if (status === DISPUTE_STATUS.PROCESSING) return 'info'
+  if (status === DISPUTE_STATUS.RESOLVED) return 'success'
+  if (status === DISPUTE_STATUS.REJECTED) return 'danger'
+  return 'neutral'
+}
+
+function getRailStages(status: number): Array<{ label: string; state: 'done' | 'current' | 'danger' | 'idle' }> {
+  if (status === DISPUTE_STATUS.RESOLVED) {
+    return [
+      { label: '已提交', state: 'done' },
+      { label: '平台核查', state: 'done' },
+      { label: '已裁决', state: 'done' }
+    ]
+  }
+  if (status === DISPUTE_STATUS.REJECTED) {
+    return [
+      { label: '已提交', state: 'done' },
+      { label: '平台核查', state: 'done' },
+      { label: '未支持', state: 'danger' }
+    ]
+  }
+  if (status === DISPUTE_STATUS.PROCESSING) {
+    return [
+      { label: '已提交', state: 'done' },
+      { label: '平台核查', state: 'current' },
+      { label: '等待裁决', state: 'idle' }
+    ]
+  }
+  return [
+    { label: '已提交', state: 'current' },
+    { label: '平台核查', state: 'idle' },
+    { label: '等待裁决', state: 'idle' }
+  ]
+}
 
 function getStatusSummary(status: number) {
   switch (status) {
@@ -162,79 +212,9 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.disputes-page {
-  padding-top: 36px;
-  padding-bottom: 72px;
-}
-
-.disputes-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 28px;
-
-  h1 {
-    margin: 0;
-    font-size: 30px;
-    font-weight: 750;
-    letter-spacing: -0.025em;
-    color: var(--xyf-ink);
-    line-height: 1.2;
-  }
-
-  p {
-    margin: 8px 0 0;
-    font-size: 14px;
-    color: var(--xyf-ink-3);
-  }
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-}
-
-.btn-primary {
-  height: 40px;
-  padding: 0 20px;
-  border-radius: 999px;
-  border: 1px solid #18181b;
-  background: #18181b;
-  color: #ffffff;
-  font-size: 13.5px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    background: #27272a;
-    border-color: #27272a;
-    transform: translateY(-1px);
-  }
-}
-
-.btn-secondary {
-  height: 40px;
-  padding: 0 18px;
-  border-radius: 999px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
-  color: var(--xyf-ink);
-  font-size: 13.5px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    border-color: #a1a1aa;
-    background: var(--xyf-surface-soft);
-  }
+.head-count {
+  font-size: 13px;
+  color: var(--xyf-ink-3);
 }
 
 .loading-card {
@@ -248,15 +228,12 @@ onMounted(() => {
 }
 
 .dispute-card {
-  background: #ffffff;
-  border: 1px solid var(--xyf-border);
-  border-radius: 16px;
-  padding: 18px 24px 20px;
+  padding: 18px 22px 20px;
   transition: border-color var(--xyf-transition), box-shadow var(--xyf-transition);
 
   &:hover {
-    border-color: #d4d4d8;
-    box-shadow: 0 10px 28px -14px rgba(9, 9, 11, 0.09);
+    border-color: var(--xyf-border-strong);
+    box-shadow: var(--xyf-shadow-sm);
   }
 
   &__head {
@@ -274,28 +251,27 @@ onMounted(() => {
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    font-size: 12.5px;
+    font-size: 12px;
     color: var(--xyf-ink-3);
   }
 
   .dispute-id {
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink);
   }
 
   .meta-sep {
-    color: #d4d4d8;
+    color: var(--xyf-border-strong);
   }
 
   .order-ref {
     border: none;
     background: transparent;
     padding: 2px 6px;
-    border-radius: 6px;
-    font-size: 12.5px;
+    border-radius: var(--xyf-radius-xs);
+    font-size: 12px;
     color: var(--xyf-ink-2);
     cursor: pointer;
-    transition: all var(--xyf-transition);
 
     &:hover {
       color: var(--xyf-ink);
@@ -303,26 +279,9 @@ onMounted(() => {
     }
   }
 
-  .dispute-status {
-    font-size: 12.5px;
-    font-weight: 550;
-    padding: 3px 9px;
-    border-radius: 6px;
-    background: #f4f4f5;
-    border: 1px solid #e4e4e7;
-    color: var(--xyf-ink);
-    letter-spacing: -0.005em;
-
-    &.state-3,
-    &.state-4 {
-      background: #fafafa;
-      color: var(--xyf-ink-3);
-    }
-  }
-
   &__body {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
     gap: 20px;
     padding-top: 16px;
@@ -330,23 +289,24 @@ onMounted(() => {
   }
 
   &__info {
-    min-width: 0;
+    flex: 1;
+    min-width: 240px;
   }
 
   .dispute-reason {
     display: flex;
     align-items: baseline;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
-    font-size: 16.5px;
-    font-weight: 650;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--xyf-ink);
-    letter-spacing: -0.015em;
+    letter-spacing: -0.01em;
   }
 
   .dispute-amt {
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--xyf-ink-2);
   }
 
@@ -364,51 +324,63 @@ onMounted(() => {
   }
 }
 
-.card-btn-primary {
+.progress-rail {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rail-step {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 36px;
-  padding: 0 18px;
-  border-radius: 999px;
-  border: 1px solid #18181b;
-  background: #18181b;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 550;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
+  gap: 6px;
+  font-size: 12px;
+  color: var(--xyf-ink-4);
 
-  &:hover {
-    background: #27272a;
-    border-color: #27272a;
-    transform: translateY(-1px);
+  .rail-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--xyf-border-strong);
   }
-}
 
-.card-btn-secondary {
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
-  color: var(--xyf-ink);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    border-color: #a1a1aa;
-    background: var(--xyf-surface-soft);
+  .rail-line {
+    width: 22px;
+    height: 1px;
+    background: var(--xyf-border);
+    margin-left: 2px;
   }
-}
 
-.pagination-wrap {
-  margin-top: 24px;
-  display: flex;
-  justify-content: center;
+  &.is-done {
+    color: var(--xyf-ink-2);
+
+    .rail-dot {
+      background: var(--xyf-ink);
+    }
+
+    .rail-line {
+      background: var(--xyf-ink);
+    }
+  }
+
+  &.is-current {
+    color: var(--xyf-ink);
+    font-weight: 600;
+
+    .rail-dot {
+      background: var(--xyf-champagne);
+    }
+  }
+
+  &.is-danger {
+    color: #b91c1c;
+    font-weight: 600;
+
+    .rail-dot {
+      background: var(--xyf-danger);
+    }
+  }
 }
 </style>

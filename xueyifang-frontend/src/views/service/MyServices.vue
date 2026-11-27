@@ -2,15 +2,18 @@
   <div class="my-services-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader title="我的服务">
+        <template #meta>
+          <span class="head-count xyf-tabular">共 {{ total }} 项</span>
+        </template>
         <template #actions>
-          <el-button @click="router.push('/orders/sales')">销售订单</el-button>
-          <el-button @click="router.push('/statistics/sales')">销售统计</el-button>
           <el-button type="primary" @click="handlePublishClick">
             <el-icon><Plus /></el-icon>
             发布新服务
           </el-button>
         </template>
       </XyfPageHeader>
+
+      <SellerSuiteTabs />
 
       <!-- Status Tabs -->
       <div class="toolbar-row">
@@ -19,17 +22,13 @@
             v-for="tab in statusTabs"
             :key="tab.label"
             type="button"
-            class="xyf-tab"
+            class="xyf-tabs__btn"
             :class="{ 'is-active': activeStatus === tab.value }"
             @click="switchStatus(tab.value)"
           >
             {{ tab.label }}
           </button>
         </div>
-
-        <span class="total-hint">
-          共 <strong class="xyf-tabular">{{ total }}</strong> 个服务
-        </span>
       </div>
 
       <!-- Loading -->
@@ -56,8 +55,8 @@
             <XyfImage
               :src="buildImageUrl(item.coverImage)"
               :alt="item.serviceTitle"
-              width="136px"
-              height="96px"
+              width="124px"
+              height="88px"
               :radius="10"
               fit="cover"
             />
@@ -72,25 +71,25 @@
                 <XyfStatusBadge
                   :tone="statusTone(item.status)"
                   :label="getServiceStatusText(item.status)"
+                  :dot="item.status === ServiceStatus.ONLINE || item.status === ServiceStatus.PENDING_REVIEW"
                 />
                 <XyfStatusBadge
-                  v-if="item.reviewStatus"
+                  v-if="item.reviewStatus && item.reviewStatus !== ReviewStatus.APPROVED"
                   :tone="reviewTone(item.reviewStatus)"
                   :label="`审核：${getReviewStatusText(item.reviewStatus)}`"
-                  :dot="false"
                 />
               </div>
             </div>
 
             <div class="meta-row xyf-tabular">
               <span class="price">{{ formatPrice(item.price) }}</span>
-              <span class="dot">·</span>
+              <span class="meta-sep">·</span>
               <span>{{ getTradeTypeText(item.tradeType) }}</span>
-              <span class="dot" v-if="item.tagName">·</span>
+              <span class="meta-sep" v-if="item.tagName">·</span>
               <span v-if="item.tagName">{{ item.tagName }}</span>
-              <span class="dot">·</span>
+              <span class="meta-sep">·</span>
               <span>销量 {{ item.salesCount ?? item.currentPurchaseCount ?? 0 }}</span>
-              <span class="dot">·</span>
+              <span class="meta-sep">·</span>
               <span>
                 名额 {{ item.maxPurchases === -1 ? '不限' : `${item.currentPurchaseCount || 0}/${item.maxPurchases}` }}
               </span>
@@ -101,28 +100,8 @@
             </div>
           </div>
 
+          <!-- Single Primary Action + Overflow Dropdown -->
           <div class="my-service-card__actions">
-            <el-button size="small" @click="router.push(`/services/${item.id}`)">
-              查看详情
-            </el-button>
-
-            <el-button
-              v-if="canEditService(item.status)"
-              size="small"
-              @click="router.push(`/service/edit/${item.id}`)"
-            >
-              编辑
-            </el-button>
-
-            <el-button
-              v-if="canOfflineService(item.status)"
-              size="small"
-              :loading="operatingId === item.id"
-              @click="handleOffline(item)"
-            >
-              {{ item.status === ServiceStatus.PENDING_REVIEW ? '撤回审核' : '下架' }}
-            </el-button>
-
             <el-button
               v-if="canOnlineService(item.status, item.reviewStatus)"
               size="small"
@@ -133,24 +112,51 @@
               {{
                 item.status === ServiceStatus.OFFLINE && item.reviewStatus === ReviewStatus.APPROVED
                   ? '恢复上架'
-                  : '重新提交上架'
+                  : '重新上架'
               }}
             </el-button>
 
             <el-button
+              v-else-if="canEditService(item.status)"
               size="small"
-              type="danger"
-              text
-              :loading="operatingId === item.id"
-              @click="handleDelete(item)"
+              type="primary"
+              @click="router.push(`/service/edit/${item.id}`)"
             >
-              删除
+              编辑
             </el-button>
+
+            <el-button
+              v-else
+              size="small"
+              @click="router.push(`/services/${item.id}`)"
+            >
+              查看详情
+            </el-button>
+
+            <el-dropdown trigger="click" @command="(cmd: string) => handleRowCommand(cmd, item)">
+              <el-button size="small" class="more-btn" aria-label="更多操作">
+                <el-icon><MoreFilled /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="detail">查看详情</el-dropdown-item>
+                  <el-dropdown-item v-if="canEditService(item.status)" command="edit">
+                    编辑服务
+                  </el-dropdown-item>
+                  <el-dropdown-item v-if="canOfflineService(item.status)" command="offline">
+                    {{ item.status === ServiceStatus.PENDING_REVIEW ? '撤回审核' : '暂时下架' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>
+                    <span class="dropdown-danger">删除服务</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </article>
       </div>
 
-      <div v-if="total > pageSize" class="pagination-wrap">
+      <div v-if="total > pageSize" class="xyf-pagination">
         <el-pagination
           v-model:current-page="pageNum"
           :page-size="pageSize"
@@ -168,7 +174,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, MoreFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   getMyServicesEnhanced,
@@ -194,6 +200,7 @@ import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfImage from '@/components/ui/XyfImage.vue'
 import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
+import SellerSuiteTabs from '@/components/service/SellerSuiteTabs.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -214,14 +221,14 @@ const total = ref(0)
 const pageNum = ref(1)
 const pageSize = 10
 
-function statusTone(status: number) {
+function statusTone(status: number): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
   if (status === ServiceStatus.ONLINE) return 'success'
   if (status === ServiceStatus.PENDING_REVIEW) return 'warning'
   if (status === ServiceStatus.REJECTED) return 'danger'
   return 'neutral'
 }
 
-function reviewTone(reviewStatus: number) {
+function reviewTone(reviewStatus: number): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
   if (reviewStatus === ReviewStatus.APPROVED) return 'success'
   if (reviewStatus === ReviewStatus.PENDING) return 'warning'
   if (reviewStatus === ReviewStatus.REJECTED) return 'danger'
@@ -235,6 +242,13 @@ function handlePublishClick() {
     ElMessage.info('请先在个人中心申请发布权限')
     router.push({ path: '/user/center', query: { tab: 'permission' } })
   }
+}
+
+function handleRowCommand(cmd: string, item: MyServiceItem) {
+  if (cmd === 'detail') router.push(`/services/${item.id}`)
+  else if (cmd === 'edit') router.push(`/service/edit/${item.id}`)
+  else if (cmd === 'offline') handleOffline(item)
+  else if (cmd === 'delete') handleDelete(item)
 }
 
 async function fetchList() {
@@ -329,22 +343,13 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.toolbar-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 18px;
+.head-count {
+  font-size: 13px;
+  color: var(--xyf-ink-3);
 }
 
-.total-hint {
-  font-size: 13px;
-  color: var(--xyf-ink-muted);
-
-  strong {
-    color: var(--xyf-ink);
-  }
+.toolbar-row {
+  margin-bottom: 20px;
 }
 
 .loading-card {
@@ -364,6 +369,12 @@ onMounted(() => {
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
+  transition: border-color var(--xyf-transition), box-shadow var(--xyf-transition);
+
+  &:hover {
+    border-color: var(--xyf-border-strong);
+    box-shadow: var(--xyf-shadow-sm);
+  }
 
   &__left {
     cursor: pointer;
@@ -379,8 +390,16 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-shrink: 0;
   }
+}
+
+.more-btn {
+  padding: 0 9px;
+}
+
+.dropdown-danger {
+  color: var(--xyf-danger);
 }
 
 .title-row {
@@ -394,13 +413,13 @@ onMounted(() => {
   .service-title {
     margin: 0;
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--xyf-ink);
     cursor: pointer;
-    max-width: 460px;
+    max-width: 480px;
 
     &:hover {
-      color: var(--xyf-primary);
+      opacity: 0.72;
     }
   }
 
@@ -417,12 +436,16 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 8px;
   font-size: 13px;
-  color: var(--xyf-ink-muted);
+  color: var(--xyf-ink-3);
 
   .price {
     font-size: 15px;
-    font-weight: 750;
-    color: var(--xyf-accent);
+    font-weight: 700;
+    color: var(--xyf-ink);
+  }
+
+  .meta-sep {
+    color: var(--xyf-border-strong);
   }
 }
 
@@ -431,13 +454,8 @@ onMounted(() => {
   padding: 6px 10px;
   border-radius: var(--xyf-radius-xs);
   background: var(--xyf-danger-soft);
-  color: var(--xyf-danger);
-  font-size: 12.5px;
-}
-
-.pagination-wrap {
-  margin-top: 24px;
-  display: flex;
-  justify-content: center;
+  border: 1px solid #f5caca;
+  color: #b91c1c;
+  font-size: 12px;
 }
 </style>

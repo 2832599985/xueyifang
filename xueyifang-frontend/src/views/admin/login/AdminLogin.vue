@@ -162,7 +162,7 @@ async function handleLogin() {
   h1 {
     margin: 6px 0 6px;
     font-size: 24px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 

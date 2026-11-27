@@ -393,7 +393,7 @@ onMounted(fetchProfile)
     h1 {
       margin: 0;
       font-size: 24px;
-      font-weight: 780;
+      font-weight: 700;
       letter-spacing: -0.02em;
       color: var(--xyf-ink);
     }
@@ -404,7 +404,7 @@ onMounted(fetchProfile)
       background: #18181b;
       color: #e5c79e;
       font-size: 11.5px;
-      font-weight: 650;
+      font-weight: 600;
     }
   }
 
@@ -456,7 +456,7 @@ onMounted(fetchProfile)
 
     strong {
       font-size: 19px;
-      font-weight: 800;
+      font-weight: 700;
       color: var(--xyf-ink);
     }
 
@@ -523,7 +523,7 @@ onMounted(fetchProfile)
 
     strong {
       font-size: 36px;
-      font-weight: 800;
+      font-weight: 700;
       line-height: 1;
       color: var(--xyf-ink);
     }

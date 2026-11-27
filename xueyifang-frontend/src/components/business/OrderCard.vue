@@ -15,7 +15,11 @@
       </div>
 
       <div class="order-card__statuses">
-        <XyfStatusBadge :tone="orderTone" :label="getOrderStatusText(order.orderStatus)" />
+        <XyfStatusBadge
+          :tone="orderTone"
+          :label="getOrderStatusText(order.orderStatus)"
+          :dot="isActiveStatus"
+        />
         <XyfStatusBadge
           v-if="order.paymentStatus === PaymentStatus.REFUNDED"
           tone="danger"
@@ -25,6 +29,7 @@
           v-else-if="order.refundStatus && getRefundStatusText(order.refundStatus)"
           :tone="refundTone"
           :label="getRefundStatusText(order.refundStatus)"
+          :dot="order.refundStatus === RefundStatus.PENDING"
         />
       </div>
     </div>
@@ -36,9 +41,9 @@
             :src="buildImageUrl(order.serviceImage)"
             :alt="order.serviceTitle"
             :lazy="false"
-            width="124px"
-            height="88px"
-            :radius="12"
+            width="120px"
+            height="86px"
+            :radius="10"
             fit="cover"
           />
         </div>
@@ -48,6 +53,10 @@
             {{ order.serviceTitle }}
           </h4>
           <div class="order-card__sub xyf-tabular">
+            <template v-if="order.tradeType">
+              <span class="trade-chip">{{ getTradeTypeText(order.tradeType) }}</span>
+              <span class="meta-sep">·</span>
+            </template>
             <span>{{ formatCleanPrice(order.unitPrice) }} × {{ order.quantity }}</span>
           </div>
           <p v-if="order.remark" class="order-card__remark ellipsis">
@@ -91,6 +100,7 @@ import {
   RefundStatus,
   getOrderStatusText,
   getRefundStatusText,
+  getTradeTypeText,
   type OrderListItem,
   type OrderRole
 } from '@/types/order'
@@ -114,12 +124,17 @@ const counterpartyAvatar = computed(() =>
   props.role === 'BUYER' ? props.order.sellerAvatar : props.order.buyerAvatar
 )
 
-const orderTone = computed(() => {
+const isActiveStatus = computed(() =>
+  props.order.orderStatus === OrderStatus.UNPAID ||
+  props.order.orderStatus === OrderStatus.PENDING_SHIP ||
+  props.order.orderStatus === OrderStatus.PENDING_RECEIPT
+)
+
+const orderTone = computed<'neutral' | 'info' | 'success' | 'warning' | 'danger'>(() => {
   switch (props.order.orderStatus) {
     case OrderStatus.UNPAID:
       return 'warning'
     case OrderStatus.PENDING_SHIP:
-      return 'teal'
     case OrderStatus.PENDING_RECEIPT:
       return 'info'
     case OrderStatus.COMPLETED:
@@ -165,13 +180,14 @@ async function copyOrderNo() {
 .order-card {
   background: #ffffff;
   border: 1px solid var(--xyf-border);
-  border-radius: 16px;
-  padding: 18px 24px 20px;
+  border-radius: var(--xyf-radius-md);
+  padding: 18px 22px 20px;
+  box-shadow: var(--xyf-shadow-xs);
   transition: border-color var(--xyf-transition), box-shadow var(--xyf-transition);
 
   &:hover {
-    border-color: #d4d4d8;
-    box-shadow: 0 10px 28px -14px rgba(9, 9, 11, 0.1);
+    border-color: var(--xyf-border-strong);
+    box-shadow: var(--xyf-shadow-sm);
   }
 
   &__head {
@@ -189,7 +205,7 @@ async function copyOrderNo() {
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    font-size: 12.5px;
+    font-size: 12px;
     color: var(--xyf-ink-3);
   }
 
@@ -199,7 +215,7 @@ async function copyOrderNo() {
     gap: 7px;
 
     .party-name {
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--xyf-ink);
     }
@@ -258,7 +274,7 @@ async function copyOrderNo() {
   &__thumb {
     cursor: pointer;
     flex-shrink: 0;
-    border-radius: 12px;
+    border-radius: var(--xyf-radius-sm);
     overflow: hidden;
     transition: opacity 0.2s ease;
 
@@ -272,13 +288,13 @@ async function copyOrderNo() {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
   }
 
   &__title {
     margin: 0;
     font-size: 16px;
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink);
     letter-spacing: -0.01em;
     cursor: pointer;
@@ -290,13 +306,29 @@ async function copyOrderNo() {
   }
 
   &__sub {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
     font-size: 13px;
     color: var(--xyf-ink-3);
   }
 
+  .trade-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: var(--xyf-radius-xs);
+    background: var(--xyf-surface-soft);
+    border: 1px solid var(--xyf-border);
+    color: var(--xyf-ink-2);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
   &__remark {
     margin: 2px 0 0;
-    font-size: 12.5px;
+    font-size: 12px;
     color: var(--xyf-ink-2);
     max-width: 540px;
   }
@@ -329,7 +361,7 @@ async function copyOrderNo() {
 
     .amount-value {
       font-size: 20px;
-      font-weight: 750;
+      font-weight: 700;
       color: var(--xyf-ink);
       letter-spacing: -0.02em;
     }

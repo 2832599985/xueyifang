@@ -282,7 +282,7 @@ const events = computed<TimelineEvent[]>(() => {
 
     .escrow-stage__label {
       color: #18181b;
-      font-weight: 650;
+      font-weight: 600;
     }
   }
 }
@@ -404,7 +404,7 @@ const events = computed<TimelineEvent[]>(() => {
 
     .event-row__title {
       color: var(--xyf-ink);
-      font-weight: 650;
+      font-weight: 600;
     }
   }
 }

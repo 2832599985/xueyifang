@@ -484,7 +484,7 @@ onUnmounted(() => {
     h2 {
       margin: 0 0 4px;
       font-size: 16.5px;
-      font-weight: 750;
+      font-weight: 700;
       color: var(--xyf-ink);
     }
   }
@@ -541,7 +541,7 @@ onUnmounted(() => {
 
   .conv-name {
     font-size: 14px;
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink);
   }
 

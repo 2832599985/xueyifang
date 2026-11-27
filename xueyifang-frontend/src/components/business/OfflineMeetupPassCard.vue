@@ -309,7 +309,7 @@ onUnmounted(() => {
   h3 {
     margin: 0;
     font-size: 16px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
     letter-spacing: -0.015em;
   }
@@ -508,7 +508,7 @@ onUnmounted(() => {
   .caption-badge {
     align-self: flex-start;
     font-size: 11.5px;
-    font-weight: 650;
+    font-weight: 600;
     padding: 3px 9px;
     border-radius: 6px;
     background: #f4f4f5;
@@ -567,7 +567,7 @@ onUnmounted(() => {
   background: #18181b;
   color: #ffffff;
   font-size: 21px;
-  font-weight: 750;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;

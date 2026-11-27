@@ -263,7 +263,7 @@ onMounted(async () => {
   transition: all var(--xyf-transition);
 
   &__name {
-    font-weight: 550;
+    font-weight: 500;
   }
 
   &__rad {

@@ -1,6 +1,9 @@
 <template>
   <div class="admin-professional-page">
-    <XyfPageHeader title="专业目录管理">
+    <XyfPageHeader title="专业目录" dense>
+      <template #meta>
+        <span class="head-count xyf-tabular">共 {{ total }} 项</span>
+      </template>
       <template #actions>
         <el-button @click="fetchList" :loading="loading">
           <el-icon><Refresh /></el-icon>
@@ -13,57 +16,60 @@
       </template>
     </XyfPageHeader>
 
-    <section class="xyf-surface-card filter-card">
-      <el-input
-        v-model="nameLike"
-        placeholder="按专业名称搜索..."
-        clearable
-        class="search-box"
-        @clear="handleSearch"
-        @keyup.enter="handleSearch"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
-        <template #append>
-          <el-button @click="handleSearch">检索</el-button>
-        </template>
-      </el-input>
-    </section>
+    <XyfFilterBar>
+      <template #fields>
+        <el-input
+          v-model="nameLike"
+          placeholder="按专业名称搜索"
+          clearable
+          :prefix-icon="Search"
+          class="xyf-filter-search"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        />
+      </template>
+    </XyfFilterBar>
 
     <section class="xyf-surface-card table-card">
       <el-skeleton v-if="loading" :rows="6" animated />
 
       <XyfEmptyState
         v-else-if="professionals.length === 0"
+        compact
         title="暂无专业字典数据"
         description="点击右上角「新增专业」添加校园学院与专业选项。"
       />
 
-      <el-table v-else :data="professionals" stripe>
-        <el-table-column prop="id" label="ID" width="80">
+      <el-table v-else :data="professionals" class="compact-dict-table">
+        <el-table-column prop="id" label="ID" width="76">
           <template #default="{ row }">
-            <span class="xyf-mono">#{{ row.id }}</span>
+            <span class="xyf-mono id-text">#{{ row.id }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="professionalName" label="专业名称" min-width="220" />
-
-        <el-table-column label="描述说明" min-width="260">
+        <el-table-column prop="professionalName" label="专业名称" min-width="220">
           <template #default="{ row }">
-            <span>{{ row.description || '-' }}</span>
+            <strong class="name-cell">{{ row.professionalName }}</strong>
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="160" align="right">
+        <el-table-column label="说明" min-width="260">
           <template #default="{ row }">
-            <el-button size="small" plain @click="openEditDialog(row)">编辑</el-button>
-            <el-button size="small" type="danger" text @click="handleDelete(row)">删除</el-button>
+            <span class="desc-cell">{{ row.description || '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="140" align="right">
+          <template #default="{ row }">
+            <div class="hover-actions">
+              <el-button size="small" text @click="openEditDialog(row)">编辑</el-button>
+              <el-button size="small" type="danger" text @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
 
-      <div v-if="total > pageSize" class="pagination-wrap">
+      <div v-if="total > pageSize" class="xyf-pagination">
         <el-pagination
           v-model:current-page="pageNum"
           :page-size="pageSize"
@@ -119,6 +125,7 @@ import {
 import { notifyFallbackError } from '@/api/request'
 import type { Professional } from '@/types/dict'
 import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
+import XyfFilterBar from '@/components/ui/XyfFilterBar.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 
 const dictStore = useDictStore()
@@ -129,7 +136,7 @@ const nameLike = ref('')
 const professionals = ref<Professional[]>([])
 const total = ref(0)
 const pageNum = ref(1)
-const pageSize = 15
+const pageSize = 20
 
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
@@ -236,23 +243,47 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.filter-card {
-  padding: 14px 20px;
-  margin-bottom: 18px;
-}
-
-.search-box {
-  width: 320px;
-  max-width: 100%;
+.head-count {
+  font-size: 13px;
+  color: var(--xyf-ink-3);
 }
 
 .table-card {
   padding: 20px 24px;
 }
 
-.pagination-wrap {
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
+.compact-dict-table {
+  :deep(td.el-table__cell) {
+    padding: 9px 0;
+  }
+
+  :deep(.el-table__row:hover) .hover-actions {
+    opacity: 1;
+  }
+}
+
+.id-text {
+  font-size: 12px;
+  color: var(--xyf-ink-3);
+}
+
+.name-cell {
+  font-weight: 600;
+  color: var(--xyf-ink);
+}
+
+.desc-cell {
+  color: var(--xyf-ink-2);
+}
+
+.hover-actions {
+  opacity: 0;
+  transition: opacity var(--xyf-transition);
+}
+
+@media (hover: none) {
+  .hover-actions {
+    opacity: 1;
+  }
 }
 </style>

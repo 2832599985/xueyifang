@@ -1,25 +1,18 @@
 <template>
   <div class="user-center-page xyf-page">
     <div class="xyf-container">
-      <header class="center-head">
-        <div>
-          <h1>个人中心</h1>
-          <p>管理你的校内实名资料、校园邮箱核验、履约信用分与创作者认证</p>
-        </div>
-        <div class="center-head__actions">
-          <button type="button" class="btn-secondary" @click="router.push('/wallet')">
-            我的钱包
-          </button>
-          <button
+      <XyfPageHeader title="个人中心">
+        <template #actions>
+          <el-button @click="router.push('/wallet')">我的钱包</el-button>
+          <el-button
             v-if="userStore.hasPublishPermission"
-            type="button"
-            class="btn-primary"
+            type="primary"
             @click="router.push('/service/publish')"
           >
             发布新服务
-          </button>
-        </div>
-      </header>
+          </el-button>
+        </template>
+      </XyfPageHeader>
 
       <div class="center-layout">
         <!-- Left Sidebar Profile Card -->
@@ -502,6 +495,7 @@ import { getPermissionStatus, applyPermission } from '@/api/permission'
 import { notifyFallbackError } from '@/api/request'
 import { PERMISSION_REVIEW_STATUS, type PermissionStatus } from '@/types/permission'
 import type { CreditScoreLogItem } from '@/types/auth'
+import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 
 type CenterTab = 'profile' | 'edu' | 'permission' | 'security'
@@ -865,7 +859,7 @@ onUnmounted(() => {
   h1 {
     margin: 0;
     font-size: 30px;
-    font-weight: 750;
+    font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--xyf-ink);
     line-height: 1.2;
@@ -959,7 +953,7 @@ onUnmounted(() => {
 .profile-name {
   margin: 0;
   font-size: 18px;
-  font-weight: 750;
+  font-weight: 700;
   color: var(--xyf-ink);
 }
 
@@ -1054,7 +1048,7 @@ onUnmounted(() => {
     &.is-active {
       background: var(--xyf-primary-soft);
       color: var(--xyf-primary-dark);
-      font-weight: 650;
+      font-weight: 600;
     }
   }
 }
@@ -1108,7 +1102,7 @@ onUnmounted(() => {
   h3 {
     margin: -6px 0 0;
     font-size: 17px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 }
@@ -1140,7 +1134,7 @@ onUnmounted(() => {
 
       strong {
         font-size: 24px;
-        font-weight: 800;
+        font-weight: 700;
         color: var(--xyf-ink);
       }
 
@@ -1163,7 +1157,7 @@ onUnmounted(() => {
       background: #18181b;
       color: #e5c79e;
       font-size: 11.5px;
-      font-weight: 650;
+      font-weight: 600;
     }
 
     p {
@@ -1196,7 +1190,7 @@ onUnmounted(() => {
       border: 1px solid rgba(200, 169, 126, 0.45);
       color: #e5c79e;
       font-size: 11px;
-      font-weight: 650;
+      font-weight: 600;
     }
 
     .cred-domain {
@@ -1374,7 +1368,7 @@ onUnmounted(() => {
 
   .score-num {
     font-size: 30px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.15;
     margin: 2px 0;
   }
@@ -1465,7 +1459,7 @@ onUnmounted(() => {
 
   .perm-state-text {
     font-size: 15px;
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink);
   }
 }

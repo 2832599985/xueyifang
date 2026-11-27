@@ -1,6 +1,6 @@
 <template>
   <div class="admin-sys-config">
-    <XyfPageHeader title="系统设置">
+    <XyfPageHeader title="系统设置" dense>
       <template #actions>
         <el-button @click="fetchConfigs" :loading="loading">
           <el-icon><Refresh /></el-icon>
@@ -425,12 +425,12 @@ onMounted(() => {
 
   .is-success {
     color: var(--xyf-success);
-    font-weight: 650;
+    font-weight: 600;
   }
 
   .is-danger {
     color: var(--xyf-danger);
-    font-weight: 650;
+    font-weight: 600;
   }
 }
 

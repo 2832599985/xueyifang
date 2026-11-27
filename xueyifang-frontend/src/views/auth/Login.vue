@@ -211,7 +211,7 @@ onMounted(() => {
   h1 {
     margin: 0 0 8px;
     font-size: 28px;
-    font-weight: 750;
+    font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--xyf-ink);
   }

@@ -1,6 +1,6 @@
 <template>
   <div class="admin-user-page">
-    <XyfPageHeader title="用户管理">
+    <XyfPageHeader title="用户管理" dense>
       <template #actions>
         <el-button @click="fetchList" :loading="loading">
           <el-icon><Refresh /></el-icon>
@@ -9,26 +9,23 @@
       </template>
     </XyfPageHeader>
 
-    <section class="xyf-surface-card filter-card">
-      <div class="filter-row">
+    <XyfFilterBar>
+      <template #fields>
         <el-input
           v-model="keyword"
-          placeholder="搜索学号 / 姓名 / 昵称 / 手机号..."
+          placeholder="搜索学号、姓名、昵称或手机号"
           clearable
-          style="width: 280px"
+          :prefix-icon="Search"
+          class="xyf-filter-search"
           @clear="handleSearch"
           @keyup.enter="handleSearch"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
+        />
 
         <el-select
           v-model="accountStatus"
           placeholder="账号状态"
           clearable
-          style="width: 140px"
+          class="xyf-filter-select"
           @change="handleSearch"
         >
           <el-option :value="1" label="状态：正常" />
@@ -39,27 +36,30 @@
           v-model="publishPermission"
           placeholder="发布权限"
           clearable
-          style="width: 150px"
+          class="xyf-filter-select"
           @change="handleSearch"
         >
           <el-option :value="1" label="已开通发布权" />
           <el-option :value="0" label="无发布权" />
         </el-select>
+      </template>
 
+      <template #actions>
         <el-button type="primary" @click="handleSearch">查询</el-button>
-      </div>
-    </section>
+      </template>
+    </XyfFilterBar>
 
     <section class="xyf-surface-card table-card">
       <el-skeleton v-if="loading" :rows="6" animated />
 
       <XyfEmptyState
         v-else-if="users.length === 0"
+        compact
         title="未查询到匹配的用户账号"
-        description="请尝试调整搜索关键词或状态筛选条件。"
+        description="尝试调整搜索关键词或状态筛选条件。"
       />
 
-      <el-table v-else :data="users" stripe>
+      <el-table v-else :data="users">
         <el-table-column prop="studentId" label="学号" width="125">
           <template #default="{ row }">
             <span class="xyf-mono">{{ row.studentId }}</span>
@@ -122,12 +122,11 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="治理操作" width="260" align="right">
+        <el-table-column label="操作" width="240" align="right">
           <template #default="{ row }">
             <el-button
               v-if="row.role !== 2"
               size="small"
-              :type="row.publishPermission === 1 ? 'warning' : 'success'"
               plain
               :loading="operatingId === row.userId"
               @click="togglePublishPermission(row)"
@@ -138,12 +137,12 @@
             <el-button
               v-if="row.role !== 2"
               size="small"
-              :type="row.accountStatus === 1 ? 'danger' : 'primary'"
+              :type="row.accountStatus === 1 ? 'danger' : 'default'"
               plain
               :loading="operatingId === row.userId"
               @click="toggleAccountStatus(row)"
             >
-              {{ row.accountStatus === 1 ? '封禁' : '解封' }}
+              {{ row.accountStatus === 1 ? '禁用' : '启用' }}
             </el-button>
 
             <el-button
@@ -158,7 +157,7 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="total > pageSize" class="pagination-wrap">
+      <div v-if="total > pageSize" class="xyf-pagination">
         <el-pagination
           v-model:current-page="pageNum"
           :page-size="pageSize"
@@ -185,6 +184,7 @@ import { notifyFallbackError } from '@/api/request'
 import { formatPrice } from '@/utils/format'
 import type { AdminUser } from '@/types/admin'
 import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
+import XyfFilterBar from '@/components/ui/XyfFilterBar.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
@@ -311,7 +311,7 @@ onMounted(() => {
   gap: 10px;
 
   .user-name {
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink);
     display: flex;
     align-items: center;

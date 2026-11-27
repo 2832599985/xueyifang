@@ -156,7 +156,7 @@ watch(
 
     .author-name {
       font-size: 14px;
-      font-weight: 650;
+      font-weight: 600;
       color: var(--xyf-ink);
     }
 

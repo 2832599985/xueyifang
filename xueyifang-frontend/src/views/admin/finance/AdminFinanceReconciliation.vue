@@ -1,6 +1,6 @@
 <template>
   <div class="admin-finance-page">
-    <XyfPageHeader title="财务对账">
+    <XyfPageHeader title="财务对账" dense>
       <template #actions>
         <el-date-picker
           v-model="selectedDate"
@@ -51,7 +51,7 @@
       <!-- Left: Total-to-Subledger Balance Flow Diagram -->
       <section class="xyf-surface-card equation-card xyf-tabular">
         <div class="xyf-section-heading">
-          <h2>收支平衡核对</h2>
+          <h2>资金流向</h2>
         </div>
 
         <div class="equation-flow">
@@ -60,8 +60,6 @@
             <strong>¥{{ fmt(latestReport?.grossEscrowInflow ?? overview.currentEscrowFrozenPool) }}</strong>
             <small>{{ latestReport ? `日期 ${latestReport.reportDate}` : '实时快照' }}</small>
           </div>
-
-          <span class="eq-symbol">=</span>
 
           <div class="eq-breakdown">
             <div class="eq-sub">
@@ -144,7 +142,6 @@
         v-if="activeTab === 'reports'"
         :data="overview.recentReports"
         v-loading="loading"
-        stripe
         style="width: 100%"
       >
         <el-table-column prop="reportDate" label="对账账期" width="120" />
@@ -179,13 +176,13 @@
         <el-table-column label="日终在途托管池" width="135">
           <template #default="{ row }"><span class="xyf-tabular">¥{{ fmt(row.activeEscrowFrozenPool) }}</span></template>
         </el-table-column>
-        <el-table-column label="勾稽结论" width="130">
+        <el-table-column label="对账结果" width="130">
           <template #default="{ row }">
-            <el-tag v-if="row.reconcileStatus === 1" type="success">总分账平</el-tag>
-            <el-tag v-else type="danger">差额 ({{ row.discrepancyCount }}笔)</el-tag>
+            <XyfStatusBadge v-if="row.reconcileStatus === 1" tone="success" label="账目一致" />
+            <XyfStatusBadge v-else tone="danger" :label="`差额 (${row.discrepancyCount}笔)`" />
           </template>
         </el-table-column>
-        <el-table-column prop="auditNote" label="自动审计摘要" min-width="240" show-overflow-tooltip />
+        <el-table-column prop="auditNote" label="对账摘要" min-width="240" show-overflow-tooltip />
       </el-table>
 
       <!-- Tab 2: No-Show Compensation Claims -->
@@ -193,7 +190,6 @@
         v-else
         :data="overview.recentNoshowClaims"
         v-loading="loading"
-        stripe
         style="width: 100%"
       >
         <el-table-column label="赔付存证单号" width="185">
@@ -274,6 +270,7 @@ import {
 } from '@/api/finance'
 import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfStatTile from '@/components/ui/XyfStatTile.vue'
+import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 
 const loading = ref(false)
 const reconciling = ref(false)
@@ -507,7 +504,7 @@ onUnmounted(() => {
 
     strong {
       font-size: 22px;
-      font-weight: 800;
+      font-weight: 700;
     }
 
     small {
@@ -546,7 +543,7 @@ onUnmounted(() => {
 
     strong {
       font-size: 15px;
-      font-weight: 750;
+      font-weight: 700;
       color: var(--xyf-ink);
     }
 

@@ -33,9 +33,8 @@
             />
             <XyfStatusBadge
               size="md"
-              tone="accent"
+              tone="info"
               :label="getDisputeTypeText(detail.disputeType)"
-              :dot="false"
             />
           </div>
           <h2>{{ detail.serviceTitle }}</h2>
@@ -239,7 +238,6 @@
                       v-if="detail.disputeInitiatorId === detail.buyerId"
                       tone="warning"
                       label="发起方"
-                      :dot="false"
                     />
                   </div>
                   <div class="party-role">买方 #{{ detail.buyerId }}</div>
@@ -255,7 +253,6 @@
                       v-if="detail.disputeInitiatorId === detail.sellerId"
                       tone="warning"
                       label="发起方"
-                      :dot="false"
                     />
                   </div>
                   <div class="party-role">卖方 #{{ detail.sellerId }}</div>
@@ -411,7 +408,7 @@ onMounted(() => {
   h2 {
     margin: 0 0 6px;
     font-size: 19px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 }
@@ -445,7 +442,7 @@ onMounted(() => {
 
   strong {
     font-size: 26px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 }
@@ -617,7 +614,7 @@ onMounted(() => {
     span {
       display: block;
       font-size: 12px;
-      font-weight: 650;
+      font-weight: 600;
       color: var(--xyf-ink-3);
       margin-bottom: 4px;
     }

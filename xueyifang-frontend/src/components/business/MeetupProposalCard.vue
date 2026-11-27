@@ -260,7 +260,7 @@ onMounted(loadProposals)
   h2 {
     margin: 3px 0 0;
     font-size: 16.5px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 }
@@ -299,7 +299,7 @@ onMounted(loadProposals)
     display: block;
     margin-top: 2px;
     font-size: 17px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 
@@ -350,7 +350,7 @@ onMounted(loadProposals)
       background: #18181b;
       color: #e5c79e;
       font-size: 11px;
-      font-weight: 650;
+      font-weight: 600;
       white-space: nowrap;
       margin-top: 2px;
     }

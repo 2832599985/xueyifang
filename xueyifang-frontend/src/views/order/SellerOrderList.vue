@@ -1,48 +1,39 @@
 <template>
   <div class="orders-page xyf-page">
     <div class="xyf-container">
-      <header class="orders-head">
-        <div>
-          <h1>销售订单</h1>
-          <p>实时摄像头扫码或输入 30s 动态核销码结单、提交履约凭证与处理退款协商</p>
-        </div>
-        <div class="orders-head__actions">
-          <button type="button" class="btn-primary scan-cta-btn" @click="openGlobalScanner">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <XyfPageHeader title="销售订单">
+        <template #meta>
+          <span class="head-count xyf-tabular">共 {{ total }} 笔</span>
+        </template>
+        <template #actions>
+          <el-button type="primary" @click="openGlobalScanner">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px" aria-hidden="true">
               <path d="M3 7V5a2 2 0 0 1 2-2h2" />
               <path d="M17 3h2a2 2 0 0 1 2 2v2" />
               <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
               <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
               <line x1="7" y1="12" x2="17" y2="12" />
             </svg>
-            <span>扫码核销</span>
-          </button>
-          <button type="button" class="btn-secondary" @click="router.push('/my-services')">
-            我的服务
-          </button>
-          <button type="button" class="btn-secondary" @click="router.push('/statistics/sales')">
-            销售统计
-          </button>
-        </div>
-      </header>
+            扫码核销
+          </el-button>
+        </template>
+      </XyfPageHeader>
+
+      <SellerSuiteTabs />
 
       <div class="toolbar-row">
-        <div class="status-tabs">
+        <div class="xyf-tabs">
           <button
             v-for="tab in statusTabs"
             :key="tab.label"
             type="button"
-            class="status-tab"
+            class="xyf-tabs__btn"
             :class="{ 'is-active': activeStatus === tab.value }"
             @click="switchStatus(tab.value)"
           >
             {{ tab.label }}
           </button>
         </div>
-
-        <span class="total-hint xyf-tabular">
-          共 {{ total }} 笔销售单
-        </span>
       </div>
 
       <div v-if="loading" class="xyf-surface-card loading-card">
@@ -63,47 +54,46 @@
       <div v-else class="orders-stack">
         <OrderCard v-for="order in orders" :key="order.id" :order="order" role="SELLER">
           <template #actions>
-            <button
+            <el-button
               v-if="canOrderOfflineVerify(order)"
-              type="button"
-              class="card-btn-primary"
+              type="primary"
+              size="small"
               @click="openVerifyModal(order)"
             >
               扫码 / 核销
-            </button>
+            </el-button>
 
-            <button
+            <el-button
               v-if="canSellerShip(order.orderStatus)"
-              type="button"
-              :class="canOrderOfflineVerify(order) ? 'card-btn-secondary' : 'card-btn-primary'"
-              :disabled="operatingId === order.id"
+              :type="canOrderOfflineVerify(order) ? 'default' : 'primary'"
+              size="small"
+              :loading="operatingId === order.id"
               @click="openShipModal(order)"
             >
               {{ order.tradeType === TradeType.OFFLINE ? '标记交接中' : '提交交付发货' }}
-            </button>
+            </el-button>
 
-            <button
+            <el-button
               v-if="canSellerHandleRefund(order.orderStatus, order.refundStatus)"
-              type="button"
-              class="card-btn-primary"
+              type="primary"
+              size="small"
               @click="openRefundDecision(order)"
             >
               处理退款
-            </button>
+            </el-button>
 
-            <button
+            <el-button
               v-if="order.buyerId"
-              type="button"
-              class="card-btn-secondary"
+              size="small"
               @click="contactBuyer(order)"
             >
               联系买家
-            </button>
+            </el-button>
           </template>
         </OrderCard>
       </div>
 
-      <div v-if="total > pageSize" class="pagination-wrap">
+      <div v-if="total > pageSize" class="xyf-pagination">
         <el-pagination
           v-model:current-page="pageNum"
           :page-size="pageSize"
@@ -225,9 +215,11 @@ import {
   canSellerHandleRefund,
   type OrderListItem
 } from '@/types/order'
+import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import OrderCard from '@/components/business/OrderCard.vue'
 import OfflineVerifyDialog from '@/components/business/OfflineVerifyDialog.vue'
+import SellerSuiteTabs from '@/components/service/SellerSuiteTabs.vue'
 
 const router = useRouter()
 
@@ -403,142 +395,13 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.orders-page {
-  padding-top: 36px;
-  padding-bottom: 72px;
-}
-
-.orders-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 28px;
-
-  h1 {
-    margin: 0;
-    font-size: 30px;
-    font-weight: 750;
-    letter-spacing: -0.025em;
-    color: var(--xyf-ink);
-    line-height: 1.2;
-  }
-
-  p {
-    margin: 8px 0 0;
-    font-size: 14px;
-    color: var(--xyf-ink-3);
-  }
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-}
-
-.btn-primary {
-  height: 40px;
-  padding: 0 20px;
-  border-radius: 999px;
-  border: 1px solid #18181b;
-  background: #18181b;
-  color: #ffffff;
-  font-size: 13.5px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    background: #27272a;
-    border-color: #27272a;
-    transform: translateY(-1px);
-    box-shadow: 0 8px 20px -6px rgba(9, 9, 11, 0.28);
-  }
-}
-
-.btn-secondary {
-  height: 40px;
-  padding: 0 18px;
-  border-radius: 999px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
-  color: var(--xyf-ink);
-  font-size: 13.5px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    border-color: #a1a1aa;
-    background: var(--xyf-surface-soft);
-  }
+.head-count {
+  font-size: 13px;
+  color: var(--xyf-ink-3);
 }
 
 .toolbar-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  border-bottom: 1px solid var(--xyf-border);
-  margin-bottom: 24px;
-}
-
-.status-tabs {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.status-tab {
-  position: relative;
-  padding: 0 2px 14px;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--xyf-ink-3);
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color var(--xyf-transition);
-
-  &:hover {
-    color: var(--xyf-ink);
-  }
-
-  &.is-active {
-    color: var(--xyf-ink);
-    font-weight: 650;
-
-    &::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: -1px;
-      height: 2px;
-      background: #18181b;
-      border-radius: 2px;
-    }
-  }
-}
-
-.total-hint {
-  font-size: 13px;
-  color: var(--xyf-ink-3);
-  padding-bottom: 14px;
+  margin-bottom: 20px;
 }
 
 .loading-card {
@@ -549,62 +412,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.card-btn-primary {
-  height: 34px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid #18181b;
-  background: #18181b;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 550;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover:not(:disabled) {
-    background: #2e2e34;
-    border-color: #2e2e34;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 14px -4px rgba(9, 9, 11, 0.24);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.card-btn-secondary {
-  height: 34px;
-  padding: 0 15px;
-  border-radius: 999px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
-  color: var(--xyf-ink);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover:not(:disabled) {
-    border-color: #a1a1aa;
-    background: var(--xyf-surface-soft);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.pagination-wrap {
-  margin-top: 28px;
-  display: flex;
-  justify-content: center;
 }
 
 .refund-review-body {
@@ -618,8 +425,8 @@ onMounted(() => {
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 13.5px;
-  color: var(--xyf-ink-secondary);
+  font-size: 13px;
+  color: var(--xyf-ink-2);
 }
 
 .refund-reason-box {
@@ -642,7 +449,7 @@ onMounted(() => {
   position: relative;
   width: 78px;
   height: 78px;
-  border-radius: 10px;
+  border-radius: var(--xyf-radius-sm);
   overflow: hidden;
   border: 1px solid var(--xyf-border);
 
@@ -670,8 +477,8 @@ onMounted(() => {
 .upload-trigger {
   width: 78px;
   height: 78px;
-  border-radius: 10px;
-  border: 1px dashed #a1a1aa;
+  border-radius: var(--xyf-radius-sm);
+  border: 1px dashed var(--xyf-border-strong);
   background: var(--xyf-surface-soft);
   display: inline-flex;
   align-items: center;
@@ -679,11 +486,5 @@ onMounted(() => {
   font-size: 12px;
   color: var(--xyf-ink-2);
   cursor: pointer;
-}
-
-.scan-cta-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
 }
 </style>

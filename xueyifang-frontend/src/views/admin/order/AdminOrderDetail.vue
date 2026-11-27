@@ -32,14 +32,14 @@
           <div class="badges-row">
             <XyfStatusBadge
               size="md"
-              :tone="orderDetail.orderStatus === OrderStatus.COMPLETED ? 'success' : orderDetail.orderStatus === OrderStatus.FAILED ? 'danger' : 'teal'"
+              :tone="orderDetail.orderStatus === OrderStatus.COMPLETED ? 'success' : orderDetail.orderStatus === OrderStatus.FAILED ? 'danger' : 'info'"
               :label="getOrderStatusText(orderDetail.orderStatus)"
+              :dot="orderDetail.orderStatus !== OrderStatus.COMPLETED && orderDetail.orderStatus !== OrderStatus.FAILED && orderDetail.orderStatus !== OrderStatus.CANCELLED"
             />
             <XyfStatusBadge
               size="md"
               :tone="orderDetail.paymentStatus === PaymentStatus.PAID ? 'success' : orderDetail.paymentStatus === PaymentStatus.REFUNDED ? 'danger' : 'warning'"
               :label="getPaymentStatusText(orderDetail.paymentStatus)"
-              :dot="false"
             />
           </div>
           <h2>{{ orderDetail.serviceTitle }}</h2>
@@ -210,7 +210,7 @@ onMounted(async () => {
   h2 {
     margin: 0 0 6px;
     font-size: 19px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 }
@@ -244,7 +244,7 @@ onMounted(async () => {
 
   strong {
     font-size: 26px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 

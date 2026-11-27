@@ -2,7 +2,7 @@
   <div class="order-detail-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader
-        :title="orderDetail ? `订单详情 · ${orderDetail.serviceTitle}` : '订单详情'"
+        title="订单详情"
         :show-back="true"
         back-text="返回订单列表"
         :back-to="isSeller ? '/orders/sales' : '/orders'"
@@ -31,70 +31,53 @@
       </div>
 
       <template v-else>
-        <!-- Status Hero Banner -->
+        <!-- Status Hero Banner (with folded primary actions) -->
         <section class="xyf-surface-card status-banner">
-          <div class="status-banner__left">
-            <div class="status-badges">
-              <XyfStatusBadge
-                size="md"
-                :tone="statusTone"
-                :label="getOrderStatusText(orderDetail.orderStatus)"
-              />
-              <XyfStatusBadge
-                size="md"
-                :tone="paymentTone"
-                :label="getPaymentStatusText(orderDetail.paymentStatus)"
-                :dot="false"
-              />
-              <XyfStatusBadge
-                v-if="orderDetail.refundStatus && getRefundStatusText(orderDetail.refundStatus)"
-                size="md"
-                tone="warning"
-                :label="getRefundStatusText(orderDetail.refundStatus)"
-              />
+          <div class="status-banner__top">
+            <div class="status-banner__left">
+              <div class="status-badges">
+                <XyfStatusBadge
+                  size="md"
+                  :tone="statusTone"
+                  :label="getOrderStatusText(orderDetail.orderStatus)"
+                  :dot="isOrderActive"
+                />
+                <XyfStatusBadge
+                  size="md"
+                  :tone="paymentTone"
+                  :label="getPaymentStatusText(orderDetail.paymentStatus)"
+                />
+                <XyfStatusBadge
+                  v-if="orderDetail.refundStatus && getRefundStatusText(orderDetail.refundStatus)"
+                  size="md"
+                  tone="warning"
+                  :label="getRefundStatusText(orderDetail.refundStatus)"
+                  :dot="orderDetail.refundStatus === RefundStatus.PENDING"
+                />
+              </div>
+
+              <p class="status-explain">{{ statusExplanation }}</p>
+
+              <div
+                v-if="orderDetail.refundStatus && getRefundStatusText(orderDetail.refundStatus) && orderDetail.refundReason"
+                class="refund-note"
+              >
+                退款说明：{{ orderDetail.refundReason }}
+              </div>
             </div>
 
-            <p class="status-explain">{{ statusExplanation }}</p>
-
-            <div
-              v-if="orderDetail.refundStatus && getRefundStatusText(orderDetail.refundStatus) && orderDetail.refundReason"
-              class="refund-note"
-            >
-              退款说明：{{ orderDetail.refundReason }}
+            <div class="status-banner__right">
+              <div class="amount-box">
+                <span class="amount-label">订单金额</span>
+                <strong class="xyf-tabular">{{ formatPrice(orderDetail.totalAmount) }}</strong>
+                <span v-if="orderDetail.frozenAmount && orderDetail.frozenAmount > 0" class="frozen-pill xyf-tabular">
+                  担保冻结中 {{ formatPrice(orderDetail.frozenAmount) }}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div class="status-banner__right">
-            <div class="amount-box">
-              <span class="amount-label">订单金额</span>
-              <strong class="xyf-tabular">{{ formatPrice(orderDetail.totalAmount) }}</strong>
-              <span v-if="orderDetail.frozenAmount && orderDetail.frozenAmount > 0" class="frozen-pill">
-                担保冻结中 {{ formatPrice(orderDetail.frozenAmount) }}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        <!-- Buyer Exclusive: Dynamic 10s Anti-Screenshot QR + 30s Rotating TOTP Code -->
-        <OfflineMeetupPassCard
-          v-if="isBuyer && canOfflineVerify"
-          :order-id="orderDetail.id"
-          :initial-code="orderDetail.verifyCode"
-          @verified="fetchDetail"
-        />
-
-        <!-- Bidirectional Campus Map Meetup Negotiation Card -->
-        <MeetupProposalCard
-          v-if="orderDetail.tradeType === TradeType.OFFLINE"
-          :order="orderDetail"
-          :current-user-id="userStore.userInfo?.id"
-          style="margin-bottom: 16px"
-          @updated="fetchDetail"
-        />
-
-        <!-- Action Bar -->
-        <section class="xyf-surface-card action-toolbar" v-if="hasAnyAction">
-          <div class="action-buttons">
+          <div v-if="hasAnyAction" class="status-banner__actions">
             <el-button
               v-if="isBuyer && canPayOrder(orderDetail.orderStatus)"
               type="primary"
@@ -180,6 +163,22 @@
         <!-- Main 2-column detail -->
         <div class="detail-grid">
           <div class="detail-main">
+            <!-- Buyer Exclusive: Dynamic 10s Anti-Screenshot QR + 30s Rotating TOTP Code -->
+            <OfflineMeetupPassCard
+              v-if="isBuyer && canOfflineVerify"
+              :order-id="orderDetail.id"
+              :initial-code="orderDetail.verifyCode"
+              @verified="fetchDetail"
+            />
+
+            <!-- Bidirectional Campus Map Meetup Negotiation Card -->
+            <MeetupProposalCard
+              v-if="orderDetail.tradeType === TradeType.OFFLINE"
+              :order="orderDetail"
+              :current-user-id="userStore.userInfo?.id"
+              @updated="fetchDetail"
+            />
+
             <!-- Escrow Progress & Timeline -->
             <section class="xyf-surface-card panel-card">
               <div class="xyf-section-heading">
@@ -246,15 +245,12 @@
                 <XyfImage
                   :src="buildImageUrl(orderDetail.serviceImage)"
                   :alt="orderDetail.serviceTitle"
-                  width="112px"
-                  height="80px"
+                  width="108px"
+                  height="78px"
                   :radius="10"
                   fit="cover"
                 />
                 <div class="service-box__info">
-                  <div class="service-tag" v-if="orderDetail.serviceTagName">
-                    {{ orderDetail.serviceTagName }}
-                  </div>
                   <h3>{{ orderDetail.serviceTitle }}</h3>
                   <div class="service-pricing xyf-tabular">
                     <span>单价 {{ formatPrice(orderDetail.unitPrice) }}</span>
@@ -265,23 +261,10 @@
                   </div>
                 </div>
               </div>
-
-              <TradeLocationBadge
-                v-if="orderDetail.tradeType === TradeType.OFFLINE"
-                :location-id="orderDetail.tradeLocationId"
-                :location-name="orderDetail.tradeLocationName"
-                :location="orderDetail.tradeLocation"
-                style="margin-top: 16px"
-              />
-
-              <div v-if="orderDetail.remark" class="remark-card">
-                <span class="remark-label">买家下单备注</span>
-                <p>{{ orderDetail.remark }}</p>
-              </div>
             </section>
           </div>
 
-          <!-- Counterparties Sidebar -->
+          <!-- Sticky Counterparties & Fee Breakdown Sidebar -->
           <aside class="detail-aside">
             <section class="xyf-surface-card panel-card">
               <div class="xyf-section-heading">
@@ -294,7 +277,7 @@
                   <XyfAvatar
                     :src="orderDetail.buyerAvatar"
                     :name="orderDetail.buyerName"
-                    :size="40"
+                    :size="38"
                   />
                   <div>
                     <div class="party-name">{{ orderDetail.buyerName }}</div>
@@ -313,7 +296,7 @@
                   <XyfAvatar
                     :src="orderDetail.sellerAvatar"
                     :name="orderDetail.sellerName"
-                    :size="40"
+                    :size="38"
                   />
                   <div>
                     <div class="party-name">{{ orderDetail.sellerName }}</div>
@@ -322,6 +305,30 @@
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <dl class="aside-fee-list xyf-tabular">
+                <div class="aside-fee-row">
+                  <dt>单价 × 数量</dt>
+                  <dd>{{ formatPrice(orderDetail.unitPrice) }} × {{ orderDetail.quantity }}</dd>
+                </div>
+                <div v-if="orderDetail.platformFee && orderDetail.platformFee > 0" class="aside-fee-row">
+                  <dt>平台服务费</dt>
+                  <dd>{{ formatPrice(orderDetail.platformFee) }}</dd>
+                </div>
+                <div v-if="orderDetail.sellerSettleAmount !== undefined && orderDetail.sellerSettleAmount !== null && orderDetail.orderStatus === OrderStatus.COMPLETED" class="aside-fee-row">
+                  <dt>卖方实收</dt>
+                  <dd>{{ formatPrice(orderDetail.sellerSettleAmount) }}</dd>
+                </div>
+                <div class="aside-fee-row is-total">
+                  <dt>订单总额</dt>
+                  <dd>{{ formatPrice(orderDetail.totalAmount) }}</dd>
+                </div>
+              </dl>
+
+              <div v-if="orderDetail.remark" class="remark-card">
+                <span class="remark-label">买家下单备注</span>
+                <p>{{ orderDetail.remark }}</p>
               </div>
 
               <el-button
@@ -553,7 +560,6 @@ import XyfImage from '@/components/ui/XyfImage.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
-import TradeLocationBadge from '@/components/business/TradeLocationBadge.vue'
 import OrderTimeline from '@/components/business/OrderTimeline.vue'
 import OrderMilestoneCard from '@/components/business/OrderMilestoneCard.vue'
 import OrderNoShowCompensationCard from '@/components/order/OrderNoShowCompensationCard.vue'
@@ -617,13 +623,22 @@ const shipQuickTemplates = computed(() =>
     : ['已完成全套定制成果并发送站内消息', '代码排障与注释说明已全部交付', '文书批改稿与批注清单已提交，请查收']
 )
 
-const statusTone = computed(() => {
+const isOrderActive = computed(() => {
+  const s = orderDetail.value?.orderStatus
+  return (
+    s === OrderStatus.UNPAID ||
+    s === OrderStatus.PENDING_SHIP ||
+    s === OrderStatus.PENDING_RECEIPT
+  )
+})
+
+const statusTone = computed<'neutral' | 'info' | 'success' | 'warning' | 'danger'>(() => {
   const s = orderDetail.value?.orderStatus
   if (s === OrderStatus.COMPLETED) return 'success'
   if (s === OrderStatus.UNPAID) return 'warning'
   if (s === OrderStatus.FAILED) return 'danger'
   if (s === OrderStatus.CANCELLED) return 'neutral'
-  return 'teal'
+  return 'info'
 })
 
 const paymentTone = computed(() => {
@@ -929,11 +944,25 @@ onMounted(() => {
 .status-banner {
   padding: 22px 24px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 20px;
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--xyf-border-subtle);
+  }
 }
 
 .status-badges {
@@ -946,13 +975,13 @@ onMounted(() => {
 .status-explain {
   margin: 0;
   font-size: 14px;
-  color: var(--xyf-ink-secondary);
+  color: var(--xyf-ink-2);
 }
 
 .refund-note {
   margin-top: 10px;
   padding: 9px 13px;
-  border-radius: 8px;
+  border-radius: var(--xyf-radius-sm);
   background: var(--xyf-surface-soft);
   border: 1px solid var(--xyf-border);
   color: var(--xyf-ink-2);
@@ -968,41 +997,80 @@ onMounted(() => {
 
   .amount-label {
     font-size: 12px;
-    color: var(--xyf-ink-muted);
+    color: var(--xyf-ink-3);
   }
 
   strong {
-    font-size: 28px;
-    font-weight: 800;
+    font-size: 26px;
+    font-weight: 700;
     color: var(--xyf-ink);
+    line-height: 1.1;
   }
 
   .frozen-pill {
     font-size: 12px;
-    color: var(--xyf-ink-2);
-    background: var(--xyf-surface-soft);
-    border: 1px solid var(--xyf-border);
-    padding: 2px 10px;
-    border-radius: 6px;
+    font-weight: 500;
+    color: #9a5b13;
+    background: var(--xyf-champagne-soft);
+    border: 1px solid var(--xyf-champagne-border);
+    padding: 2px 9px;
+    border-radius: var(--xyf-radius-xs);
   }
-}
-
-.action-toolbar {
-  padding: 14px 20px;
-  margin-bottom: 18px;
-}
-
-.action-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 348px;
+  gap: 24px;
   align-items: start;
+}
+
+.detail-aside {
+  position: sticky;
+  top: 84px;
+}
+
+.aside-fee-list {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--xyf-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aside-fee-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+
+  dt {
+    color: var(--xyf-ink-3);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 500;
+    color: var(--xyf-ink);
+  }
+
+  &.is-total {
+    padding-top: 8px;
+    border-top: 1px dashed var(--xyf-border);
+
+    dt {
+      color: var(--xyf-ink);
+      font-weight: 600;
+    }
+
+    dd {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--xyf-ink);
+    }
+  }
 }
 
 .detail-main {
@@ -1024,7 +1092,7 @@ onMounted(() => {
   .voucher-label {
     display: block;
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink-3);
     margin-bottom: 4px;
   }
@@ -1233,9 +1301,13 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .detail-aside {
+    position: static;
   }
 }
 </style>

@@ -54,9 +54,8 @@
                   <div class="tag-line">
                     <XyfStatusBadge
                       v-if="service.tagName"
-                      tone="teal"
+                      tone="info"
                       :label="service.tagName"
-                      :dot="false"
                     />
                     <span class="seller-note">卖家：{{ service.sellerName || `#${service.sellerId}` }}</span>
                   </div>
@@ -91,7 +90,7 @@
                     <div class="locked-trade-mode">
                       <XyfStatusBadge
                         size="md"
-                        :tone="form.tradeType === TradeType.ONLINE ? 'teal' : 'accent'"
+                        tone="info"
                         :label="form.tradeType === TradeType.ONLINE ? '线上担保交付' : '校园线下会面'"
                       />
                       <span class="locked-trade-hint">
@@ -583,7 +582,7 @@ onMounted(async () => {
 
   strong {
     font-size: 26px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--xyf-accent);
   }
 }

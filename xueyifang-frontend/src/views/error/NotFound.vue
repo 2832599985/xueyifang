@@ -55,7 +55,7 @@ const router = useRouter()
   background: var(--xyf-primary-soft);
   color: var(--xyf-primary-dark);
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   margin-bottom: 16px;
 }
@@ -63,7 +63,7 @@ const router = useRouter()
 .not-found-title {
   margin: 0 0 10px;
   font-size: 22px;
-  font-weight: 750;
+  font-weight: 700;
   color: var(--xyf-ink);
 }
 

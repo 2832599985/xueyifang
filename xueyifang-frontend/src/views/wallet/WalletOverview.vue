@@ -1,16 +1,14 @@
 <template>
   <div class="wallet-page xyf-page">
     <div class="xyf-container">
-      <header class="wallet-head">
-        <div>
-          <h1>我的钱包</h1>
-          <p>实时查看可用余额、担保托管资金与收支明细</p>
-        </div>
-        <button type="button" class="all-ledger-btn" @click="router.push('/wallet/transactions')">
-          全部流水记录
-          <el-icon><ArrowRight /></el-icon>
-        </button>
-      </header>
+      <XyfPageHeader title="我的钱包">
+        <template #actions>
+          <el-button @click="router.push('/wallet/transactions')">
+            全部流水记录
+            <el-icon style="margin-left: 4px"><ArrowRight /></el-icon>
+          </el-button>
+        </template>
+      </XyfPageHeader>
 
       <div v-if="loading" class="xyf-surface-card loading-card">
         <el-skeleton :rows="6" animated />
@@ -431,6 +429,7 @@ import {
   type WalletInfo,
   type WalletTransaction
 } from '@/types/wallet'
+import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfBrandLogo from '@/components/ui/XyfBrandLogo.vue'
 import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
@@ -551,11 +550,11 @@ function isPositiveTransaction(type: TransactionType) {
   )
 }
 
-function transactionTone(type: TransactionType) {
+function transactionTone(type: TransactionType): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
   if (type === TransactionType.INCOME || type === TransactionType.RECHARGE) return 'success'
   if (type === TransactionType.REFUND || type === TransactionType.UNFREEZE) return 'info'
   if (type === TransactionType.FREEZE) return 'warning'
-  return 'accent'
+  return 'neutral'
 }
 
 function openRechargeDialog() {
@@ -646,7 +645,7 @@ onMounted(() => {
   h1 {
     margin: 0;
     font-size: 28px;
-    font-weight: 750;
+    font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--xyf-ink);
   }
@@ -803,7 +802,7 @@ onMounted(() => {
 
     .balance-figure {
       font-size: clamp(32px, 3.6vw, 42px);
-      font-weight: 750;
+      font-weight: 700;
       letter-spacing: -0.03em;
       line-height: 1.08;
       color: #ffffff;
@@ -911,7 +910,7 @@ onMounted(() => {
 
     strong {
       font-size: 18px;
-      font-weight: 750;
+      font-weight: 700;
       color: var(--xyf-ink);
       line-height: 1.1;
     }
@@ -1060,7 +1059,7 @@ onMounted(() => {
     h3 {
       margin: 0;
       font-size: 16.5px;
-      font-weight: 750;
+      font-weight: 700;
       color: var(--xyf-ink);
     }
   }
@@ -1069,7 +1068,7 @@ onMounted(() => {
     padding: 2px 9px;
     border-radius: 999px;
     font-size: 11px;
-    font-weight: 650;
+    font-weight: 600;
     background: var(--xyf-surface-muted);
     color: var(--xyf-ink-3);
 
@@ -1106,7 +1105,7 @@ onMounted(() => {
 
       strong {
         font-size: 22px;
-        font-weight: 800;
+        font-weight: 700;
         color: var(--xyf-ink);
       }
     }

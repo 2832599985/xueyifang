@@ -1,6 +1,6 @@
 <template>
   <div class="admin-risk-radar-page">
-    <XyfPageHeader title="异常订单监测">
+    <XyfPageHeader title="异常订单监测" dense>
       <template #actions>
         <div class="xyf-segmented">
           <button
@@ -26,47 +26,50 @@
       <XyfStatTile
         label="待核查预警"
         :value="overview.pendingAlerts"
-        :hint="`共 ${overview.totalAlerts} 条记录`"
+        unit="条"
+        :hint="`累计共 ${overview.totalAlerts} 条记录`"
+        emphasis="primary"
       />
       <XyfStatTile
         label="高风险订单"
         :value="overview.highSeverityAlerts"
-        :hint="`双向互买 ${overview.bidirectionalWashCount} · 高频重复 ${overview.highFreqPairCount}`"
-        tone="danger"
+        unit="条"
+        :hint="`双向互买 ${overview.bidirectionalWashCount} 条`"
+        :tone="overview.highSeverityAlerts > 0 ? 'danger' : 'default'"
       />
       <XyfStatTile
         label="极速完成异常"
         :value="overview.ultraFastCompletionCount"
+        unit="条"
         hint="支付到确认低于 3 分钟"
       />
       <XyfStatTile
-        label="已处理"
+        label="已处罚"
         :value="overview.confirmedPenalties"
-        :hint="`近7天订单 ${overview.scannedOrders7d} 笔 · 误报 ${overview.dismissedAlerts}`"
+        unit="条"
+        :hint="`排除误报 ${overview.dismissedAlerts} 条`"
       />
     </section>
 
-    <!-- Interactive 4-Rule Hit Filter Matrix -->
-    <section class="rule-matrix">
+    <!-- Compact Single-Row Rule Filter Chips -->
+    <section class="rule-chips-row">
       <button
         v-for="r in ruleCards"
         :key="r.code"
         type="button"
-        class="rule-card"
+        class="xyf-chip rule-chip"
         :class="{ 'is-active': query.ruleCode === r.code }"
+        :title="r.desc"
         @click="toggleRuleFilter(r.code)"
       >
-        <div class="rule-card__top">
-          <span class="rule-tag">{{ r.level }}</span>
-        </div>
-        <strong>{{ r.title }}</strong>
-        <p>{{ r.desc }}</p>
+        <span>{{ r.title }}</span>
+        <span class="rule-chip__level">{{ r.level }}</span>
       </button>
     </section>
 
-    <!-- Filter Bar + Alert Table -->
-    <section class="xyf-surface-card table-card">
-      <div class="filter-strip">
+    <!-- Filter Bar -->
+    <XyfFilterBar>
+      <template #tabs>
         <div class="xyf-segmented">
           <button
             type="button"
@@ -74,7 +77,7 @@
             :class="{ 'is-active': query.handleStatus === undefined }"
             @click="setHandleStatus(undefined)"
           >
-            全部处置状态
+            全部
           </button>
           <button
             type="button"
@@ -98,47 +101,59 @@
             :class="{ 'is-active': query.handleStatus === 2 }"
             @click="setHandleStatus(2)"
           >
-            已排除误报
+            已排除
           </button>
         </div>
+      </template>
 
-        <div class="filter-right">
-          <el-select v-model="query.severity" placeholder="风险等级" clearable style="width: 140px" @change="handleSearch">
-            <el-option :value="3" label="L3 高危互刷" />
-            <el-option :value="2" label="L2 中危可疑" />
-            <el-option :value="1" label="L1 低风险提示" />
-          </el-select>
+      <template #fields>
+        <el-select
+          v-model="query.severity"
+          placeholder="风险等级"
+          clearable
+          class="xyf-filter-select"
+          @change="handleSearch"
+        >
+          <el-option :value="3" label="L3 高风险" />
+          <el-option :value="2" label="L2 中风险" />
+          <el-option :value="1" label="L1 低风险" />
+        </el-select>
 
-          <el-input
-            v-model="query.keyword"
-            placeholder="搜索风控单号 / 订单号 / 关键词..."
-            clearable
-            :prefix-icon="Search"
-            style="width: 240px"
-            @keyup.enter="handleSearch"
-            @clear="handleSearch"
-          />
+        <el-input
+          v-model="query.keyword"
+          placeholder="搜索单号、订单号或关键词"
+          clearable
+          :prefix-icon="Search"
+          class="xyf-filter-search"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+      </template>
 
-          <el-button v-if="hasActiveFilter" plain @click="resetFilters">重置</el-button>
-        </div>
-      </div>
+      <template #actions>
+        <el-button v-if="hasActiveFilter" @click="resetFilters">重置</el-button>
+      </template>
+    </XyfFilterBar>
 
-      <el-table :data="alertList" v-loading="loading" stripe style="width: 100%">
-        <el-table-column label="风控单号 / 命中模型" min-width="205">
+    <!-- Alert Table -->
+    <section class="xyf-surface-card table-card">
+      <el-table :data="alertList" v-loading="loading" style="width: 100%">
+        <el-table-column label="命中规则 / 单号" min-width="200">
           <template #default="{ row }">
             <div class="cell-primary">{{ row.ruleName }}</div>
             <div class="cell-sub xyf-mono">{{ row.alertNo }}</div>
           </template>
         </el-table-column>
 
-        <el-table-column label="风险指数" width="145">
+        <el-table-column label="风险分" width="140">
           <template #default="{ row }">
             <div class="score-meter xyf-tabular">
               <div class="score-meter__head">
-                <el-tag size="small" :type="row.severity === 3 ? 'danger' : row.severity === 2 ? 'warning' : 'info'">
-                  L{{ row.severity }}
-                </el-tag>
-                <strong>{{ row.riskScore }} 分</strong>
+                <XyfStatusBadge
+                  :tone="row.severity === 3 ? 'danger' : row.severity === 2 ? 'warning' : 'info'"
+                  :label="`L${row.severity}`"
+                />
+                <strong class="xyf-mono">{{ row.riskScore }} 分</strong>
               </div>
               <div class="score-track">
                 <div
@@ -151,21 +166,15 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="涉事交易对关系" min-width="245">
+        <el-table-column label="涉事双方" min-width="220">
           <template #default="{ row }">
-            <div class="pair-graph">
-              <span class="party-chip">
-                <small>买</small>
-                {{ row.buyerName || `#${row.buyerId}` }}
-              </span>
-              <span class="pair-arrow">⇄</span>
-              <span class="party-chip">
-                <small>卖</small>
-                {{ row.sellerName || `#${row.sellerId}` }}
-              </span>
+            <div class="pair-inline">
+              <strong>{{ row.buyerName || `#${row.buyerId}` }}</strong>
+              <span class="pair-sep">→</span>
+              <strong>{{ row.sellerName || `#${row.sellerId}` }}</strong>
             </div>
             <div class="cell-sub xyf-tabular">
-              7日同对 {{ row.pairOrderCount7d || 1 }} 单 · 反向对倒 {{ row.reverseOrderCount7d || 0 }} 单
+              7日同对 {{ row.pairOrderCount7d || 1 }} 单 · 反向 {{ row.reverseOrderCount7d || 0 }} 单
               <span v-if="row.fulfillDurationSeconds !== null && row.fulfillDurationSeconds !== undefined">
                 · 履约 {{ row.fulfillDurationSeconds }}s
               </span>
@@ -173,32 +182,34 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="关联订单与取证摘要" min-width="260">
+        <el-table-column label="关联订单与摘要" min-width="240">
           <template #default="{ row }">
-            <div class="cell-primary xyf-tabular">
+            <div class="cell-primary xyf-mono">
               {{ row.orderNumber || `订单#${row.orderId}` }} · ¥{{ Number(row.orderAmount || 0).toFixed(2) }}
             </div>
             <div class="cell-sub ellipsis">{{ row.evidenceSummary }}</div>
           </template>
         </el-table-column>
 
-        <el-table-column label="状态" width="150">
+        <el-table-column label="状态" width="135">
           <template #default="{ row }">
-            <el-tag v-if="row.handleStatus === 0" type="warning">待管理员核查</el-tag>
-            <div v-else-if="row.handleStatus === 1">
-              <el-tag type="danger">已扣罚 -{{ row.creditDeducted }}分</el-tag>
-            </div>
-            <el-tag v-else type="success">已排除误报</el-tag>
+            <XyfStatusBadge v-if="row.handleStatus === 0" tone="warning" label="待核查" :dot="true" />
+            <XyfStatusBadge
+              v-else-if="row.handleStatus === 1"
+              tone="danger"
+              :label="`已扣罚 -${row.creditDeducted}分`"
+            />
+            <XyfStatusBadge v-else tone="success" label="已排除" />
           </template>
         </el-table-column>
 
-        <el-table-column label="处置" width="165" fixed="right" align="right">
+        <el-table-column label="处置" width="150" fixed="right" align="right">
           <template #default="{ row }">
             <template v-if="row.handleStatus === 0">
               <el-button type="danger" size="small" plain @click="openResolveDialog(row, 1)">
                 处罚
               </el-button>
-              <el-button size="small" plain @click="openResolveDialog(row, 2)">
+              <el-button size="small" text @click="openResolveDialog(row, 2)">
                 放行
               </el-button>
             </template>
@@ -207,7 +218,7 @@
         </el-table-column>
       </el-table>
 
-      <div class="pagination-bar" v-if="total > 0">
+      <div class="xyf-pagination" v-if="total > 0">
         <el-pagination
           v-model:current-page="query.pageNum"
           v-model:page-size="query.pageSize"
@@ -282,6 +293,8 @@ import {
 } from '@/api/riskRadar'
 import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfStatTile from '@/components/ui/XyfStatTile.vue'
+import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
+import XyfFilterBar from '@/components/ui/XyfFilterBar.vue'
 
 const loading = ref(false)
 const scanning = ref(false)
@@ -406,7 +419,7 @@ const handleRunScan = async () => {
   scanning.value = true
   try {
     const created = await scanRiskRadarOrders(scanDays.value)
-    ElMessage.success(`全链路图谱扫描完成，新增识别 ${created} 条可疑互刷预警`)
+    ElMessage.success(`扫描完成，新增 ${created} 条待核查记录`)
     await Promise.all([fetchOverview(), fetchAlerts()])
   } finally {
     scanning.value = false
@@ -466,110 +479,33 @@ onMounted(() => {
   }
 }
 
-.rule-matrix {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-
-  @media (max-width: 1024px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.rule-chips-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.rule-card {
-  padding: 16px 18px;
-  border-radius: 14px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
-  text-align: left;
-  font-family: inherit;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  transition: all var(--xyf-transition);
+.rule-chip {
+  height: 36px;
 
-  &:hover {
-    border-color: #18181b;
-    transform: translateY(-2px);
-  }
-
-  &.is-active {
-    background: #18181b;
-    border-color: #18181b;
-    color: #ffffff;
-
-    .rule-tag {
-      background: rgba(255, 255, 255, 0.14);
-      color: #e5c79e;
-    }
-
-    .rule-code,
-    p {
-      color: rgba(255, 255, 255, 0.65);
-    }
-
-    strong {
-      color: #ffffff;
-    }
-  }
-
-  &__top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .rule-tag {
+  &__level {
     font-size: 11px;
-    font-weight: 650;
-    padding: 2px 7px;
-    border-radius: 999px;
-    background: var(--xyf-surface-muted);
-    color: var(--xyf-ink-2);
-  }
-
-  .rule-code {
-    font-size: 10.5px;
     color: var(--xyf-ink-3);
   }
 
-  strong {
-    font-size: 14px;
-    color: var(--xyf-ink);
-  }
-
-  p {
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.45;
-    color: var(--xyf-ink-3);
+  &.is-active .rule-chip__level {
+    color: rgba(255, 255, 255, 0.72);
   }
 }
 
 .table-card {
-  padding: 18px 20px;
-}
-
-.filter-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-
-  .filter-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
+  padding: 20px 24px;
 }
 
 .cell-primary {
-  font-size: 13.5px;
-  font-weight: 650;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--xyf-ink);
 }
 
@@ -588,11 +524,11 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 12.5px;
+    font-size: 12px;
   }
 
   .score-track {
-    height: 5px;
+    height: 3px;
     border-radius: 999px;
     background: #ececef;
     overflow: hidden;
@@ -609,40 +545,20 @@ onMounted(() => {
   }
 }
 
-.pair-graph {
-  display: inline-flex;
+.pair-inline {
+  display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--xyf-ink);
 
-  .party-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: var(--xyf-surface-soft);
-    border: 1px solid var(--xyf-border);
-    font-size: 12px;
+  strong {
     font-weight: 600;
-    color: var(--xyf-ink);
-
-    small {
-      color: var(--xyf-ink-3);
-      font-weight: 700;
-    }
   }
 
-  .pair-arrow {
-    color: var(--xyf-ink-3);
-    font-weight: 700;
+  .pair-sep {
+    color: var(--xyf-ink-4);
   }
-}
-
-.pagination-bar {
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
 }
 
 .dialog-alert-summary {

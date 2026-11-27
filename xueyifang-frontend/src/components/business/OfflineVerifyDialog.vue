@@ -573,7 +573,7 @@ onUnmounted(() => {
   background: transparent;
   color: var(--xyf-ink-2);
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   transition: all var(--xyf-transition);
@@ -581,7 +581,7 @@ onUnmounted(() => {
   &.is-active {
     background: #18181b;
     color: #ffffff;
-    font-weight: 650;
+    font-weight: 600;
     box-shadow: 0 4px 10px -4px rgba(9, 9, 11, 0.28);
   }
 }
@@ -789,7 +789,7 @@ onUnmounted(() => {
   background: #ffffff;
   color: #18181b;
   font-size: 12.5px;
-  font-weight: 650;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
 }

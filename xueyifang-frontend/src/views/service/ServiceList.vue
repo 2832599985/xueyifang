@@ -2,19 +2,19 @@
   <div class="service-list-page xyf-page">
     <div class="xyf-container">
       <header class="market-head">
-        <div>
-          <h1 class="market-head__title">全部技能服务</h1>
-          <p class="market-head__sub">按分类、交付方式与热度发现校园里的专业同学</p>
+        <h1 class="market-head__title">全部技能服务</h1>
+        <div class="market-head__metric xyf-tabular">
+          <strong>{{ total }}</strong>
+          <span>项在架</span>
         </div>
-        <div class="market-head__meta xyf-tabular">共 {{ total }} 项在架</div>
       </header>
 
-      <!-- Minimalist Borderless Filter Strip -->
+      <!-- Borderless Editorial Filter Strip -->
       <section class="filter-strip">
-        <div class="filter-tabs">
+        <div class="xyf-tabs filter-tabs">
           <button
             type="button"
-            class="filter-tab"
+            class="xyf-tabs__btn"
             :class="{ 'is-active': !filters.tagId }"
             @click="selectTag(undefined)"
           >
@@ -24,7 +24,7 @@
             v-for="tag in dictStore.serviceTags || []"
             :key="tag.tagId"
             type="button"
-            class="filter-tab"
+            class="xyf-tabs__btn"
             :class="{ 'is-active': filters.tagId === tag.tagId }"
             @click="selectTag(tag.tagId)"
           >
@@ -33,92 +33,71 @@
         </div>
 
         <div class="filter-controls">
-          <div class="pill-group">
-            <button
-              type="button"
-              class="pill-btn"
-              :class="{ 'is-active': !filters.tradeType }"
-              @click="selectTradeType(undefined)"
-            >
-              全部方式
-            </button>
-            <button
-              type="button"
-              class="pill-btn"
-              :class="{ 'is-active': filters.tradeType === TradeType.ONLINE_ESCROW }"
-              @click="selectTradeType(TradeType.ONLINE_ESCROW)"
-            >
-              线上担保
-            </button>
-            <button
-              type="button"
-              class="pill-btn"
-              :class="{ 'is-active': filters.tradeType === TradeType.OFFLINE }"
-              @click="selectTradeType(TradeType.OFFLINE)"
-            >
-              线下会面
-            </button>
+          <div class="filter-controls__left">
+            <div class="xyf-segmented" role="tablist" aria-label="交易方式筛选">
+              <button
+                type="button"
+                class="xyf-segmented__btn"
+                :class="{ 'is-active': !filters.tradeType }"
+                @click="selectTradeType(undefined)"
+              >
+                全部方式
+              </button>
+              <button
+                type="button"
+                class="xyf-segmented__btn"
+                :class="{ 'is-active': filters.tradeType === TradeType.ONLINE_ESCROW }"
+                @click="selectTradeType(TradeType.ONLINE_ESCROW)"
+              >
+                线上担保
+              </button>
+              <button
+                type="button"
+                class="xyf-segmented__btn"
+                :class="{ 'is-active': filters.tradeType === TradeType.OFFLINE }"
+                @click="selectTradeType(TradeType.OFFLINE)"
+              >
+                线下会面
+              </button>
+            </div>
+
+            <div class="xyf-segmented" role="tablist" aria-label="排序方式">
+              <button
+                v-for="opt in sortOptions"
+                :key="opt.value"
+                type="button"
+                class="xyf-segmented__btn"
+                :class="{ 'is-active': filters.sortBy === opt.value }"
+                @click="selectSort(opt.value)"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
           </div>
 
-          <div class="pill-group">
-            <button
-              v-for="opt in sortOptions"
-              :key="opt.value"
-              type="button"
-              class="pill-btn"
-              :class="{ 'is-active': filters.sortBy === opt.value }"
-              @click="selectSort(opt.value)"
-            >
-              {{ opt.label }}
-            </button>
+          <div class="filter-controls__right">
+            <el-input
+              v-model="searchInput"
+              placeholder="搜索技能、关键词"
+              clearable
+              :prefix-icon="Search"
+              class="market-search"
+              @keyup.enter="handleKeywordSearch"
+              @clear="handleKeywordClear"
+            />
           </div>
         </div>
 
-        <div v-if="hasActiveFilters" class="active-summary">
-          <el-tag
-            v-if="filters.keyword"
-            closable
-            effect="plain"
-            round
-            @close="clearFilter('keyword')"
-          >
-            搜索：{{ filters.keyword }}
-          </el-tag>
-          <el-tag
-            v-if="activeTagName"
-            closable
-            effect="plain"
-            round
-            @close="clearFilter('tagId')"
-          >
-            {{ activeTagName }}
-          </el-tag>
-          <el-tag
-            v-if="filters.tradeType"
-            closable
-            effect="plain"
-            round
-            @close="clearFilter('tradeType')"
-          >
-            {{ getTradeTypeText(filters.tradeType) }}
-          </el-tag>
-          <el-tag
-            v-if="filters.sellerId"
-            closable
-            effect="plain"
-            round
-            type="warning"
-            @close="clearFilter('sellerId')"
-          >
-            发布者 #{{ filters.sellerId }}
-          </el-tag>
-          <button type="button" class="clear-all-link" @click="resetAllFilters">重置筛选</button>
+        <div v-if="filters.keyword.trim() || filters.sellerId" class="context-filter-note">
+          <span v-if="filters.keyword.trim()">当前搜索：“{{ filters.keyword.trim() }}”</span>
+          <span v-if="filters.sellerId">创作者 #{{ filters.sellerId }} 的在架服务</span>
+          <button type="button" class="clear-link" @click="resetAllFilters">清除条件</button>
         </div>
       </section>
 
       <!-- Loading Skeleton -->
       <div v-if="loading" class="service-grid">
-        <div v-for="n in 6" :key="n" class="skeleton-card">
+        <div v-for="n in 8" :key="n" class="skeleton-card">
           <el-skeleton animated>
             <template #template>
               <el-skeleton-item variant="image" style="width: 100%; height: 184px; border-radius: 10px" />
@@ -177,12 +156,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute, type LocationQueryRaw } from 'vue-router'
+import { Search } from '@element-plus/icons-vue'
 import { useDictStore } from '@/stores/dict'
 import { getServiceList } from '@/api/service'
 import { notifyFallbackError } from '@/api/request'
 import {
   TradeType,
-  getTradeTypeText,
   type ServiceListItem,
   type ServiceSortBy
 } from '@/types/service'
@@ -194,10 +173,10 @@ const route = useRoute()
 const dictStore = useDictStore()
 
 const sortOptions: Array<{ label: string; value: ServiceSortBy }> = [
-  { label: '最新发布', value: 'latest' },
-  { label: '热度优先', value: 'view_desc' },
-  { label: '价格从低到高', value: 'price_asc' },
-  { label: '价格从高到低', value: 'price_desc' }
+  { label: '最新', value: 'latest' },
+  { label: '热度', value: 'view_desc' },
+  { label: '低价', value: 'price_asc' },
+  { label: '高价', value: 'price_desc' }
 ]
 
 const VALID_SORTS = new Set<ServiceSortBy>(['latest', 'create_desc', 'price_asc', 'price_desc', 'view_desc'])
@@ -205,6 +184,7 @@ const VALID_SORTS = new Set<ServiceSortBy>(['latest', 'create_desc', 'price_asc'
 const loading = ref(false)
 const serviceList = ref<ServiceListItem[]>([])
 const total = ref(0)
+const searchInput = ref('')
 
 const filters = reactive<{
   keyword: string
@@ -228,14 +208,10 @@ const hasActiveFilters = computed(() =>
   Boolean(filters.keyword.trim() || filters.tagId || filters.tradeType || filters.sellerId)
 )
 
-const activeTagName = computed(() => {
-  if (!filters.tagId) return ''
-  return dictStore.getTagName(filters.tagId)
-})
-
 function syncStateFromRoute() {
   const q = route.query
   filters.keyword = typeof q.keyword === 'string' ? q.keyword : ''
+  searchInput.value = filters.keyword
 
   const parsedTag = Number(q.tagId)
   filters.tagId = Number.isFinite(parsedTag) && parsedTag > 0 ? parsedTag : undefined
@@ -317,15 +293,19 @@ function selectSort(sortBy: ServiceSortBy) {
   applyFilters(true)
 }
 
-function clearFilter(field: 'keyword' | 'tagId' | 'tradeType' | 'sellerId') {
-  if (field === 'keyword') filters.keyword = ''
-  else if (field === 'tagId') filters.tagId = undefined
-  else if (field === 'tradeType') filters.tradeType = undefined
-  else if (field === 'sellerId') filters.sellerId = undefined
+function handleKeywordSearch() {
+  filters.keyword = searchInput.value.trim()
+  applyFilters(true)
+}
+
+function handleKeywordClear() {
+  searchInput.value = ''
+  filters.keyword = ''
   applyFilters(true)
 }
 
 function resetAllFilters() {
+  searchInput.value = ''
   filters.keyword = ''
   filters.tagId = undefined
   filters.tradeType = undefined
@@ -360,28 +340,38 @@ onMounted(() => {
 <style scoped lang="scss">
 .market-head {
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 20px;
+  margin-bottom: 20px;
 
   &__title {
     margin: 0;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--xyf-ink);
+    line-height: 1.15;
   }
 
-  &__sub {
-    margin: 6px 0 0;
-    font-size: 14.5px;
-    color: var(--xyf-ink-2);
-  }
+  &__metric {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-shrink: 0;
 
-  &__meta {
-    font-size: 13.5px;
-    color: var(--xyf-ink-3);
+    strong {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--xyf-ink);
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    span {
+      font-size: 13px;
+      color: var(--xyf-ink-3);
+    }
   }
 }
 
@@ -390,119 +380,60 @@ onMounted(() => {
 }
 
 .filter-tabs {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  border-bottom: 1px solid var(--xyf-border);
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.filter-tab {
-  position: relative;
-  border: none;
-  background: transparent;
-  padding: 12px 2px;
-  font-size: 14.5px;
-  font-weight: 500;
-  color: var(--xyf-ink-2);
-  white-space: nowrap;
-  cursor: pointer;
-  font-family: inherit;
-  transition: color var(--xyf-transition);
-
-  &:hover {
-    color: var(--xyf-ink);
-  }
-
-  &.is-active {
-    color: var(--xyf-ink);
-    font-weight: 600;
-
-    &::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: -1px;
-      height: 2px;
-      border-radius: 2px;
-      background: var(--xyf-ink);
-    }
-  }
+  gap: 8px;
 }
 
 .filter-controls {
-  margin-top: 18px;
+  margin-top: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-}
 
-.pill-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.pill-btn {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: var(--xyf-surface-soft);
-  color: var(--xyf-ink-2);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    color: var(--xyf-ink);
-    background: var(--xyf-surface-muted);
+  &__left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
   }
 
-  &.is-active {
-    background: var(--xyf-ink);
-    color: #ffffff;
-    font-weight: 600;
+  &__right {
+    flex-shrink: 0;
   }
 }
 
-.active-summary {
-  margin-top: 14px;
+.market-search {
+  width: 220px;
+}
+
+.context-filter-note {
+  margin-top: 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--xyf-ink-2);
 }
 
-.clear-all-link {
+.clear-link {
   border: none;
   background: transparent;
+  padding: 0;
   font-size: 13px;
-  color: var(--xyf-primary);
+  font-weight: 500;
+  color: var(--xyf-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
   font-family: inherit;
-  padding: 2px 6px;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .service-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 36px 24px;
+  gap: 32px 24px;
 }
 
 .skeleton-card {
@@ -510,7 +441,7 @@ onMounted(() => {
 }
 
 .pagination-wrap {
-  margin-top: 48px;
+  margin-top: 40px;
   display: flex;
   justify-content: center;
 }
@@ -522,6 +453,18 @@ onMounted(() => {
 }
 
 @media (max-width: 820px) {
+  .market-head__title {
+    font-size: 26px;
+  }
+
+  .market-search {
+    width: 100%;
+  }
+
+  .filter-controls__right {
+    width: 100%;
+  }
+
   .service-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px 16px;

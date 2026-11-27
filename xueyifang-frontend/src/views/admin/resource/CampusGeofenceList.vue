@@ -1,6 +1,6 @@
 <template>
   <div class="admin-campus-page">
-    <XyfPageHeader title="校区与围栏管理">
+    <XyfPageHeader title="校区与围栏管理" dense>
       <template #actions>
         <el-button :loading="loading" @click="loadData">
           <el-icon><Refresh /></el-icon>
@@ -422,7 +422,7 @@ onMounted(loadData)
     h3 {
       margin: 2px 0 0;
       font-size: 16px;
-      font-weight: 750;
+      font-weight: 700;
       color: var(--xyf-ink);
     }
   }
@@ -463,7 +463,7 @@ onMounted(loadData)
   h3 {
     margin: 3px 0 0;
     font-size: 17px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 }

@@ -1,6 +1,6 @@
 <template>
   <div class="admin-location-page">
-    <XyfPageHeader title="交易地点管理">
+    <XyfPageHeader title="交易地点" dense>
       <template #actions>
         <el-button @click="fetchList" :loading="loading">
           <el-icon><Refresh /></el-icon>
@@ -8,7 +8,7 @@
         </el-button>
         <el-button type="primary" @click="openCreateDialog">
           <el-icon><Plus /></el-icon>
-          地图打点新增交接点
+          新增交接点
         </el-button>
       </template>
     </XyfPageHeader>
@@ -16,10 +16,7 @@
     <!-- Live Campus Overview Map showing all Trade Locations & their Meter Coverage Rings -->
     <section class="xyf-surface-card overview-map-card">
       <div class="overview-map-head">
-        <div>
-          <h3>校内预设安全交接点空间分布总览</h3>
-          <p>香槟金圆圈代表各点位配置的真实当面核销有效范围（超出设定米数将自动拦截远程核销），点击表格行或图标可聚焦查看</p>
-        </div>
+        <h3>校内交接点空间分布</h3>
         <el-select v-model="selectedCampusId" style="width: 220px" @change="onCampusSwitch">
           <el-option
             v-for="c in campuses"
@@ -42,34 +39,31 @@
       />
     </section>
 
-    <section class="xyf-surface-card filter-card">
-      <el-input
-        v-model="nameLike"
-        placeholder="按地标名称搜索..."
-        clearable
-        class="search-box"
-        @clear="handleSearch"
-        @keyup.enter="handleSearch"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
-        <template #append>
-          <el-button @click="handleSearch">检索</el-button>
-        </template>
-      </el-input>
-    </section>
+    <XyfFilterBar>
+      <template #fields>
+        <el-input
+          v-model="nameLike"
+          placeholder="按地标名称搜索"
+          clearable
+          :prefix-icon="Search"
+          class="xyf-filter-search"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        />
+      </template>
+    </XyfFilterBar>
 
     <section class="xyf-surface-card table-card">
       <el-skeleton v-if="loading" :rows="6" animated />
 
       <XyfEmptyState
         v-else-if="locations.length === 0"
+        compact
         title="暂无校内交易地点配置"
-        description="点击右上角「地图打点新增交接点」在真实校园地图上标定安全交接点。"
+        description="点击右上角「新增交接点」在校园地图上标定交接点。"
       />
 
-      <el-table v-else :data="locations" stripe @row-click="focusLocationRow">
+      <el-table v-else :data="locations" @row-click="focusLocationRow">
         <el-table-column prop="id" label="ID" width="72">
           <template #default="{ row }">
             <span class="xyf-mono">#{{ row.id }}</span>
@@ -119,7 +113,7 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="total > pageSize" class="pagination-wrap">
+      <div v-if="total > pageSize" class="xyf-pagination">
         <el-pagination
           v-model:current-page="pageNum"
           :page-size="pageSize"
@@ -258,6 +252,7 @@ import {
 import { notifyFallbackError } from '@/api/request'
 import type { TradeLocation, CampusInfo } from '@/types/dict'
 import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
+import XyfFilterBar from '@/components/ui/XyfFilterBar.vue'
 import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import RealCampusMap, { type OverviewLocationMarker } from '@/components/business/RealCampusMap.vue'
@@ -545,7 +540,7 @@ onMounted(async () => {
   background: #f4f4f5;
   color: #18181b;
   font-size: 12.5px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .fence-tip {

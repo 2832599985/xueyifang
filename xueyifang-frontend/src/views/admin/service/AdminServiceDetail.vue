@@ -1,10 +1,11 @@
 <template>
   <div class="admin-service-detail">
     <XyfPageHeader
-      :title="detail ? `服务审查 · ${detail.serviceTitle}` : '服务审查详情'"
+      :title="detail ? `服务档案 · ${detail.serviceTitle}` : '服务档案详情'"
       :show-back="true"
       back-text="返回审核队列"
       back-to="/admin/services"
+      dense
     />
 
     <div v-if="loading" class="xyf-surface-card loading-card">
@@ -74,7 +75,6 @@
               <XyfStatusBadge
                 :tone="detail.reviewStatus === ReviewStatus.APPROVED ? 'success' : detail.reviewStatus === ReviewStatus.REJECTED ? 'danger' : 'warning'"
                 :label="`审核：${getReviewStatusText(detail.reviewStatus)}`"
-                :dot="false"
               />
             </div>
 
@@ -155,11 +155,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { getServiceDetail, buildImageUrl } from '@/api/service'
-import { reviewService } from '@/api/adminService'
 import { notifyFallbackError } from '@/api/request'
 import { formatPrice, formatDateTimeMinute } from '@/utils/format'
+import { useAdminServiceReview } from '@/composables/useAdminServiceReview'
 import {
   ServiceStatus,
   ReviewStatus,
@@ -176,11 +175,11 @@ import TradeLocationBadge from '@/components/business/TradeLocationBadge.vue'
 
 const router = useRouter()
 const route = useRoute()
+const { submitting, approveService, rejectService } = useAdminServiceReview()
 
 const serviceId = computed(() => Number(route.params.id))
 
 const loading = ref(true)
-const submitting = ref(false)
 const detail = ref<ServiceDetail | null>(null)
 const rejectVisible = ref(false)
 const rejectReason = ref('')
@@ -191,43 +190,18 @@ const gallery = computed(() =>
 
 async function handleApprove() {
   if (!detail.value) return
-  try {
-    await ElMessageBox.confirm(`确认批准上架「${detail.value.serviceTitle}」吗？`, '审核通过', {
-      confirmButtonText: '确认通过',
-      cancelButtonText: '取消',
-      type: 'success'
-    })
-    submitting.value = true
-    await reviewService({ serviceId: detail.value.id, approved: true })
-    ElMessage.success('审核通过，服务已上架')
+  const ok = await approveService(detail.value.id, detail.value.serviceTitle)
+  if (ok) {
     router.replace('/admin/services')
-  } catch (err) {
-    if (err !== 'cancel') notifyFallbackError(err, '操作失败')
-  } finally {
-    submitting.value = false
   }
 }
 
 async function confirmReject() {
   if (!detail.value) return
-  if (!rejectReason.value.trim()) {
-    ElMessage.warning('请填写驳回理由')
-    return
-  }
-  submitting.value = true
-  try {
-    await reviewService({
-      serviceId: detail.value.id,
-      approved: false,
-      reason: rejectReason.value.trim()
-    })
-    ElMessage.success('已驳回该服务')
+  const ok = await rejectService(detail.value.id, rejectReason.value)
+  if (ok) {
     rejectVisible.value = false
     router.replace('/admin/services')
-  } catch (err) {
-    notifyFallbackError(err, '驳回操作失败')
-  } finally {
-    submitting.value = false
   }
 }
 
@@ -318,7 +292,7 @@ onMounted(async () => {
 
     &.price {
       color: var(--xyf-accent);
-      font-weight: 800;
+      font-weight: 700;
       font-size: 16px;
     }
   }

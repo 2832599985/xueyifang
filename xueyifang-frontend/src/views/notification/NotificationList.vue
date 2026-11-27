@@ -2,6 +2,11 @@
   <div class="notifications-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader title="消息通知">
+        <template #meta>
+          <span class="unread-meta xyf-tabular">
+            未读 <strong>{{ notificationStore.unreadCount }}</strong> 条
+          </span>
+        </template>
         <template #actions>
           <el-button
             :disabled="notificationStore.unreadCount === 0"
@@ -33,10 +38,6 @@
             {{ opt.label }}
           </button>
         </div>
-
-        <span class="unread-summary">
-          未读 <strong class="xyf-tabular">{{ notificationStore.unreadCount }}</strong> 条
-        </span>
       </div>
 
       <section class="xyf-surface-card list-card">
@@ -48,50 +49,89 @@
           description="当订单状态变更、服务审核或管理员处理申请时，会第一时间在此通知您。"
         />
 
-        <div v-else class="notify-stack">
-          <article
-            v-for="item in notifications"
-            :key="item.id"
-            class="notify-item"
-            :class="{ 'is-unread': item.isRead === 0 }"
-            @click="handleOpenItem(item)"
-          >
-            <div class="notify-item__main">
-              <div class="notify-top">
-                <XyfStatusBadge
-                  :tone="typeTone(item.notificationType)"
-                  :label="notificationTypeMap[item.notificationType] || '系统通知'"
-                  :dot="item.isRead === 0"
-                />
-                <span class="notify-time xyf-tabular">{{ formatNotificationTime(item.createTime) }}</span>
-              </div>
-              <h3 class="notify-title">{{ item.title }}</h3>
-              <p class="notify-content">{{ item.content }}</p>
-            </div>
-
-            <div class="notify-item__actions" @click.stop>
-              <el-button
-                v-if="item.isRead === 0"
-                size="small"
-                text
-                type="primary"
-                @click="handleMarkRead(item)"
-              >
-                标为已读
-              </el-button>
-              <el-button
-                v-if="getNotificationRoute(item)"
-                size="small"
-                plain
+        <div v-else class="inbox-sections">
+          <!-- Unread Group (within current page) -->
+          <div v-if="unreadItems.length > 0" class="inbox-group">
+            <div class="inbox-group__label">未读（本页 {{ unreadItems.length }}）</div>
+            <div class="notify-list">
+              <article
+                v-for="item in unreadItems"
+                :key="item.id"
+                class="notify-row is-unread"
                 @click="handleOpenItem(item)"
               >
-                去查看
-              </el-button>
+                <div class="notify-row__main">
+                  <div class="notify-top">
+                    <XyfStatusBadge
+                      :tone="typeTone(item.notificationType)"
+                      :label="notificationTypeMap[item.notificationType] || '系统通知'"
+                      :dot="true"
+                    />
+                    <span class="notify-time xyf-tabular">{{ formatNotificationTime(item.createTime) }}</span>
+                  </div>
+                  <h3 class="notify-title">{{ item.title }}</h3>
+                  <p class="notify-content">{{ item.content }}</p>
+                </div>
+
+                <div class="notify-row__actions" @click.stop>
+                  <el-button
+                    size="small"
+                    text
+                    class="read-action-btn"
+                    @click="handleMarkRead(item)"
+                  >
+                    标为已读
+                  </el-button>
+                  <el-button
+                    v-if="getNotificationRoute(item)"
+                    size="small"
+                    @click="handleOpenItem(item)"
+                  >
+                    查看
+                  </el-button>
+                </div>
+              </article>
             </div>
-          </article>
+          </div>
+
+          <!-- Read / Earlier Group (within current page) -->
+          <div v-if="readItems.length > 0" class="inbox-group">
+            <div v-if="unreadItems.length > 0" class="inbox-group__label">更早</div>
+            <div class="notify-list">
+              <article
+                v-for="item in readItems"
+                :key="item.id"
+                class="notify-row"
+                @click="handleOpenItem(item)"
+              >
+                <div class="notify-row__main">
+                  <div class="notify-top">
+                    <XyfStatusBadge
+                      :tone="item.notificationType === 2 || item.notificationType === 4 ? 'danger' : 'neutral'"
+                      :label="notificationTypeMap[item.notificationType] || '系统通知'"
+                    />
+                    <span class="notify-time xyf-tabular">{{ formatNotificationTime(item.createTime) }}</span>
+                  </div>
+                  <h3 class="notify-title">{{ item.title }}</h3>
+                  <p class="notify-content">{{ item.content }}</p>
+                </div>
+
+                <div class="notify-row__actions" @click.stop>
+                  <el-button
+                    v-if="getNotificationRoute(item)"
+                    size="small"
+                    text
+                    @click="handleOpenItem(item)"
+                  >
+                    查看
+                  </el-button>
+                </div>
+              </article>
+            </div>
+          </div>
         </div>
 
-        <div v-if="total > pageSize" class="pagination-wrap">
+        <div v-if="total > pageSize" class="xyf-pagination">
           <el-pagination
             v-model:current-page="pageNum"
             :page-size="pageSize"
@@ -107,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useNotificationStore } from '@/stores/notification'
@@ -139,10 +179,13 @@ const total = ref(0)
 const pageNum = ref(1)
 const pageSize = 12
 
-function typeTone(type: NotificationType) {
-  if (type === 1) return 'success'
+const unreadItems = computed(() => notifications.value.filter((n) => n.isRead === 0))
+const readItems = computed(() => notifications.value.filter((n) => n.isRead !== 0))
+
+function typeTone(type: NotificationType): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
   if (type === 2 || type === 4) return 'danger'
-  if (type === 3) return 'teal'
+  if (type === 1) return 'success'
+  if (type === 3) return 'info'
   return 'warning'
 }
 
@@ -210,55 +253,76 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.toolbar-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.unread-summary {
+.unread-meta {
   font-size: 13px;
-  color: var(--xyf-ink-muted);
+  color: var(--xyf-ink-3);
 
   strong {
-    color: var(--xyf-accent);
+    color: var(--xyf-ink);
+    font-weight: 600;
   }
 }
 
-.list-card {
-  padding: 18px 22px;
+.toolbar-row {
+  margin-bottom: 16px;
 }
 
-.notify-stack {
+.list-card {
+  padding: 20px 24px;
+}
+
+.inbox-sections {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 22px;
 }
 
-.notify-item {
+.inbox-group {
+  &__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--xyf-ink-3);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--xyf-border);
+  }
+}
+
+.notify-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.notify-row {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 18px;
-  border-radius: var(--xyf-radius-md);
-  border: 1px solid var(--xyf-border);
-  background: var(--xyf-bg);
+  padding: 15px 14px;
+  border-bottom: 1px solid var(--xyf-border-subtle);
   cursor: pointer;
-  transition: all var(--xyf-transition);
+  transition: background-color var(--xyf-transition);
+
+  &:last-child {
+    border-bottom: none;
+  }
 
   &:hover {
-    border-color: var(--xyf-primary);
-    background: var(--xyf-surface);
+    background: var(--xyf-surface-soft);
+
+    .read-action-btn {
+      opacity: 1;
+    }
   }
 
   &.is-unread {
-    background: var(--xyf-surface);
-    border-color: var(--xyf-primary-border);
-    box-shadow: var(--xyf-shadow-sm);
+    border-left: 2px solid var(--xyf-champagne);
+    padding-left: 16px;
+
+    .notify-title {
+      font-weight: 600;
+      color: var(--xyf-ink);
+    }
   }
 
   &__main {
@@ -274,35 +338,51 @@ onMounted(() => {
   }
 }
 
+.read-action-btn {
+  opacity: 0;
+  transition: opacity var(--xyf-transition);
+}
+
 .notify-top {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 
   .notify-time {
     font-size: 12px;
-    color: var(--xyf-ink-light);
+    color: var(--xyf-ink-3);
   }
 }
 
 .notify-title {
   margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--xyf-ink);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--xyf-ink-2);
 }
 
 .notify-content {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.6;
-  color: var(--xyf-ink-secondary);
+  color: var(--xyf-ink-3);
 }
 
-.pagination-wrap {
-  margin-top: 22px;
-  display: flex;
-  justify-content: center;
+@media (hover: none) {
+  .read-action-btn {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .list-card {
+    padding: 14px;
+  }
+
+  .notify-row {
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 </style>

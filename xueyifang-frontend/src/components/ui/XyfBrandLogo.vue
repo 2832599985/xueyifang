@@ -111,7 +111,7 @@ withDefaults(defineProps<Props>(), {
 
   &__title {
     font-size: 17.5px;
-    font-weight: 750;
+    font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--xyf-ink);
     white-space: nowrap;

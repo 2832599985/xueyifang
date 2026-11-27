@@ -82,9 +82,9 @@ a {
     border-color var(--xyf-transition);
 
   &:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     border-color: var(--xyf-primary-border);
-    box-shadow: var(--xyf-shadow-md);
+    box-shadow: var(--xyf-shadow-sm);
   }
 }
 
@@ -93,7 +93,7 @@ a {
   align-items: center;
   gap: 10px;
   font-size: 16px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--xyf-ink);
   margin: 0 0 16px;
@@ -118,28 +118,31 @@ a {
 /* Typography helpers */
 .xyf-tabular {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 .xyf-mono {
   font-family: var(--xyf-font-mono);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 .xyf-price {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
   font-weight: 700;
   color: var(--xyf-accent);
 }
 
-.xyf-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--xyf-ink-3);
+/* Unified right-aligned pagination wrapper */
+.xyf-pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+
+  @media (max-width: 768px) {
+    justify-content: center;
+  }
 }
 
 /* Ellipsis */
@@ -162,7 +165,7 @@ a {
   display: inline-flex;
   align-items: center;
   padding: 3px;
-  border-radius: 12px;
+  border-radius: var(--xyf-radius-sm);
   background: var(--xyf-surface-muted);
   border: 1px solid var(--xyf-border-subtle);
   gap: 2px;
@@ -177,12 +180,12 @@ a {
   &__btn {
     height: 32px;
     padding: 0 14px;
-    border-radius: 9px;
+    border-radius: var(--xyf-radius-xs);
     border: none;
     background: transparent;
     color: var(--xyf-ink-2);
     font-size: 13px;
-    font-weight: 550;
+    font-weight: 500;
     font-family: inherit;
     display: inline-flex;
     align-items: center;
@@ -198,19 +201,21 @@ a {
     &.is-active {
       background: #ffffff;
       color: var(--xyf-ink);
-      font-weight: 650;
+      font-weight: 600;
       box-shadow: 0 1px 3px rgba(9, 9, 11, 0.08), 0 1px 1px rgba(9, 9, 11, 0.04);
     }
   }
 
   &__count {
-    font-size: 11px;
-    font-weight: 650;
-    padding: 1px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 6px;
+    line-height: 18px;
     border-radius: 999px;
     background: rgba(24, 24, 27, 0.07);
     color: var(--xyf-ink-2);
     font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
   }
 
   &__btn.is-active &__count {
@@ -288,7 +293,7 @@ a {
 
     &.is-active {
       color: var(--xyf-primary);
-      font-weight: 650;
+      font-weight: 600;
 
       &::after {
         content: '';

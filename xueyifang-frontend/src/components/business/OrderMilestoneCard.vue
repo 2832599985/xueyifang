@@ -1,37 +1,43 @@
 <template>
-  <section v-if="shouldShowCard" class="xyf-surface-card milestone-card">
-    <div class="m-head">
-      <div>
-        <h2>分阶段验收</h2>
+  <section
+    v-if="shouldShowCard"
+    class="xyf-surface-card milestone-card"
+    :class="{ 'is-compact-strip': milestones.length === 0 }"
+  >
+    <!-- Compact Single-Line Strip when no milestones configured -->
+    <div v-if="milestones.length === 0" class="lump-strip xyf-tabular">
+      <div class="lump-strip__left">
+        <span class="lump-dot" />
+        <strong>整单一次性验收结算</strong>
+        <span class="lump-sep">·</span>
+        <span class="lump-frozen">在池冻结 ¥{{ Number(order.frozenAmount || 0).toFixed(2) }}</span>
       </div>
-
       <el-button
         v-if="canConfigurePlan"
         size="small"
         plain
         @click="openPlanDialog"
       >
-        {{ milestones.length > 0 ? '调整阶段比例' : '+ 拆解分阶段验收' }}
+        + 拆解分阶段验收
       </el-button>
-    </div>
-
-    <!-- Empty / Single-Lump Escrow State -->
-    <div v-if="milestones.length === 0" class="lump-escrow-box xyf-tabular">
-      <div class="lump-escrow-box__left">
-        <span class="lump-dot" />
-        <div>
-          <strong>当前采用整单一次性验收结算</strong>
-          <p>若开发、设计或辅导周期较长，买卖双方可将剩余冻结款拆分为 2–5 个节点逐阶段验收放款。</p>
-        </div>
-      </div>
-      <div class="lump-escrow-box__amt">
-        <span>在池冻结</span>
-        <strong>¥{{ Number(order.frozenAmount || 0).toFixed(2) }}</strong>
-      </div>
     </div>
 
     <!-- Active Staged Escrow Funding Bar + Connected Stepper -->
     <template v-else>
+      <div class="m-head">
+        <div>
+          <h2>分阶段验收</h2>
+        </div>
+
+        <el-button
+          v-if="canConfigurePlan"
+          size="small"
+          plain
+          @click="openPlanDialog"
+        >
+          调整阶段比例
+        </el-button>
+      </div>
       <div class="funding-bar-box xyf-tabular">
         <div class="funding-bar-meta">
           <span>已释放 <strong>¥{{ releasedTotal.toFixed(2) }}</strong></span>
@@ -425,65 +431,49 @@ onMounted(loadMilestones)
   h2 {
     margin: 3px 0 0;
     font-size: 16.5px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 }
 
-.lump-escrow-box {
-  padding: 14px 18px;
-  border-radius: 12px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border-subtle);
+.milestone-card.is-compact-strip {
+  padding: 14px 20px;
+}
+
+.lump-strip {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
 
   &__left {
     display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    flex: 1;
-    min-width: 220px;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 13px;
 
     .lump-dot {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: #18181b;
-      margin-top: 6px;
+      background: var(--xyf-primary);
       flex-shrink: 0;
     }
 
     strong {
-      display: block;
-      font-size: 13.5px;
+      font-weight: 600;
       color: var(--xyf-ink);
     }
 
-    p {
-      margin: 3px 0 0;
-      font-size: 12.5px;
-      color: var(--xyf-ink-3);
-      line-height: 1.5;
-    }
-  }
-
-  &__amt {
-    text-align: right;
-
-    span {
-      display: block;
-      font-size: 11px;
-      color: var(--xyf-ink-3);
+    .lump-sep {
+      color: var(--xyf-border-strong);
     }
 
-    strong {
-      font-size: 18px;
-      font-weight: 800;
-      color: var(--xyf-ink);
+    .lump-frozen {
+      color: #9a5b13;
+      font-weight: 500;
     }
   }
 }
@@ -561,7 +551,7 @@ onMounted(loadMilestones)
       background: #ffffff;
       color: var(--xyf-ink-2);
       font-size: 11.5px;
-      font-weight: 750;
+      font-weight: 700;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -627,7 +617,7 @@ onMounted(loadMilestones)
 
   .stage-amount {
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 }
@@ -641,7 +631,7 @@ onMounted(loadMilestones)
   .proof-lbl {
     display: block;
     font-size: 11px;
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink-3);
     margin-bottom: 2px;
   }
@@ -682,7 +672,7 @@ onMounted(loadMilestones)
   background: var(--xyf-surface-soft);
   color: var(--xyf-ink);
   font-size: 12px;
-  font-weight: 550;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
 

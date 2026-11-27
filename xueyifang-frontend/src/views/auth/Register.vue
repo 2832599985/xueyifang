@@ -276,7 +276,7 @@ onMounted(async () => {
     margin: 0 0 10px;
     font-size: 22px;
     line-height: 1.35;
-    font-weight: 750;
+    font-weight: 700;
     color: #ffffff;
   }
 
@@ -352,7 +352,7 @@ onMounted(async () => {
   h1 {
     margin: 6px 0 4px;
     font-size: 25px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 

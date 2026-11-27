@@ -670,7 +670,7 @@ const handleCommand = async (command: string) => {
 
     &.is-active {
       color: var(--xyf-ink);
-      font-weight: 650;
+      font-weight: 600;
       background: var(--xyf-surface-muted);
     }
   }
@@ -788,7 +788,7 @@ const handleCommand = async (command: string) => {
   &__name {
     max-width: 90px;
     font-size: 13px;
-    font-weight: 550;
+    font-weight: 500;
     color: var(--xyf-ink);
 
     @media (max-width: 640px) {
@@ -854,7 +854,7 @@ const handleCommand = async (command: string) => {
 
       h4 {
         font-size: 13px;
-        font-weight: 650;
+        font-weight: 600;
         color: var(--xyf-ink);
         margin-bottom: 4px;
       }
@@ -914,7 +914,7 @@ const handleCommand = async (command: string) => {
       &.router-link-exact-active {
         background: var(--xyf-primary-soft);
         color: var(--xyf-primary);
-        font-weight: 650;
+        font-weight: 600;
       }
     }
 
@@ -1044,7 +1044,7 @@ const handleCommand = async (command: string) => {
     strong {
       display: block;
       font-size: 13.5px;
-      font-weight: 650;
+      font-weight: 600;
       color: #111113;
     }
 

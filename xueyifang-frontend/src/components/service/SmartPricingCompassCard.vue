@@ -215,7 +215,7 @@ onMounted(() => {
   padding: 2px 9px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
   background: #ffffff;
   border: 1px solid var(--xyf-border);
   color: var(--xyf-ink-2);
@@ -293,7 +293,7 @@ onMounted(() => {
 
   .s-price {
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 
@@ -361,7 +361,7 @@ onMounted(() => {
   color: var(--xyf-ink-3);
 
   .is-mid {
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink);
   }
 }

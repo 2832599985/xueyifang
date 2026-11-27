@@ -838,7 +838,7 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid var(--xyf-border);
   font-size: 12.5px;
-  font-weight: 550;
+  font-weight: 500;
   color: var(--xyf-ink-2);
   margin-bottom: 22px;
   backdrop-filter: blur(10px);
@@ -935,7 +935,7 @@ onUnmounted(() => {
 .hero-title {
   margin: 0;
   font-size: clamp(38px, 5vw, 60px);
-  font-weight: 760;
+  font-weight: 700;
   line-height: 1.12;
   letter-spacing: -0.035em;
   color: var(--xyf-ink);
@@ -976,7 +976,7 @@ onUnmounted(() => {
   background: transparent;
   color: var(--xyf-ink-2);
   font-size: 12.5px;
-  font-weight: 550;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   transition: all var(--xyf-transition);
@@ -1363,7 +1363,7 @@ onUnmounted(() => {
   &__title {
     margin: 0;
     font-size: 17px;
-    font-weight: 650;
+    font-weight: 600;
     letter-spacing: -0.015em;
     color: var(--xyf-ink);
     transition: color var(--xyf-transition);
@@ -1437,7 +1437,7 @@ onUnmounted(() => {
 .eco-title {
   margin: 4px 0 0;
   font-size: 26px;
-  font-weight: 750;
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--xyf-ink);
 }
@@ -1488,7 +1488,7 @@ onUnmounted(() => {
 .bento-tag {
   display: inline-block;
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--xyf-surface-muted);
@@ -1530,7 +1530,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 3px;
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 500;
   color: var(--xyf-ink-2);
 
   &:hover {
@@ -1584,7 +1584,7 @@ onUnmounted(() => {
     h4 {
       margin: 4px 0 0;
       font-size: 14.5px;
-      font-weight: 650;
+      font-weight: 600;
       color: var(--xyf-ink);
     }
   }
@@ -1596,7 +1596,7 @@ onUnmounted(() => {
     strong {
       display: block;
       font-size: 15.5px;
-      font-weight: 750;
+      font-weight: 700;
       color: var(--xyf-ink);
     }
 
@@ -1678,7 +1678,7 @@ onUnmounted(() => {
 
   &__d {
     font-size: 15px;
-    font-weight: 750;
+    font-weight: 700;
   }
 }
 
@@ -1689,7 +1689,7 @@ onUnmounted(() => {
   h4 {
     margin: 0;
     font-size: 14px;
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink);
   }
 
@@ -1710,7 +1710,7 @@ onUnmounted(() => {
 
 .session-mini-price {
   font-size: 16px;
-  font-weight: 750;
+  font-weight: 700;
   color: var(--xyf-ink);
   flex-shrink: 0;
 }
@@ -1768,7 +1768,7 @@ onUnmounted(() => {
 
   strong {
     font-size: 13.5px;
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink);
   }
 
@@ -1931,7 +1931,7 @@ onUnmounted(() => {
   background: transparent;
   color: #ffffff;
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   transition: all var(--xyf-transition);

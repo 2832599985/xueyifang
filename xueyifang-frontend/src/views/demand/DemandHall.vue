@@ -904,7 +904,7 @@ onMounted(async () => {
     h1 {
       margin: 6px 0 8px;
       font-size: 32px;
-      font-weight: 780;
+      font-weight: 700;
       letter-spacing: -0.03em;
       color: var(--xyf-ink);
     }
@@ -953,7 +953,7 @@ onMounted(async () => {
 
   strong {
     font-size: 16px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 }
@@ -1025,7 +1025,7 @@ onMounted(async () => {
   background: #ffffff;
   color: var(--xyf-ink-2);
   font-size: 12px;
-  font-weight: 550;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   transition: all var(--xyf-transition);
@@ -1062,7 +1062,7 @@ onMounted(async () => {
     background: transparent;
     color: var(--xyf-ink-2);
     font-size: 13px;
-    font-weight: 550;
+    font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
 
@@ -1168,7 +1168,7 @@ onMounted(async () => {
   padding: 3px 9px;
   border-radius: 999px;
   font-size: 11.5px;
-  font-weight: 650;
+  font-weight: 600;
   background: var(--xyf-surface-muted);
   color: var(--xyf-ink-2);
 
@@ -1202,7 +1202,7 @@ onMounted(async () => {
   padding: 3px 9px;
   border-radius: 999px;
   font-size: 11.5px;
-  font-weight: 550;
+  font-weight: 500;
   background: var(--xyf-surface-soft);
   border: 1px solid var(--xyf-border-subtle);
   color: var(--xyf-ink-2);
@@ -1210,7 +1210,7 @@ onMounted(async () => {
 
 .state-pill {
   font-size: 11.5px;
-  font-weight: 650;
+  font-weight: 600;
   padding: 3px 9px;
   border-radius: 999px;
   background: var(--xyf-surface-muted);
@@ -1280,7 +1280,7 @@ onMounted(async () => {
 
   &__amount {
     font-size: 20px;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--xyf-ink);
     line-height: 1.1;
@@ -1392,7 +1392,7 @@ onMounted(async () => {
 
   &__num {
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink-3);
   }
 
@@ -1436,7 +1436,7 @@ onMounted(async () => {
   &__lbl {
     font-size: 12px;
     color: var(--xyf-ink-3);
-    font-weight: 550;
+    font-weight: 500;
   }
 }
 
@@ -1447,7 +1447,7 @@ onMounted(async () => {
   background: #ffffff;
   color: var(--xyf-ink);
   font-size: 12px;
-  font-weight: 550;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   transition: all var(--xyf-transition);
@@ -1541,7 +1541,7 @@ onMounted(async () => {
 
   &__price {
     font-size: 16px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-champagne-metallic);
     white-space: nowrap;
   }

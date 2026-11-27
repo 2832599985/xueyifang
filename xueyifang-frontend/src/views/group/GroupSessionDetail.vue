@@ -1,16 +1,13 @@
 <template>
   <div class="group-detail-page xyf-page">
     <div class="xyf-container">
-      <XyfPageHeader
-        title="拼班详情"
-        :show-back="true"
-        back-text="返回团课大厅"
-        back-to="/groups"
-      >
-        <template #actions v-if="session">
-          <span class="session-serial xyf-mono">{{ session.sessionNo }}</span>
-        </template>
-      </XyfPageHeader>
+      <nav class="detail-topbar">
+        <el-button text class="detail-topbar__back" @click="router.push('/groups')">
+          <el-icon><ArrowLeft /></el-icon>
+          <span>返回团课大厅</span>
+        </el-button>
+        <span v-if="session" class="session-serial xyf-mono">{{ session.sessionNo }}</span>
+      </nav>
 
       <div v-if="loading" class="xyf-surface-card" style="padding: 32px">
         <el-skeleton :rows="7" animated />
@@ -325,6 +322,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   getGroupSessionDetail,
@@ -335,7 +333,6 @@ import {
 import { notifyFallbackError } from '@/api/request'
 import { formatDateTime } from '@/utils/format'
 import RealCampusMap from '@/components/business/RealCampusMap.vue'
-import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 
@@ -435,6 +432,25 @@ onMounted(loadDetail)
 </script>
 
 <style scoped lang="scss">
+.detail-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+
+  &__back {
+    padding: 4px 8px 4px 0;
+    color: var(--xyf-ink-2);
+    font-size: 13px;
+
+    &:hover {
+      color: var(--xyf-ink);
+      background: transparent;
+    }
+  }
+}
+
 .session-serial {
   padding: 5px 12px;
   border-radius: 999px;
@@ -460,7 +476,7 @@ onMounted(loadDetail)
     h2 {
       margin: 4px 0 0;
       font-size: 18px;
-      font-weight: 750;
+      font-weight: 700;
       color: var(--xyf-ink);
     }
   }
@@ -601,7 +617,7 @@ onMounted(loadDetail)
 .course-h1 {
   margin: 0 0 18px;
   font-size: 24px;
-  font-weight: 760;
+  font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.02em;
   color: var(--xyf-ink);
@@ -758,7 +774,7 @@ onMounted(loadDetail)
       border: 1px solid var(--xyf-champagne-border);
       color: #9a5b13;
       font-size: 10.5px;
-      font-weight: 650;
+      font-weight: 600;
     }
 
     .seat-student {
@@ -845,7 +861,7 @@ onMounted(loadDetail)
   &__val {
     margin-top: 4px;
     font-size: 32px;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--xyf-ink);
 

@@ -742,7 +742,7 @@ onMounted(async () => {
     h1 {
       margin: 6px 0 8px;
       font-size: 32px;
-      font-weight: 780;
+      font-weight: 700;
       letter-spacing: -0.03em;
       color: var(--xyf-ink);
     }
@@ -861,7 +861,7 @@ onMounted(async () => {
   background: #ffffff;
   color: var(--xyf-ink-2);
   font-size: 12px;
-  font-weight: 550;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   transition: all var(--xyf-transition);
@@ -960,7 +960,7 @@ onMounted(async () => {
 
   &__day {
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 700;
     margin-top: 2px;
   }
 }
@@ -978,7 +978,7 @@ onMounted(async () => {
 
   .c-pill {
     font-size: 11px;
-    font-weight: 550;
+    font-weight: 500;
     padding: 2px 8px;
     border-radius: 999px;
     background: var(--xyf-surface-soft);
@@ -997,7 +997,7 @@ onMounted(async () => {
 
 .session-state {
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
   padding: 3px 9px;
   border-radius: 999px;
   background: var(--xyf-surface-muted);
@@ -1131,12 +1131,12 @@ onMounted(async () => {
     border: 1px solid var(--xyf-champagne-border);
     color: #9a5b13;
     font-size: 11px;
-    font-weight: 650;
+    font-weight: 600;
   }
 
   .cur-price {
     font-size: 21px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--xyf-ink);
 
     .yen {
@@ -1227,7 +1227,7 @@ onMounted(async () => {
 
     strong {
       font-size: 18px;
-      font-weight: 750;
+      font-weight: 700;
     }
 
     &.is-gold strong {

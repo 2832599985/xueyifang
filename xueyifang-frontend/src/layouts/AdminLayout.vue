@@ -74,7 +74,7 @@
           <div class="admin-crumb">
             <span v-if="currentGroupTitle" class="admin-crumb__group">{{ currentGroupTitle }}</span>
             <span v-if="currentGroupTitle" class="admin-crumb__sep">/</span>
-            <h1 class="admin-header__title">{{ currentTitle }}</h1>
+            <span class="admin-header__title">{{ currentTitle }}</span>
           </div>
         </div>
 
@@ -339,12 +339,11 @@ const handleLogout = async () => {
   gap: 2px;
 
   &__label {
-    font-size: 10.5px;
-    font-weight: 650;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.38);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.42);
     padding: 4px 12px 5px;
-    text-transform: uppercase;
   }
 }
 
@@ -353,9 +352,9 @@ const handleLogout = async () => {
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border-radius: 9px;
+  border-radius: var(--xyf-radius-sm);
   color: rgba(244, 244, 245, 0.68);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   transition: all var(--xyf-transition);
 
@@ -372,7 +371,7 @@ const handleLogout = async () => {
   &.is-active {
     color: #111113;
     background: #ffffff;
-    font-weight: 650;
+    font-weight: 600;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
   }
 }
@@ -446,8 +445,8 @@ const handleLogout = async () => {
 
   &__title {
     margin: 0;
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 600;
     color: var(--xyf-ink);
   }
 }
@@ -487,8 +486,8 @@ const handleLogout = async () => {
   border: 1px solid var(--xyf-border);
   background: #ffffff;
   color: var(--xyf-ink-2);
-  font-size: 12.5px;
-  font-weight: 550;
+  font-size: 12px;
+  font-weight: 500;
   transition: all var(--xyf-transition);
 
   &:hover {
@@ -589,11 +588,10 @@ const handleLogout = async () => {
 }
 
 .mobile-nav-group {
-  font-size: 11px;
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--xyf-ink-3);
   padding: 10px 8px 4px;
-  text-transform: uppercase;
 }
 
 .mobile-nav-item {

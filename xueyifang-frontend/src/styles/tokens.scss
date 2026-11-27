@@ -18,7 +18,8 @@
   /* Ink / Text */
   --xyf-ink: #111113;
   --xyf-ink-2: #52525b;
-  --xyf-ink-3: #8e8e98;
+  --xyf-ink-3: #71717a;
+  --xyf-ink-4: #a1a1aa;
   --xyf-ink-invert: #ffffff;
 
   /* Brand Palette: Matte Obsidian & Brushed Champagne Titanium */
@@ -77,9 +78,9 @@
   --xyf-shadow-lg: 0 26px 60px -16px rgba(9, 9, 11, 0.14), 0 8px 22px -6px rgba(9, 9, 11, 0.05);
   --xyf-shadow-focus: 0 0 0 3px rgba(24, 24, 27, 0.09);
 
-  /* Typography */
-  --xyf-font-sans: 'PingFang SC', 'Hiragino Sans GB', 'Inter', 'Microsoft YaHei', 'Noto Sans SC',
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Typography (Latin UI fonts with native tnum precede CJK fallbacks) */
+  --xyf-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   --xyf-font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 
   /* Spacing & Layout */
@@ -110,7 +111,7 @@
 
   --el-text-color-primary: #111113;
   --el-text-color-regular: #52525b;
-  --el-text-color-secondary: #8e8e98;
+  --el-text-color-secondary: #71717a;
 
   --el-border-color: #e4e4e7;
   --el-border-color-light: #f1f1f3;

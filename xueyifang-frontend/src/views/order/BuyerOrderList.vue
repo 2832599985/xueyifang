@@ -1,38 +1,29 @@
 <template>
   <div class="orders-page xyf-page">
     <div class="xyf-container">
-      <header class="orders-head">
-        <div>
-          <h1>购买订单</h1>
-          <p>查看待支付、资金托管中、待收货与历史服务订单</p>
-        </div>
-        <div class="orders-head__actions">
-          <button type="button" class="btn-secondary" @click="router.push('/disputes')">
-            我的纠纷
-          </button>
-          <button type="button" class="btn-primary" @click="router.push('/services')">
-            继续逛服务
-          </button>
-        </div>
-      </header>
+      <XyfPageHeader title="购买订单">
+        <template #meta>
+          <span class="head-count xyf-tabular">共 {{ total }} 笔</span>
+        </template>
+        <template #actions>
+          <el-button @click="router.push('/disputes')">我的纠纷</el-button>
+          <el-button type="primary" @click="router.push('/services')">继续逛服务</el-button>
+        </template>
+      </XyfPageHeader>
 
       <div class="toolbar-row">
-        <div class="status-tabs">
+        <div class="xyf-tabs">
           <button
             v-for="tab in statusTabs"
             :key="tab.label"
             type="button"
-            class="status-tab"
+            class="xyf-tabs__btn"
             :class="{ 'is-active': activeStatus === tab.value }"
             @click="switchStatus(tab.value)"
           >
             {{ tab.label }}
           </button>
         </div>
-
-        <span class="total-hint xyf-tabular">
-          共 {{ total }} 笔订单
-        </span>
       </div>
 
       <div v-if="loading" class="xyf-surface-card loading-card">
@@ -53,58 +44,55 @@
       <div v-else class="orders-stack">
         <OrderCard v-for="order in orders" :key="order.id" :order="order" role="BUYER">
           <template #actions>
-            <button
+            <el-button
               v-if="canPayOrder(order.orderStatus)"
-              type="button"
-              class="card-btn-primary"
-              :disabled="operatingId === order.id"
+              type="primary"
+              size="small"
+              :loading="operatingId === order.id"
               @click="handlePay(order)"
             >
               立即支付
-            </button>
+            </el-button>
 
-            <button
+            <el-button
               v-if="canCancelOrder(order.orderStatus)"
-              type="button"
-              class="card-btn-secondary"
+              size="small"
               :disabled="operatingId === order.id"
               @click="handleCancel(order)"
             >
               取消订单
-            </button>
+            </el-button>
 
-            <button
+            <el-button
               v-if="canBuyerConfirm(order.orderStatus, order.refundStatus)"
-              type="button"
-              class="card-btn-primary"
-              :disabled="operatingId === order.id"
+              type="primary"
+              size="small"
+              :loading="operatingId === order.id"
               @click="handleConfirmReceipt(order)"
             >
               确认收货
-            </button>
+            </el-button>
 
-            <button
+            <el-button
               v-if="canApplyRefund(order.orderStatus, order.refundStatus)"
-              type="button"
-              class="card-btn-secondary"
+              size="small"
               @click="openRefundDialog(order)"
             >
               申请退款
-            </button>
+            </el-button>
 
-            <button
+            <el-button
               v-if="order.orderStatus === OrderStatus.COMPLETED"
-              type="button"
-              class="card-btn-secondary"
+              size="small"
               @click="router.push(`/orders/${order.id}`)"
             >
               评价 / 售后
-            </button>
+            </el-button>
           </template>
         </OrderCard>
       </div>
 
-      <div v-if="total > pageSize" class="pagination-wrap">
+      <div v-if="total > pageSize" class="xyf-pagination">
         <el-pagination
           v-model:current-page="pageNum"
           :page-size="pageSize"
@@ -161,6 +149,7 @@ import {
   canApplyRefund,
   type OrderListItem
 } from '@/types/order'
+import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import OrderCard from '@/components/business/OrderCard.vue'
 
@@ -300,142 +289,13 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.orders-page {
-  padding-top: 36px;
-  padding-bottom: 72px;
-}
-
-.orders-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 28px;
-
-  h1 {
-    margin: 0;
-    font-size: 30px;
-    font-weight: 750;
-    letter-spacing: -0.025em;
-    color: var(--xyf-ink);
-    line-height: 1.2;
-  }
-
-  p {
-    margin: 8px 0 0;
-    font-size: 14px;
-    color: var(--xyf-ink-3);
-  }
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-}
-
-.btn-primary {
-  height: 40px;
-  padding: 0 20px;
-  border-radius: 999px;
-  border: 1px solid #18181b;
-  background: #18181b;
-  color: #ffffff;
-  font-size: 13.5px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    background: #27272a;
-    border-color: #27272a;
-    transform: translateY(-1px);
-    box-shadow: 0 8px 20px -6px rgba(9, 9, 11, 0.28);
-  }
-}
-
-.btn-secondary {
-  height: 40px;
-  padding: 0 18px;
-  border-radius: 999px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
-  color: var(--xyf-ink);
-  font-size: 13.5px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    border-color: #a1a1aa;
-    background: var(--xyf-surface-soft);
-  }
+.head-count {
+  font-size: 13px;
+  color: var(--xyf-ink-3);
 }
 
 .toolbar-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  border-bottom: 1px solid var(--xyf-border);
-  margin-bottom: 24px;
-}
-
-.status-tabs {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.status-tab {
-  position: relative;
-  padding: 0 2px 14px;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--xyf-ink-3);
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color var(--xyf-transition);
-
-  &:hover {
-    color: var(--xyf-ink);
-  }
-
-  &.is-active {
-    color: var(--xyf-ink);
-    font-weight: 650;
-
-    &::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: -1px;
-      height: 2px;
-      background: #18181b;
-      border-radius: 2px;
-    }
-  }
-}
-
-.total-hint {
-  font-size: 13px;
-  color: var(--xyf-ink-3);
-  padding-bottom: 14px;
+  margin-bottom: 20px;
 }
 
 .loading-card {
@@ -446,61 +306,5 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.card-btn-primary {
-  height: 34px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid #18181b;
-  background: #18181b;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 550;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover:not(:disabled) {
-    background: #2e2e34;
-    border-color: #2e2e34;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 14px -4px rgba(9, 9, 11, 0.24);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.card-btn-secondary {
-  height: 34px;
-  padding: 0 15px;
-  border-radius: 999px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
-  color: var(--xyf-ink);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover:not(:disabled) {
-    border-color: #a1a1aa;
-    background: var(--xyf-surface-soft);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.pagination-wrap {
-  margin-top: 28px;
-  display: flex;
-  justify-content: center;
 }
 </style>

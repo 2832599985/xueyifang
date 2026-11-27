@@ -1,5 +1,5 @@
 <template>
-  <header class="xyf-page-header" :class="{ 'has-border': bordered }">
+  <header class="xyf-page-header" :class="{ 'has-border': bordered, 'is-dense': dense }">
     <div class="xyf-page-header__left">
       <el-button
         v-if="showBack"
@@ -11,7 +11,12 @@
         <span>{{ backText }}</span>
       </el-button>
 
-      <h1 class="xyf-page-header__title">{{ title }}</h1>
+      <div class="xyf-page-header__title-row">
+        <h1 class="xyf-page-header__title">{{ title }}</h1>
+        <div v-if="$slots.meta" class="xyf-page-header__meta">
+          <slot name="meta" />
+        </div>
+      </div>
       <p v-if="subtitle" class="xyf-page-header__subtitle">{{ subtitle }}</p>
     </div>
 
@@ -32,6 +37,7 @@ interface Props {
   backText?: string
   backTo?: string
   bordered?: boolean
+  dense?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -39,7 +45,8 @@ const props = withDefaults(defineProps<Props>(), {
   showBack: false,
   backText: '返回',
   backTo: '',
-  bordered: true
+  bordered: true,
+  dense: false
 })
 
 const router = useRouter()
@@ -66,20 +73,17 @@ function handleBack() {
     border-bottom: 1px solid var(--xyf-border);
   }
 
+  &.is-dense {
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+
+    .xyf-page-header__title {
+      font-size: 22px;
+    }
+  }
+
   &__left {
     min-width: 0;
-  }
-
-  &__eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-
-  &__sep {
-    color: var(--xyf-border-strong);
-    font-size: 12px;
   }
 
   &__back {
@@ -87,6 +91,7 @@ function handleBack() {
     height: auto;
     color: var(--xyf-ink-2);
     font-size: 13px;
+    margin-bottom: 4px;
 
     &:hover {
       color: var(--xyf-primary);
@@ -94,30 +99,34 @@ function handleBack() {
     }
   }
 
-  &__kicker {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 650;
-    letter-spacing: 0.08em;
-    color: var(--xyf-ink-3);
-    text-transform: uppercase;
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
   }
 
   &__title {
     margin: 0;
-    font-size: 28px;
-    font-weight: 760;
+    font-size: 26px;
+    font-weight: 700;
     color: var(--xyf-ink);
-    line-height: 1.22;
-    letter-spacing: -0.025em;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  &__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   }
 
   &__subtitle {
     margin: 6px 0 0;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--xyf-ink-2);
-    line-height: 1.55;
-    max-width: 720px;
+    line-height: 1.5;
+    max-width: 680px;
   }
 
   &__actions {
@@ -136,7 +145,7 @@ function handleBack() {
     gap: 14px;
 
     &__title {
-      font-size: 22px;
+      font-size: 20px;
     }
 
     &__actions {

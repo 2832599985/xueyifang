@@ -1,16 +1,13 @@
 <template>
   <div class="demand-detail-page xyf-page">
     <div class="xyf-container">
-      <XyfPageHeader
-        title="悬赏详情"
-        :show-back="true"
-        back-text="返回悬赏大厅"
-        back-to="/demands"
-      >
-        <template #actions v-if="demand">
-          <span class="demand-serial xyf-mono">{{ demand.demandNo }}</span>
-        </template>
-      </XyfPageHeader>
+      <nav class="detail-topbar">
+        <el-button text class="detail-topbar__back" @click="router.push('/demands')">
+          <el-icon><ArrowLeft /></el-icon>
+          <span>返回悬赏大厅</span>
+        </el-button>
+        <span v-if="demand" class="demand-serial xyf-mono">{{ demand.demandNo }}</span>
+      </nav>
 
       <div v-if="loading" class="xyf-surface-card" style="padding: 32px">
         <el-skeleton :rows="8" animated />
@@ -439,7 +436,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowRight, ChatDotRound } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, ChatDotRound } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   getDemandDetail,
@@ -451,7 +448,6 @@ import { notifyFallbackError } from '@/api/request'
 import { formatDateTime } from '@/utils/format'
 import type { DemandItem, DemandBidItem } from '@/types/demand'
 import RealCampusMap from '@/components/business/RealCampusMap.vue'
-import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 
@@ -630,6 +626,25 @@ onMounted(loadDetail)
 </script>
 
 <style scoped lang="scss">
+.detail-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+
+  &__back {
+    padding: 4px 8px 4px 0;
+    color: var(--xyf-ink-2);
+    font-size: 13px;
+
+    &:hover {
+      color: var(--xyf-ink);
+      background: transparent;
+    }
+  }
+}
+
 .demand-serial {
   padding: 5px 12px;
   border-radius: 999px;
@@ -742,7 +757,7 @@ onMounted(loadDetail)
     border: 1px solid rgba(200, 169, 126, 0.45);
     color: #e5c79e;
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 600;
   }
 }
 
@@ -827,7 +842,7 @@ onMounted(loadDetail)
 .spec-title {
   margin: 0 0 18px;
   font-size: 24px;
-  font-weight: 760;
+  font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.02em;
   color: var(--xyf-ink);
@@ -1000,7 +1015,7 @@ onMounted(loadDetail)
     background: #18181b;
     color: #e5c79e;
     font-size: 11.5px;
-    font-weight: 650;
+    font-weight: 600;
   }
 
   &__top {
@@ -1069,14 +1084,14 @@ onMounted(loadDetail)
 
     strong {
       font-size: 22px;
-      font-weight: 800;
+      font-weight: 700;
       color: var(--xyf-ink);
     }
   }
 
   .budget-delta {
     font-size: 11px;
-    font-weight: 650;
+    font-weight: 600;
     padding: 2px 8px;
     border-radius: 999px;
 
@@ -1146,7 +1161,7 @@ onMounted(loadDetail)
   .studio-range {
     margin-top: 4px;
     font-size: 30px;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--xyf-ink);
 

@@ -355,7 +355,7 @@ onMounted(async () => {
     h1 {
       margin: 6px 0 8px;
       font-size: 32px;
-      font-weight: 780;
+      font-weight: 700;
       letter-spacing: -0.03em;
       color: var(--xyf-ink);
     }
@@ -400,7 +400,7 @@ onMounted(async () => {
   background: #ffffff;
   color: var(--xyf-ink-2);
   font-size: 12px;
-  font-weight: 550;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   transition: all var(--xyf-transition);
@@ -519,7 +519,7 @@ onMounted(async () => {
   background: var(--xyf-surface-soft);
   border: 1px solid var(--xyf-border);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--xyf-ink);
 
   .crown-svg {
@@ -547,7 +547,7 @@ onMounted(async () => {
   h3 {
     margin: 4px 0 0;
     font-size: 18px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 
@@ -593,7 +593,7 @@ onMounted(async () => {
 
     strong {
       font-size: 15px;
-      font-weight: 750;
+      font-weight: 700;
       color: var(--xyf-ink);
     }
 
@@ -626,7 +626,7 @@ onMounted(async () => {
   h2 {
     margin: 0;
     font-size: 18px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 

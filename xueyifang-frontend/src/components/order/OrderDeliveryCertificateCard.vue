@@ -164,7 +164,7 @@ onMounted(() => {
   h3 {
     margin: 3px 0 0;
     font-size: 16.5px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 
@@ -213,7 +213,7 @@ onMounted(() => {
   h4 {
     margin: 3px 0 0;
     font-size: 16px;
-    font-weight: 750;
+    font-weight: 700;
     color: var(--xyf-ink);
   }
 
@@ -225,7 +225,7 @@ onMounted(() => {
     background: #18181b;
     color: #e5c79e;
     font-size: 11px;
-    font-weight: 650;
+    font-weight: 600;
   }
 }
 

@@ -1,6 +1,6 @@
 <template>
   <div class="admin-demand-page">
-    <XyfPageHeader title="悬赏管理">
+    <XyfPageHeader title="悬赏管理" dense>
       <template #actions>
         <el-button :loading="loading" @click="fetchData">
           <el-icon><Refresh /></el-icon>
@@ -14,58 +14,67 @@
       <XyfStatTile
         label="悬赏总数"
         :value="total"
+        unit="条"
         hint="全部悬赏"
       />
       <XyfStatTile
         label="招募中"
         :value="openCount"
+        unit="条"
         hint="等待报价"
       />
       <XyfStatTile
         label="已成单"
         :value="matchedCount"
+        unit="条"
         hint="已转担保订单"
       />
       <XyfStatTile
         label="已关闭"
         :value="closedCount"
-        tone="danger"
+        unit="条"
+        :tone="closedCount > 0 ? 'danger' : 'default'"
         hint="管理员关闭"
       />
     </section>
 
     <!-- Segmented Status Filter + Search Bar -->
-    <section class="xyf-surface-card filter-panel">
-      <div class="xyf-segmented">
-        <button
-          v-for="opt in statusTabs"
-          :key="String(opt.value)"
-          type="button"
-          class="xyf-segmented__btn"
-          :class="{ 'is-active': statusFilter === opt.value }"
-          @click="selectStatus(opt.value)"
-        >
-          {{ opt.label }}
-        </button>
-      </div>
+    <XyfFilterBar>
+      <template #tabs>
+        <div class="xyf-segmented">
+          <button
+            v-for="opt in statusTabs"
+            :key="String(opt.value)"
+            type="button"
+            class="xyf-segmented__btn"
+            :class="{ 'is-active': statusFilter === opt.value }"
+            @click="selectStatus(opt.value)"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+      </template>
 
-      <div class="search-box">
+      <template #fields>
         <el-input
           v-model="keyword"
-          placeholder="搜索悬赏单号或标题关键词..."
+          placeholder="搜索悬赏单号或标题"
           clearable
           :prefix-icon="Search"
-          style="width: 260px"
+          class="xyf-filter-search"
           @keyup.enter="reload"
           @clear="reload"
         />
-        <el-button type="primary" plain @click="reload">检索</el-button>
-      </div>
-    </section>
+      </template>
+
+      <template #actions>
+        <el-button type="primary" plain @click="reload">查询</el-button>
+      </template>
+    </XyfFilterBar>
 
     <!-- Main Inspection Table -->
     <section class="xyf-surface-card table-card">
-      <el-table :data="list" v-loading="loading" stripe style="width: 100%" @row-click="openInspectDrawer">
+      <el-table :data="list" v-loading="loading" style="width: 100%" @row-click="openInspectDrawer">
         <el-table-column label="悬赏单号 / 时间" width="195">
           <template #default="{ row }">
             <div class="xyf-mono cell-no">{{ row.demandNo }}</div>
@@ -76,14 +85,14 @@
         <el-table-column label="悬赏标题与需求摘要" min-width="260">
           <template #default="{ row }">
             <div class="title-line">
-              <span v-if="row.urgencyLevel === 3" class="u-badge">火急</span>
+              <XyfStatusBadge v-if="row.urgencyLevel === 3" tone="danger" label="火急" />
               <strong>{{ row.title }}</strong>
             </div>
             <div class="cell-sub ellipsis">{{ row.description }}</div>
           </template>
         </el-table-column>
 
-        <el-table-column label="校区与交付围栏" width="210">
+        <el-table-column label="校区与交付" width="210">
           <template #default="{ row }">
             <div class="cell-main">{{ row.campusName || '主校区' }}</div>
             <div class="cell-sub">
@@ -95,27 +104,29 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="悬赏预算" width="145">
+        <el-table-column label="悬赏预算" width="145" align="right">
           <template #default="{ row }">
-            <strong class="xyf-tabular">¥{{ row.budgetMin }} – ¥{{ row.budgetMax }}</strong>
+            <strong class="xyf-mono">¥{{ row.budgetMin }} – ¥{{ row.budgetMax }}</strong>
           </template>
         </el-table-column>
 
-        <el-table-column label="竞标数" width="90" align="center">
+        <el-table-column label="竞标" width="84" align="center">
           <template #default="{ row }">
             <span class="bid-pill xyf-tabular">{{ row.bidCount || 0 }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="状态" width="125">
+        <el-table-column label="状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.demandStatus === 0 ? 'success' : row.demandStatus === 1 ? 'warning' : row.demandStatus === 3 ? 'danger' : 'info'">
-              {{ statusText(row.demandStatus) }}
-            </el-tag>
+            <XyfStatusBadge
+              :tone="row.demandStatus === 0 ? 'warning' : row.demandStatus === 1 ? 'success' : row.demandStatus === 3 ? 'danger' : 'neutral'"
+              :label="statusText(row.demandStatus)"
+              :dot="row.demandStatus === 0"
+            />
           </template>
         </el-table-column>
 
-        <el-table-column label="巡检操作" width="175" fixed="right" align="right">
+        <el-table-column label="操作" width="175" fixed="right" align="right">
           <template #default="{ row }">
             <el-button link @click.stop="openInspectDrawer(row)">详情</el-button>
             <el-button
@@ -138,7 +149,7 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="total > pageSize" class="pager">
+      <div v-if="total > pageSize" class="xyf-pagination">
         <el-pagination
           v-model:current-page="pageNum"
           :page-size="pageSize"
@@ -224,6 +235,8 @@ import { formatDateTime } from '@/utils/format'
 import type { DemandItem } from '@/types/demand'
 import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfStatTile from '@/components/ui/XyfStatTile.vue'
+import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
+import XyfFilterBar from '@/components/ui/XyfFilterBar.vue'
 import RealCampusMap from '@/components/business/RealCampusMap.vue'
 
 const router = useRouter()
@@ -428,7 +441,7 @@ onMounted(fetchData)
   .inspect-title {
     margin: 0;
     font-size: 18px;
-    font-weight: 750;
+    font-weight: 700;
     line-height: 1.4;
     color: var(--xyf-ink);
   }
@@ -462,7 +475,7 @@ onMounted(fetchData)
   .lbl {
     display: block;
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 600;
     color: var(--xyf-ink-3);
     margin-bottom: 8px;
   }
