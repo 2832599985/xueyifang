@@ -2,8 +2,7 @@
   <section v-if="shouldShowCard" class="xyf-surface-card milestone-card">
     <div class="m-head">
       <div>
-        <span class="xyf-kicker">STAGED ESCROW MILESTONES</span>
-        <h2>分阶段里程碑担保交付</h2>
+        <h2>分阶段验收</h2>
       </div>
 
       <el-button

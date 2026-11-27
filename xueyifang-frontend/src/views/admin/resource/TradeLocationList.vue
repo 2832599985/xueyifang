@@ -1,10 +1,6 @@
 <template>
   <div class="admin-location-page">
-    <XyfPageHeader
-      kicker="CAMPUS LANDMARKS & GEOFENCE RADIUS"
-      title="校内线下交易地点管理"
-      subtitle="在真实校园地图上标定安全会面地标，并自由设置每个交接点允许扫码/输码/蓝牙核销的有效米数半径"
-    >
+    <XyfPageHeader title="交易地点管理">
       <template #actions>
         <el-button @click="fetchList" :loading="loading">
           <el-icon><Refresh /></el-icon>

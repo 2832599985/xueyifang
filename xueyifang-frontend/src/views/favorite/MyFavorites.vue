@@ -1,11 +1,7 @@
 <template>
   <div class="favorites-page xyf-page">
     <div class="xyf-container">
-      <XyfPageHeader
-        kicker="SAVED WORKS"
-        title="我收藏的技能服务"
-        subtitle="随时对比心仪的校园技能方案，快捷下单或取消收藏"
-      >
+      <XyfPageHeader title="我的收藏">
         <template #actions>
           <el-button type="primary" @click="router.push('/services')">发现更多服务</el-button>
         </template>

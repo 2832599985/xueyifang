@@ -1,10 +1,6 @@
 <template>
   <div class="admin-professional-page">
-    <XyfPageHeader
-      kicker="CAMPUS DICTIONARY"
-      title="专业与学院字典管理"
-      subtitle="维护注册及个人资料可选的专业目录，更新后将同步刷新全局缓存"
-    >
+    <XyfPageHeader title="专业目录管理">
       <template #actions>
         <el-button @click="fetchList" :loading="loading">
           <el-icon><Refresh /></el-icon>

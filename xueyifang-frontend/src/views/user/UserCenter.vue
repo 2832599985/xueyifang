@@ -229,7 +229,6 @@
             <div class="trust-dashboard-grid">
               <!-- Left: Credit Score Gauge Card -->
               <section class="xyf-surface-card credit-gauge-panel xyf-tabular">
-                <span class="xyf-kicker">CAMPUS CREDIT SCORE</span>
                 <div class="gauge-flex">
                   <div class="ring-stage">
                     <svg viewBox="0 0 104 104" class="credit-svg">
@@ -270,13 +269,11 @@
 
               <!-- Right: Academic .edu.cn Credential Card -->
               <section class="xyf-surface-card edu-passport-panel">
-                <span class="xyf-kicker">ACADEMIC IDENTITY</span>
-                <h3>高校 .edu.cn 教育邮箱核验</h3>
+                <h3>校园邮箱认证</h3>
 
                 <div v-if="isEduVerified" class="edu-credential-card">
                   <div class="edu-credential-card__top">
-                    <span class="cred-seal">✓ 高校实名已核验</span>
-                    <span class="cred-domain">.EDU.CN</span>
+                    <span class="cred-seal">✓ 校园邮箱已认证</span>
                   </div>
                   <strong class="cred-email xyf-mono">
                     {{ userStore.userInfo?.verifiedEduEmail || userStore.userInfo?.email }}

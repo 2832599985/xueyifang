@@ -1,10 +1,6 @@
 <template>
   <div class="admin-demand-page">
-    <XyfPageHeader
-      kicker="C2B BOUNTY GOVERNANCE"
-      title="反向悬赏需求巡检与合规治理"
-      subtitle="实时监控全校学生发布的反向悬赏任务，排查学术代写/替考等违规内容并执行强制下架与审计留痕"
-    >
+    <XyfPageHeader title="悬赏管理">
       <template #actions>
         <el-button :loading="loading" @click="fetchData">
           <el-icon><Refresh /></el-icon>
@@ -16,25 +12,25 @@
     <!-- 4 KPI Tiles -->
     <section class="kpi-grid">
       <XyfStatTile
-        label="当前检索悬赏总量"
+        label="悬赏总数"
         :value="total"
-        hint="覆盖全校区反向定制需求"
+        hint="全部悬赏"
       />
       <XyfStatTile
-        label="本页招募竞标中"
+        label="招募中"
         :value="openCount"
-        hint="开放创作者在线报价"
+        hint="等待报价"
       />
       <XyfStatTile
-        label="本页已选标转单"
+        label="已成单"
         :value="matchedCount"
-        hint="已锁定平台担保冻结池"
+        hint="已转担保订单"
       />
       <XyfStatTile
-        label="本页违规关闭拦截"
+        label="已关闭"
         :value="closedCount"
         tone="danger"
-        hint="学术合规风控强制下架"
+        hint="管理员关闭"
       />
     </section>
 

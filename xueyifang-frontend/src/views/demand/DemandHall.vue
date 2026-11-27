@@ -4,9 +4,7 @@
       <!-- Editorial Market Header + Integrated Workspace Switcher -->
       <header class="bounty-header">
         <div class="bounty-header__left">
-          <span class="xyf-kicker">C2B ESCROW BOUNTY MARKET</span>
-          <h1>校园悬赏定制大厅</h1>
-          <p>发布非标急单与专项任务，认证创作者在线竞标报价，选标后原子锁定电子围栏担保订单。</p>
+          <h1>悬赏大厅</h1>
         </div>
 
         <div class="bounty-header__right">
@@ -17,7 +15,7 @@
               :class="{ 'is-active': activeWorkspace === 'market' }"
               @click="switchWorkspace('market')"
             >
-              <span>全校招募广场</span>
+              <span>全部悬赏</span>
               <span class="xyf-segmented__count">{{ total }}</span>
             </button>
             <button
@@ -35,42 +33,17 @@
               :class="{ 'is-active': activeWorkspace === 'bids' }"
               @click="switchWorkspace('bids')"
             >
-              <span>我参与竞标</span>
+              <span>我竞标的</span>
               <span v-if="myBids.length" class="xyf-segmented__count">{{ myBids.length }}</span>
             </button>
           </div>
 
           <el-button type="primary" size="large" @click="openPublishDialog">
             <el-icon><Plus /></el-icon>
-            <span>发布悬赏需求</span>
+            <span>发布悬赏</span>
           </el-button>
         </div>
       </header>
-
-      <!-- Live Market Pulse Strip -->
-      <section class="pulse-strip xyf-tabular">
-        <div class="pulse-metric">
-          <span class="pulse-metric__label">
-            <span class="xyf-live-dot" />
-            正在招募悬赏
-          </span>
-          <strong>{{ openDemandCount }} 单</strong>
-        </div>
-        <div class="pulse-divider" />
-        <div class="pulse-metric">
-          <span class="pulse-metric__label">本页最高悬赏上限</span>
-          <strong>{{ maxBudgetDisplay }}</strong>
-        </div>
-        <div class="pulse-divider" />
-        <div class="pulse-metric">
-          <span class="pulse-metric__label">累计创作者响应报价</span>
-          <strong>{{ totalBidActivity }} 人次</strong>
-        </div>
-        <div class="pulse-divider" />
-        <div class="pulse-guarantee">
-          <span>选标后自动转入平台担保冻结 · 支持 10m–2000m 真实地图核销</span>
-        </div>
-      </section>
 
       <!-- VIEW 1: Public Bounty Marketplace -->
       <template v-if="activeWorkspace === 'market'">
@@ -700,21 +673,6 @@ const hasActiveFilters = computed(() =>
       filters.tradeType ||
       filters.keyword.trim()
   )
-)
-
-const openDemandCount = computed(() => {
-  const openInPage = demands.value.filter(d => d.demandStatus === 0).length
-  return Math.max(openInPage, total.value)
-})
-
-const maxBudgetDisplay = computed(() => {
-  if (!demands.value.length) return '¥0'
-  const maxVal = Math.max(...demands.value.map(d => Number(d.budgetMax || 0)))
-  return `¥${maxVal.toFixed(0)}`
-})
-
-const totalBidActivity = computed(() =>
-  demands.value.reduce((acc, d) => acc + Number(d.bidCount || 0), 0)
 )
 
 function urgencyLabel(level: number) {

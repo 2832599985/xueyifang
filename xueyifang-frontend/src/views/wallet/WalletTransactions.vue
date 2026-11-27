@@ -2,9 +2,7 @@
   <div class="transactions-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader
-        kicker="LEDGER"
-        title="钱包交易流水"
-        subtitle="完整记录校园钱包每一笔充值、担保冻结、结算与退款账目"
+        title="交易流水"
         :show-back="true"
         back-text="返回钱包概览"
         back-to="/wallet"

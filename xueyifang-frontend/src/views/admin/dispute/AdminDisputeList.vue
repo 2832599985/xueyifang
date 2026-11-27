@@ -1,9 +1,6 @@
 <template>
   <div class="admin-dispute-list">
-    <XyfPageHeader
-      title="订单纠纷仲裁台"
-      subtitle="按处理状态与订单号检索平台订单争议，进入详情查看凭据并作出裁决"
-    >
+    <XyfPageHeader title="纠纷处理">
       <template #actions>
         <el-button @click="fetchDisputes" :loading="loading">
           <el-icon><Refresh /></el-icon>

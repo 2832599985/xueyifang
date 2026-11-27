@@ -2,13 +2,12 @@
   <section v-if="order && order.orderStatus === OrderStatus.COMPLETED" class="xyf-surface-card cert-shell">
     <div class="cert-toolbar">
       <div>
-        <span class="xyf-kicker">CRYPTOGRAPHIC PRACTICE CREDENTIAL</span>
-        <h3>校园技能履约与社会实践数字存证</h3>
+        <h3>服务完成凭证</h3>
       </div>
 
       <div class="cert-toolbar__btns">
         <el-button size="small" plain :loading="verifying" @click="handleVerifySeal">
-          {{ verifiedAuthentic ? '✓ 指纹已核验真实' : 'SHA-256 在线验真' }}
+          {{ verifiedAuthentic ? '✓ 验真通过' : '在线验真' }}
         </el-button>
         <el-button size="small" type="primary" @click="handlePrint">
           打印 / 导出证书
@@ -28,7 +27,7 @@
       <div class="diploma-head">
         <div>
           <span class="diploma-serial xyf-mono">NO. {{ certificate.certificateNo }}</span>
-          <h4>学艺坊校园技能交付实践凭证</h4>
+          <h4>学艺坊服务完成凭证</h4>
         </div>
         <span class="channel-pill">
           核销通道：{{ certificate.verifyChannel }}
@@ -64,8 +63,8 @@
 
       <div class="hash-vault">
         <div class="hash-vault__top">
-          <span>SHA-256 防篡改数字指纹签章</span>
-          <button type="button" class="copy-hash-btn" @click="copySealHash">复制指纹</button>
+          <span>校验码（SHA-256）</span>
+          <button type="button" class="copy-hash-btn" @click="copySealHash">复制校验码</button>
         </div>
         <code class="hash-code xyf-mono">{{ certificate.sha256Seal }}</code>
       </div>

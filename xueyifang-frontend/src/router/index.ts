@@ -57,31 +57,31 @@ const routes: Array<RouteRecordRaw> = [
         path: 'demands/:id',
         name: 'DemandDetail',
         component: () => import('@/views/demand/DemandDetail.vue'),
-        meta: { title: '悬赏详情与竞标' }
+        meta: { title: '悬赏详情' }
       },
       {
         path: 'groups',
         name: 'GroupSessionHall',
         component: () => import('@/views/group/GroupSessionHall.vue'),
-        meta: { title: '拼班团课大厅' }
+        meta: { title: '拼班团课' }
       },
       {
         path: 'groups/:id',
         name: 'GroupSessionDetail',
         component: () => import('@/views/group/GroupSessionDetail.vue'),
-        meta: { title: '拼班团课详情' }
+        meta: { title: '拼班详情' }
       },
       {
         path: 'leaderboard',
         name: 'CreatorLeaderboard',
         component: () => import('@/views/user/CreatorLeaderboard.vue'),
-        meta: { title: '校友创作者技能风云榜' }
+        meta: { title: '行家榜' }
       },
       {
         path: 'creators/:id',
         name: 'CreatorProfile',
         component: () => import('@/views/user/CreatorProfile.vue'),
-        meta: { title: '创作者数字信用主页' }
+        meta: { title: '创作者主页' }
       },
       {
         path: 'about',
@@ -211,19 +211,19 @@ const routes: Array<RouteRecordRaw> = [
         path: 'users',
         name: 'AdminUserList',
         component: () => import('@/views/admin/user/AdminUserList.vue'),
-        meta: { title: '用户与账号治理', requiresAdmin: true }
+        meta: { title: '用户管理', requiresAdmin: true }
       },
       {
         path: 'permissions',
         name: 'AdminPermissionReview',
         component: () => import('@/views/admin/permission/AdminPermissionReview.vue'),
-        meta: { title: '发布权限审核', requiresAdmin: true }
+        meta: { title: '权限审核', requiresAdmin: true }
       },
       {
         path: 'services',
         name: 'AdminServiceReview',
         component: () => import('@/views/admin/service/AdminServiceReview.vue'),
-        meta: { title: '服务审核与巡检', requiresAdmin: true }
+        meta: { title: '服务审核', requiresAdmin: true }
       },
       {
         path: 'services/:id',
@@ -235,31 +235,31 @@ const routes: Array<RouteRecordRaw> = [
         path: 'demands',
         name: 'AdminDemandList',
         component: () => import('@/views/admin/demand/AdminDemandList.vue'),
-        meta: { title: '悬赏需求巡检', requiresAdmin: true }
+        meta: { title: '悬赏管理', requiresAdmin: true }
       },
       {
         path: 'risk-radar',
         name: 'AdminRiskRadar',
         component: () => import('@/views/admin/risk/AdminRiskRadar.vue'),
-        meta: { title: '异常互刷风控雷达', requiresAdmin: true }
+        meta: { title: '异常订单监测', requiresAdmin: true }
       },
       {
         path: 'finance',
         name: 'AdminFinanceReconciliation',
         component: () => import('@/views/admin/finance/AdminFinanceReconciliation.vue'),
-        meta: { title: '财务日终对账与爽约赔付', requiresAdmin: true }
+        meta: { title: '财务对账', requiresAdmin: true }
       },
       {
         path: 'system-health',
         name: 'AdminSystemHealth',
         component: () => import('@/views/admin/system/AdminSystemHealth.vue'),
-        meta: { title: '全链路安全与索引巡检', requiresAdmin: true }
+        meta: { title: '系统检查', requiresAdmin: true }
       },
       {
         path: 'disputes',
         name: 'AdminDisputeList',
         component: () => import('@/views/admin/dispute/AdminDisputeList.vue'),
-        meta: { title: '订单纠纷仲裁', requiresAdmin: true }
+        meta: { title: '纠纷处理', requiresAdmin: true }
       },
       {
         path: 'disputes/:id',
@@ -289,7 +289,7 @@ const routes: Array<RouteRecordRaw> = [
         path: 'resource/campuses',
         name: 'AdminCampusGeofenceList',
         component: () => import('@/views/admin/resource/CampusGeofenceList.vue'),
-        meta: { title: '多校区围栏与分账', requiresAdmin: true }
+        meta: { title: '校区管理', requiresAdmin: true }
       },
       {
         path: 'resource/trade-locations',

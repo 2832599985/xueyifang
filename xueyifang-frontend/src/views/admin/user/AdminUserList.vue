@@ -1,10 +1,6 @@
 <template>
   <div class="admin-user-page">
-    <XyfPageHeader
-      kicker="USER GOVERNANCE"
-      title="全校用户与账号治理"
-      subtitle="检索全平台学生与管理员账号，支持启禁用违规账号、授予或回收服务发布权限及密码重置"
-    >
+    <XyfPageHeader title="用户管理">
       <template #actions>
         <el-button @click="fetchList" :loading="loading">
           <el-icon><Refresh /></el-icon>

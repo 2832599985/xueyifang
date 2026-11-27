@@ -1,10 +1,6 @@
 <template>
   <div class="admin-campus-page">
-    <XyfPageHeader
-      kicker="MULTI-CAMPUS SPATIAL GOVERNANCE"
-      title="多校区电子围栏与清分治理台"
-      subtitle="在真实校园地图上可视化勾勒多边形安全电子围栏、配置 .edu.cn 实名域名白名单与分账结算监控"
-    >
+    <XyfPageHeader title="校区与围栏管理">
       <template #actions>
         <el-button :loading="loading" @click="loadData">
           <el-icon><Refresh /></el-icon>
@@ -12,7 +8,7 @@
         </el-button>
         <el-button type="primary" @click="openEditDialog()">
           <el-icon><Plus /></el-icon>
-          新增开放校区
+          新增校区
         </el-button>
       </template>
     </XyfPageHeader>
@@ -20,19 +16,19 @@
     <!-- 3 KPI Tiles -->
     <section class="kpi-row">
       <XyfStatTile
-        label="平台累计技术服务费分账收入"
+        label="累计服务费收入"
         :value="`¥${Number(revenueSummary.totalCommissionRevenue || 0).toFixed(2)}`"
-        hint="担保验收完成自动清分入账"
+        hint="已完成订单分成累计"
       />
       <XyfStatTile
-        label="已完成清分结算订单笔数"
+        label="已结算订单"
         :value="`${revenueSummary.settledOrderCount || 0} 笔`"
-        hint="全校区线上担保与线下核销合计"
+        hint="全部校区已结算订单"
       />
       <XyfStatTile
-        label="已配置空间电子围栏校区"
+        label="已配置校区"
         :value="`${campuses.length} 个校区`"
-        hint="支持多边形顶点与中心安全半径双保险"
+        hint="支持围栏范围与安全半径"
       />
     </section>
 
@@ -76,7 +72,6 @@
       <div class="xyf-surface-card map-stage-col">
         <div class="map-stage-head">
           <div>
-            <span class="xyf-kicker">LIVE POLYGON PREVIEW</span>
             <h3>{{ selectedCampus?.campusName || '选择左侧校区预览电子围栏' }}</h3>
           </div>
           <el-button

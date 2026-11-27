@@ -1,10 +1,6 @@
 <template>
   <div class="admin-dashboard">
-    <XyfPageHeader
-      kicker="OPERATIONS OVERVIEW"
-      title="平台运营总览"
-      subtitle="监控用户注册增长、今日新增活跃指标、平台交易流水与仲裁健康度"
-    >
+    <XyfPageHeader title="数据概览">
       <template #actions>
         <el-button @click="loadDashboard" :loading="loading">
           <el-icon><Refresh /></el-icon>

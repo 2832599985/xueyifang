@@ -4,9 +4,7 @@
       <!-- Editorial Header + Integrated Workspace Switcher -->
       <header class="group-header">
         <div class="group-header__left">
-          <span class="xyf-kicker">CO-LEARNING &amp; TIERED REBATE STUDIO</span>
-          <h1>校园拼班团课大厅</h1>
-          <p>认证创作者发起期末串讲、算法集训与实操小班，参团人数达标后系统自动为全体早期学员原路退回差价。</p>
+          <h1>拼班团课</h1>
         </div>
 
         <div class="group-header__right">
@@ -17,7 +15,7 @@
               :class="{ 'is-active': activeWorkspace === 'market' }"
               @click="switchWorkspace('market')"
             >
-              <span>正在招募课程</span>
+              <span>全部课程</span>
               <span class="xyf-segmented__count">{{ sessions.length }}</span>
             </button>
             <button
@@ -26,7 +24,7 @@
               :class="{ 'is-active': activeWorkspace === 'joined' }"
               @click="switchWorkspace('joined')"
             >
-              <span>我报名参团</span>
+              <span>我报名的</span>
               <span v-if="myJoined.length" class="xyf-segmented__count">{{ myJoined.length }}</span>
             </button>
             <button
@@ -36,7 +34,7 @@
               :class="{ 'is-active': activeWorkspace === 'created' }"
               @click="switchWorkspace('created')"
             >
-              <span>我开办的</span>
+              <span>我发起的</span>
               <span v-if="myCreated.length" class="xyf-segmented__count">{{ myCreated.length }}</span>
             </button>
           </div>
@@ -48,37 +46,10 @@
             @click="openCreateDialog"
           >
             <el-icon><Plus /></el-icon>
-            <span>发起拼班团课</span>
+            <span>发起拼班</span>
           </el-button>
         </div>
       </header>
-
-      <!-- Tiered Rebate Mechanism Explainer Strip -->
-      <section class="mechanism-strip">
-        <div class="mech-step">
-          <span class="mech-num xyf-tabular">01</span>
-          <div>
-            <strong>独立担保锁座</strong>
-            <span>每位参团同学生成独立担保订单</span>
-          </div>
-        </div>
-        <span class="mech-arrow">→</span>
-        <div class="mech-step">
-          <span class="mech-num xyf-tabular">02</span>
-          <div>
-            <strong>满阶梯自动退差价</strong>
-            <span>达到优惠人数线即刻原路退还差额</span>
-          </div>
-        </div>
-        <span class="mech-arrow">→</span>
-        <div class="mech-step">
-          <span class="mech-num xyf-tabular">03</span>
-          <div>
-            <strong>围栏签到核销</strong>
-            <span>按约定课表与地图围栏逐单核销结算</span>
-          </div>
-        </div>
-      </section>
 
       <!-- VIEW 1: Public Group Sessions -->
       <template v-if="activeWorkspace === 'market'">

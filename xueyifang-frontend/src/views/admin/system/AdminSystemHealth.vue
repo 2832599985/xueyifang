@@ -1,14 +1,10 @@
 <template>
   <div class="admin-system-health-page">
-    <XyfPageHeader
-      kicker="INVARIANT &amp; COMPOSITE INDEX DIAGNOSTICS"
-      title="架构安全与资金不变量健康巡检"
-      subtitle="实时核验全平台学生钱包非负约束、在途托管冻结 1:1 锚定、创作者实名资质与高并发复合索引状态"
-    >
+    <XyfPageHeader title="系统检查">
       <template #actions>
         <el-button type="primary" :loading="loading" @click="runInspection">
           <el-icon><Refresh /></el-icon>
-          执行全链路深度自检
+          重新检查
         </el-button>
       </template>
     </XyfPageHeader>
@@ -45,9 +41,9 @@
 
           <div class="gauge-copy">
             <span class="level-pill" :class="`is-${report.healthLevel?.toLowerCase()}`">
-              SYSTEM {{ report.healthLevel }}
+              {{ healthLevelLabel(report.healthLevel) }}
             </span>
-            <h3>核心资金与索引防线运行稳健</h3>
+            <h3>{{ report.overallHealthScore >= 90 ? '系统运行正常' : '存在异常项，请及时处理' }}</h3>
             <p class="batch-line xyf-mono">
               批次 {{ report.auditBatchNo }} · {{ report.inspectTime }}
             </p>
@@ -56,26 +52,26 @@
 
         <section class="invariant-tiles">
           <XyfStatTile
-            label="钱包非负不变量异常"
+            label="异常负余额账户"
             :value="report.negativeWalletCount"
-            :hint="`已扫描注册账户 ${report.totalUsers} 人`"
+            :hint="`已检查 ${report.totalUsers} 个账户`"
             :tone="report.negativeWalletCount === 0 ? 'teal' : 'danger'"
           />
           <XyfStatTile
-            label="在途托管失锚订单"
+            label="冻结金额异常订单"
             :value="report.escrowMismatchCount"
-            :hint="`累计完结担保单 ${report.totalCompletedOrders} 笔`"
+            :hint="`已完成订单 ${report.totalCompletedOrders} 笔`"
             :tone="report.escrowMismatchCount === 0 ? 'teal' : 'danger'"
           />
           <XyfStatTile
-            label="高并发复合覆盖索引"
-            :value="report.compositeIndexOptimized ? '6 / 6 就绪' : '待优化'"
+            label="数据库索引状态"
+            :value="report.compositeIndexOptimized ? '正常 (6/6)' : '待检查'"
             :hint="`在架 ${report.totalActiveServices} · 拼班 ${report.totalGroupSessions} · 悬赏 ${report.totalDemands}`"
           />
           <XyfStatTile
-            label="待处置高危 / 逾期积压"
+            label="待处理风险 / 逾期单"
             :value="`${report.pendingHighRiskAlertCount} / ${report.overdueUncompensatedOrderCount}`"
-            hint="L3互刷预警 / 逾期未赔付单"
+            hint="高风险预警 / 逾期未赔付"
           />
         </section>
       </div>
@@ -83,7 +79,7 @@
       <!-- 2x3 Diagnostic Matrix Grid -->
       <section class="diagnostic-section">
         <div class="xyf-section-heading">
-          <h2>6 项架构安全不变量诊断矩阵</h2>
+          <h2>检查明细</h2>
         </div>
 
         <div class="diag-grid">
@@ -94,17 +90,16 @@
             :class="{ 'is-failed': !item.passed }"
           >
             <div class="diag-card__top">
-              <code class="diag-code xyf-mono">{{ item.checkCode }}</code>
+              <h3>{{ item.checkTitle }}</h3>
               <span class="diag-badge" :class="item.passed ? 'is-pass' : 'is-fail'">
-                {{ item.passed ? '✓ PASS' : item.severity }}
+                {{ item.passed ? '正常' : '异常' }}
               </span>
             </div>
 
-            <h3>{{ item.checkTitle }}</h3>
             <p class="diag-detail">{{ item.detail }}</p>
 
             <div class="diag-rec">
-              <span>架构建议</span>
+              <span>处理建议</span>
               <p>{{ item.recommendation }}</p>
             </div>
           </article>
@@ -125,11 +120,17 @@ import XyfStatTile from '@/components/ui/XyfStatTile.vue'
 const loading = ref(false)
 const report = ref<SystemHealthAuditData | null>(null)
 
+function healthLevelLabel(level?: string) {
+  if (level === 'EXCELLENT') return '运行正常'
+  if (level === 'WARNING') return '存在预警'
+  return '存在异常'
+}
+
 const runInspection = async () => {
   loading.value = true
   try {
     report.value = await inspectSystemHealth()
-    ElMessage.success(`全链路安全巡检完成，综合健康评分 ${report.value.overallHealthScore} 分`)
+    ElMessage.success(`检查完成，当前评分 ${report.value.overallHealthScore} 分`)
   } finally {
     loading.value = false
   }

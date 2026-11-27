@@ -2,13 +2,9 @@
   <view class="demand-page">
     <!-- Obsidian Bounty Header -->
     <view class="hero-card">
-      <view class="hero-eyebrow">
-        <text class="eyebrow-pill">C2B 反向悬赏</text>
-        <text class="eyebrow-sub">原生地图围栏核销</text>
-      </view>
-      <text class="hero-title">校内定制悬赏大厅</text>
-      <text class="hero-sub">发布考前突击、联调或跟拍急单，认证创作者在线报价抢单</text>
-      <view class="pub-btn" @tap="showPublishModal = true">+ 发起校内悬赏需求</view>
+      <text class="hero-title">悬赏大厅</text>
+      <text class="hero-sub">发布需求，等待同学报价</text>
+      <view class="pub-btn" @tap="showPublishModal = true">+ 发布悬赏</view>
     </view>
 
     <!-- Urgency Filter Pills -->
@@ -62,7 +58,7 @@
     <view v-if="showPublishModal" class="sheet-mask" @tap.self="showPublishModal = false">
       <view class="sheet-box">
         <view class="sheet-handle" />
-        <text class="sheet-title">发布校园反向悬赏</text>
+        <text class="sheet-title">发布悬赏</text>
 
         <input v-model="form.title" class="inp" placeholder="悬赏标题（如：周四晚高数突击 2 小时）" />
         <textarea v-model="form.description" class="area" placeholder="填写具体背景、需求内容与验收标准..." />

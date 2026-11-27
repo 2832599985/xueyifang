@@ -1,10 +1,6 @@
 <template>
   <div class="admin-review-page">
-    <XyfPageHeader
-      kicker="MODERATION"
-      title="发布权限申请审核"
-      subtitle="核验申请用户的校内学号与专业信息，审批通过后将授予服务发布权限"
-    >
+    <XyfPageHeader title="权限审核">
       <template #actions>
         <el-button @click="fetchPending" :loading="loading">
           <el-icon><Refresh /></el-icon>

@@ -2,9 +2,7 @@
   <div class="creator-profile-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader
-        kicker="CREATOR TRUST PASSPORT"
-        title="创作者数字信用工作室"
-        subtitle="基于高校教育邮箱实名、历史担保结算与真实买方评价构建的履约档案"
+        title="创作者主页"
         :show-back="true"
         back-text="返回上一页"
       />
@@ -181,7 +179,7 @@
             <div v-if="profile.recentReviews.length === 0" class="empty-box">
               <XyfEmptyState
                 title="暂无历史订单评价"
-                description="完成担保订单验收后，买方的真实履约评价将在此公开存证。"
+                description="完成订单验收后，买方的评价将在此公开展示。"
               />
             </div>
 

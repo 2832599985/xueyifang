@@ -2,20 +2,19 @@
   <section v-if="shouldShowCard" class="xyf-surface-card sla-card">
     <div class="sla-head">
       <div>
-        <span class="xyf-kicker">APPOINTMENT SLA &amp; DEPOSIT PROTECTION</span>
-        <h3>{{ claim ? '预约爽约自动退赔结算凭证' : '预约时段履约与保证金爽约赔付护航' }}</h3>
+        <h3>{{ claim ? '爽约赔付记录' : '预约履约保障' }}</h3>
       </div>
 
       <el-tag v-if="claim" type="danger">已执行退本金+违约赔付</el-tag>
       <el-tag v-else-if="isOverdue" type="warning">超出预约结束时间</el-tag>
-      <el-tag v-else type="success">SLA 保证金护航中</el-tag>
+      <el-tag v-else type="success">履约保障中</el-tag>
     </div>
 
     <!-- Completed Compensation Voucher -->
     <div v-if="claim" class="claim-voucher xyf-tabular">
       <div class="voucher-grid">
         <div class="v-item">
-          <span>赔付存证单号</span>
+          <span>赔付单号</span>
           <strong class="xyf-mono">{{ claim.claimNo }}</strong>
         </div>
         <div class="v-item">

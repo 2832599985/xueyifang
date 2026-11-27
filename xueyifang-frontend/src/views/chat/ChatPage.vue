@@ -69,7 +69,7 @@
             <div class="thread-placeholder">
               <XyfEmptyState
                 title="选择左侧会话开始沟通"
-                description="支持文字、图片发送与订单关联留痕，所有交易约定自动存证。"
+                description="支持文字、图片发送与订单沟通，相关消息将留存记录。"
               />
             </div>
           </template>

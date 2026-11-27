@@ -2,9 +2,7 @@
   <div class="sales-dashboard-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader
-        kicker="SELLER ANALYTICS"
-        title="销售经营统计"
-        subtitle="实时洞察你的在架服务销量表现、营收概况与近期成交订单"
+        title="销售统计"
         :show-back="true"
         back-text="返回我的服务"
         back-to="/my-services"

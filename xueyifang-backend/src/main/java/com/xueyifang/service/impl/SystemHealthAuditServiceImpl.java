@@ -147,69 +147,69 @@ public class SystemHealthAuditServiceImpl implements ISystemHealthAuditService {
 
         List<SystemHealthAuditVO.SecurityCheckItem> checks = new ArrayList<>();
 
-        // 巡检项 1：钱包与担保冻结余额非负约束
+        // 检查项 1：钱包与冻结余额
         checks.add(new SystemHealthAuditVO.SecurityCheckItem()
                 .setCheckCode("WALLET_NON_NEGATIVE_INVARIANT")
-                .setCheckTitle("全平台钱包可用余额与冻结资金池非负不变量核验")
+                .setCheckTitle("用户钱包与冻结余额检查")
                 .setPassed(negativeWallets == 0)
                 .setSeverity(negativeWallets == 0 ? "PASS" : "CRITICAL")
                 .setDetail(negativeWallets == 0
-                        ? "已核验 " + allUsers.size() + " 个学生钱包账户，可用余额与担保冻结余额均严格 ≥ 0.00 元。"
+                        ? "已检查 " + allUsers.size() + " 个账户，可用余额与冻结金额均正常。"
                         : "检测到 " + negativeWallets + " 个账户存在负余额异常。")
-                .setRecommendation("持续启用数据库行级悲观锁 FOR UPDATE 与事务隔离防并发透支。"));
+                .setRecommendation("资金变动均受事务与行锁保护。"));
 
-        // 巡检项 2：在途担保订单与冻结资金池 1:1 锚定检查
+        // 检查项 2：进行中订单冻结资金
         checks.add(new SystemHealthAuditVO.SecurityCheckItem()
                 .setCheckCode("ESCROW_ORDER_FROZEN_ANCHOR")
-                .setCheckTitle("在途已支付担保订单与托管冻结金额 1:1 锚定审计")
+                .setCheckTitle("进行中订单冻结资金检查")
                 .setPassed(escrowMismatches == 0)
                 .setSeverity(escrowMismatches == 0 ? "PASS" : "WARNING")
                 .setDetail(escrowMismatches == 0
-                        ? "全部在途已支付订单均具备足额托管冻结资金保护，无悬空无资金订单。"
-                        : "发现 " + escrowMismatches + " 笔在途订单冻结金额为 0，请前往财务日终对账中心复核。")
-                .setRecommendation("支持分阶段里程碑部分释放后动态校验剩余冻结余额。"));
+                        ? "所有进行中的已支付订单均有对应冻结资金。"
+                        : "发现 " + escrowMismatches + " 笔进行中订单冻结金额为 0，请前往财务对账核查。")
+                .setRecommendation("支持分阶段验收释放后校验剩余冻结金额。"));
 
-        // 巡检项 3：创作者发布权限与学籍合规准入
+        // 检查项 3：在架服务发布权限
         checks.add(new SystemHealthAuditVO.SecurityCheckItem()
                 .setCheckCode("CREATOR_PERMISSION_GATE")
-                .setCheckTitle("在架技能服务创作者发布资质与学籍准入巡检")
+                .setCheckTitle("在架服务发布权限检查")
                 .setPassed(unverifiedSellers == 0)
                 .setSeverity(unverifiedSellers == 0 ? "PASS" : "WARNING")
                 .setDetail(unverifiedSellers == 0
-                        ? "当前 " + activeServices.size() + " 项在架技能服务的发布者均具备合法审批权限。"
-                        : "发现 " + unverifiedSellers + " 项在架服务对应创作者发布权限已被撤销。")
-                .setRecommendation("对权限撤销的用户自动联动下架其在售服务。"));
+                        ? "当前 " + activeServices.size() + " 项在架服务的发布者均具备发布权限。"
+                        : "发现 " + unverifiedSellers + " 项在架服务的发布者权限已被撤销。")
+                .setRecommendation("撤销用户发布权限时同步下架其在售服务。"));
 
-        // 巡检项 4：高危互刷风控积压监控
+        // 检查项 4：高风险异常订单
         checks.add(new SystemHealthAuditVO.SecurityCheckItem()
                 .setCheckCode("ANTI_WASH_TRADING_BACKLOG")
-                .setCheckTitle("L3 高危双向对倒与高频互刷风控预警清零检查")
+                .setCheckTitle("高风险异常订单检查")
                 .setPassed(pendingHighRisk == 0)
                 .setSeverity(pendingHighRisk == 0 ? "PASS" : "WARNING")
                 .setDetail(pendingHighRisk == 0
-                        ? "当前无积压的 L3 高危互刷预警。"
-                        : "当前有 " + pendingHighRisk + " 条 L3 高危互刷预警待管理员裁决。")
-                .setRecommendation("前往「异常互刷风控雷达」执行信用分扣减或服务下架。"));
+                        ? "当前无待处理的高风险预警。"
+                        : "当前有 " + pendingHighRisk + " 条高风险预警待处理。")
+                .setRecommendation("前往「异常订单监测」核实并处理。"));
 
-        // 巡检项 5：预约爽约逾期自动退赔巡检
+        // 检查项 5：逾期未履约订单
         checks.add(new SystemHealthAuditVO.SecurityCheckItem()
                 .setCheckCode("APPOINTMENT_NOSHOW_SLA")
-                .setCheckTitle("预约档期逾期未履约订单自动退一赔十 SLA 巡检")
+                .setCheckTitle("逾期未履约订单检查")
                 .setPassed(overdueOrders == 0)
                 .setSeverity(overdueOrders == 0 ? "PASS" : "WARNING")
                 .setDetail(overdueOrders == 0
-                        ? "全平台无逾期滞留的预约档期订单。"
-                        : "检测到 " + overdueOrders + " 笔预约订单已过结束时间 30 分钟仍未履约。")
-                .setRecommendation("可由定时任务或前往「财务对账与爽约赔付」一键执行退本金+保证金赔付。"));
+                        ? "当前无逾期未处理的预约订单。"
+                        : "检测到 " + overdueOrders + " 笔预约订单已超时未履约。")
+                .setRecommendation("可前往「财务对账」扫描并执行退赔。"));
 
-        // 巡检项 6：高并发热点查询复合覆盖索引与防站外引流守卫
+        // 检查项 6：系统安全与索引状态
         checks.add(new SystemHealthAuditVO.SecurityCheckItem()
                 .setCheckCode("COMPOSITE_INDEX_AND_SECURITY_GUARD")
-                .setCheckTitle("高并发复合覆盖索引、JWT 鉴权、滑动窗口限流与私信防站外引流守卫")
+                .setCheckTitle("系统安全与索引状态")
                 .setPassed(true)
                 .setSeverity("PASS")
-                .setDetail("6 组核心复合索引、BCrypt 密码哈希、BLE 近场挑战应答签名与私信防微信/支付宝直转拦截器均在线运行。")
-                .setRecommendation("保持生产环境 HTTPS 与 Redis 分布式限流开启。"));
+                .setDetail("核心查询索引、登录鉴权与内容校验运行正常。")
+                .setRecommendation("保持生产环境 HTTPS 与限流开启。"));
 
         int score = 100;
         if (negativeWallets > 0) score -= 30;

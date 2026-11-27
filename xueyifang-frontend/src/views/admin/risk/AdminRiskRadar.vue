@@ -1,10 +1,6 @@
 <template>
   <div class="admin-risk-radar-page">
-    <XyfPageHeader
-      kicker="GRAPH ANTI-FRAUD &amp; WASH-TRADING ENGINE"
-      title="反互刷交易图谱与风控审计雷达"
-      subtitle="扫描校内买卖关系网络，精准识别角色互换双向对倒、同对高频刷单、180秒极速秒确与超低价刷信誉行为"
-    >
+    <XyfPageHeader title="异常订单监测">
       <template #actions>
         <div class="xyf-segmented">
           <button
@@ -15,12 +11,12 @@
             :class="{ 'is-active': scanDays === d }"
             @click="scanDays = d"
           >
-            回溯 {{ d }} 天
+            近 {{ d }} 天
           </button>
         </div>
 
         <el-button type="primary" :loading="scanning" @click="handleRunScan">
-          执行全链路图谱扫描
+          立即扫描
         </el-button>
       </template>
     </XyfPageHeader>
@@ -28,25 +24,25 @@
     <!-- 4 KPI Tiles -->
     <section class="kpi-grid">
       <XyfStatTile
-        label="待人工核查预警"
+        label="待核查预警"
         :value="overview.pendingAlerts"
-        :hint="`累计识别 ${overview.totalAlerts} 条图谱线索`"
+        :hint="`共 ${overview.totalAlerts} 条记录`"
       />
       <XyfStatTile
-        label="L3 高危互刷对倒"
+        label="高风险订单"
         :value="overview.highSeverityAlerts"
-        :hint="`双向对倒 ${overview.bidirectionalWashCount} · 同对高频 ${overview.highFreqPairCount}`"
+        :hint="`双向互买 ${overview.bidirectionalWashCount} · 高频重复 ${overview.highFreqPairCount}`"
         tone="danger"
       />
       <XyfStatTile
-        label="极速秒拍秒确异常"
+        label="极速完成异常"
         :value="overview.ultraFastCompletionCount"
-        hint="支付至确认验收耗时 < 180 秒"
+        hint="支付到确认低于 3 分钟"
       />
       <XyfStatTile
-        label="已核实处罚归档"
+        label="已处理"
         :value="overview.confirmedPenalties"
-        :hint="`近7日扫描 ${overview.scannedOrders7d} 单 · 排除误报 ${overview.dismissedAlerts}`"
+        :hint="`近7天订单 ${overview.scannedOrders7d} 笔 · 误报 ${overview.dismissedAlerts}`"
       />
     </section>
 
@@ -62,7 +58,6 @@
       >
         <div class="rule-card__top">
           <span class="rule-tag">{{ r.level }}</span>
-          <span class="rule-code xyf-mono">{{ r.short }}</span>
         </div>
         <strong>{{ r.title }}</strong>
         <p>{{ r.desc }}</p>
@@ -249,12 +244,12 @@
           </el-form-item>
         </template>
 
-        <el-form-item label="核查审计结论备注">
+        <el-form-item label="处理备注">
           <el-input
             v-model="resolveForm.handleRemark"
             type="textarea"
             :rows="3"
-            placeholder="请输入风控核查依据或处罚说明（同步写入不可篡改审计台账）"
+            placeholder="请输入核查依据或处理说明"
           />
         </el-form-item>
       </el-form>
@@ -296,31 +291,27 @@ const scanDays = ref(7)
 const ruleCards = [
   {
     code: 'BIDIRECTIONAL_WASH_TRADE',
-    short: 'WASH_PAIR',
-    level: 'L3 高危模型',
-    title: '买卖角色互换双向对倒',
-    desc: '同一对账号短期内互为买卖双方交叉下单套取完单量与好评'
+    level: '高风险',
+    title: '双向互买刷单',
+    desc: '同一对账号短期内互为买卖双方交叉下单'
   },
   {
     code: 'HIGH_FREQ_SAME_PAIR',
-    short: 'FREQ_PAIR',
-    level: 'L2 高频模型',
-    title: '同买卖对高频重复刷单',
-    desc: '7日内固定交易对连续多次重复拍下同类服务累计信誉'
+    level: '中风险',
+    title: '高频重复下单',
+    desc: '7日内固定双方多次重复下单同一服务'
   },
   {
     code: 'ULTRA_FAST_COMPLETION',
-    short: 'FAST_ACK',
-    level: 'L2 时序模型',
-    title: '180秒极速秒拍秒确',
-    desc: '从托管支付到确认验收低于3分钟，背离真实校园服务履约周期'
+    level: '中风险',
+    title: '极速完成订单',
+    desc: '付款到确认收货间隔低于 3 分钟'
   },
   {
     code: 'LOW_PRICE_SCORE_BRUSHING',
-    short: 'MICRO_AMT',
-    level: 'L1 价格偏离',
-    title: '超低价微额疑似刷分',
-    desc: '成交金额显著偏离同分类分位基准，疑似低成本刷取信用分'
+    level: '低风险',
+    title: '异常低价刷分',
+    desc: '成交金额明显低于同类服务正常水平'
   }
 ]
 

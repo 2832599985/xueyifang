@@ -2,9 +2,7 @@
   <div class="service-form-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader
-        kicker="CREATOR STUDIO"
-        title="编辑技能服务"
-        subtitle="修改后将提交平台重新审核，确保修改后的内容符合校园服务规范"
+        title="编辑服务"
         :show-back="true"
         back-text="返回我的服务"
         back-to="/my-services"

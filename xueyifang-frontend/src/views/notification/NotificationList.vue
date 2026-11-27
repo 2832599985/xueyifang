@@ -1,11 +1,7 @@
 <template>
   <div class="notifications-page xyf-page">
     <div class="xyf-container">
-      <XyfPageHeader
-        kicker="INBOX ALERTS"
-        title="系统通知中心"
-        subtitle="实时汇聚订单进度、服务审核意见、发布权限与平台仲裁通知"
-      >
+      <XyfPageHeader title="消息通知">
         <template #actions>
           <el-button
             :disabled="notificationStore.unreadCount === 0"

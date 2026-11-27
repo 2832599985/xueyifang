@@ -1,10 +1,6 @@
 <template>
   <div class="admin-sys-config">
-    <XyfPageHeader
-      kicker="PLATFORM SETTINGS"
-      title="系统参数配置与学籍导入"
-      subtitle="控制校园平台注册开关、动态系统参数及管理员批量导入学生账号"
-    >
+    <XyfPageHeader title="系统设置">
       <template #actions>
         <el-button @click="fetchConfigs" :loading="loading">
           <el-icon><Refresh /></el-icon>

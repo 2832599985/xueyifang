@@ -6,9 +6,8 @@
   >
     <div class="compass-head">
       <div class="compass-head__left">
-        <span class="compass-eyebrow">MARKET PRICING BENCHMARK</span>
         <h4 class="compass-title">
-          {{ benchmark.tagName || '同类校园技能' }} · 成交分位参考
+          {{ benchmark.tagName || '同类技能' }} · 参考价位
         </h4>
       </div>
       <span class="pos-pill xyf-tabular" :class="positionClass">

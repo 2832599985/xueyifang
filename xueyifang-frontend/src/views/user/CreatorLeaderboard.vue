@@ -4,11 +4,7 @@
       <!-- Editorial Gallery Header -->
       <header class="fame-header">
         <div class="fame-header__left">
-          <span class="xyf-kicker">CAMPUS CREATOR DIRECTORY &amp; HALL OF FAME</span>
-          <h1>校园技能行家风云榜</h1>
-          <p>
-            综合教育邮箱双核认证、履约信用分、历史真实完单、SHA-256 实践学时与在池保证金，实时呈现各校区标杆技能创作者。
-          </p>
+          <h1>行家榜</h1>
         </div>
 
         <!-- Dimension Segmented Switcher -->

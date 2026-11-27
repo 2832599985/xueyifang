@@ -79,7 +79,7 @@
             @click="router.push('/admin/dashboard')"
           >
             <el-icon><Setting /></el-icon>
-            <span>治理控制台</span>
+            <span>管理后台</span>
           </button>
 
           <!-- Unified Quick Create Menu (Service / Bounty / Group Session) -->
@@ -95,8 +95,8 @@
                   <div class="create-opt">
                     <span class="create-opt__icon"><el-icon><ShoppingBag /></el-icon></span>
                     <div>
-                      <strong>上架技能服务</strong>
-                      <p>认证创作者发布标准化校园技能橱窗</p>
+                      <strong>发布技能服务</strong>
+                      <p>发布校园技能服务</p>
                     </div>
                   </div>
                 </el-dropdown-item>
@@ -104,8 +104,8 @@
                   <div class="create-opt">
                     <span class="create-opt__icon"><el-icon><Aim /></el-icon></span>
                     <div>
-                      <strong>发布校内悬赏</strong>
-                      <p>发起定制急单，全校行家在线竞标报价</p>
+                      <strong>发布悬赏需求</strong>
+                      <p>发布需求，等待行家报价</p>
                     </div>
                   </div>
                 </el-dropdown-item>
@@ -114,7 +114,7 @@
                     <span class="create-opt__icon"><el-icon><Calendar /></el-icon></span>
                     <div>
                       <strong>发起拼班团课</strong>
-                      <p>多人共享档期小班，达标自动退差价</p>
+                      <p>多人拼班，满员享优惠价</p>
                     </div>
                   </div>
                 </el-dropdown-item>

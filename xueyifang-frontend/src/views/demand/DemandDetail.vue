@@ -2,9 +2,7 @@
   <div class="demand-detail-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader
-        kicker="ESCROW BOUNTY ROOM"
-        title="悬赏需求与创作者竞标室"
-        subtitle="需求方采纳方案后系统原子生成定向担保订单，完整继承校园地图坐标与核销半径"
+        title="悬赏详情"
         :show-back="true"
         back-text="返回悬赏大厅"
         back-to="/demands"
@@ -49,10 +47,10 @@
         <!-- Matched Escrow Order Banner -->
         <section v-if="demand.demandStatus === 1 && demand.matchedOrderId" class="matched-escrow-bar">
           <div class="matched-escrow-bar__info">
-            <span class="matched-badge">已转入担保托管</span>
+            <span class="matched-badge">已成单</span>
             <div>
-              <strong>该悬赏已完成选标并锁定平台担保订单</strong>
-              <p>双方可在担保订单工作台中完成托管支付、阶段里程碑验收或现场 10s 动态码 / 蓝牙核销。</p>
+              <strong>已选标并生成担保订单</strong>
+              <p>双方可在订单详情中完成支付与验收。</p>
             </div>
           </div>
           <el-button
@@ -61,7 +59,7 @@
             size="large"
             @click="router.push(`/orders/${demand.matchedOrderId}`)"
           >
-            进入担保订单工作台
+            查看订单
             <el-icon><ArrowRight /></el-icon>
           </el-button>
         </section>
@@ -147,8 +145,7 @@
               <div v-if="demand.tradeType === 1 && demand.meetupLat && demand.meetupLng" class="geofence-box">
                 <div class="geofence-box__head">
                   <div>
-                    <span class="xyf-kicker">CAMPUS GEOFENCE CHECKPOINT</span>
-                    <h4>约定当面交接地标：{{ demand.meetupPoiName }}</h4>
+                    <h4>交接地点：{{ demand.meetupPoiName }}</h4>
                     <p v-if="demand.meetupAddress">{{ demand.meetupAddress }}</p>
                   </div>
                   <span class="radius-chip xyf-tabular">
@@ -470,10 +467,10 @@ const acceptingId = ref<number | null>(null)
 const bidSort = ref<'default' | 'price_asc' | 'hours_asc'>('default')
 
 const lifecycleSteps = [
-  { title: '发布定制悬赏', sub: '明确验收标准与电子围栏' },
-  { title: '创作者竞标', sub: '多方提交报价与履约计划' },
-  { title: '选标转担保单', sub: '原子锁单并冻结托管本金' },
-  { title: '验收结算放款', sub: '当面动态码或凭证核销' }
+  { title: '发布悬赏', sub: '填写需求与预算' },
+  { title: '行家报价', sub: '查看方案与工期' },
+  { title: '选标下单', sub: '确认人选并支付担保' },
+  { title: '验收结算', sub: '确认交付后放款' }
 ]
 
 const bidForm = reactive({

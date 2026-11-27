@@ -207,9 +207,9 @@
 
             <div class="vault-copy">
               <div class="vault-title-row">
-                <h3>创作者履约保证金专户</h3>
+                <h3>履约保证金</h3>
                 <span class="vault-status-pill" :class="{ 'is-active': sellerDepositBalance > 0 }">
-                  {{ sellerDepositBalance > 0 ? '✦ 金盾信誉护航中' : '可选开通' }}
+                  {{ sellerDepositBalance > 0 ? '已缴纳' : '未缴纳' }}
                 </span>
               </div>
               <div class="vault-perks">

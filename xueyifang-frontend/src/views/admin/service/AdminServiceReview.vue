@@ -1,10 +1,6 @@
 <template>
   <div class="admin-service-review">
-    <XyfPageHeader
-      kicker="SERVICE MODERATION & INSPECTION"
-      title="校园服务审核与在架巡检"
-      subtitle="审查待上架技能服务，并对全量已上架服务进行合规巡检与违规强制下架"
-    >
+    <XyfPageHeader title="服务审核">
       <template #actions>
         <el-button @click="refreshActiveList" :loading="loading">
           <el-icon><Refresh /></el-icon>

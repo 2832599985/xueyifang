@@ -1,19 +1,15 @@
 <template>
   <header class="xyf-page-header" :class="{ 'has-border': bordered }">
     <div class="xyf-page-header__left">
-      <div v-if="showBack || kicker" class="xyf-page-header__eyebrow">
-        <el-button
-          v-if="showBack"
-          text
-          class="xyf-page-header__back"
-          @click="handleBack"
-        >
-          <el-icon><ArrowLeft /></el-icon>
-          <span>{{ backText }}</span>
-        </el-button>
-        <span v-if="showBack && kicker" class="xyf-page-header__sep">/</span>
-        <span v-if="kicker" class="xyf-page-header__kicker">{{ kicker }}</span>
-      </div>
+      <el-button
+        v-if="showBack"
+        text
+        class="xyf-page-header__back"
+        @click="handleBack"
+      >
+        <el-icon><ArrowLeft /></el-icon>
+        <span>{{ backText }}</span>
+      </el-button>
 
       <h1 class="xyf-page-header__title">{{ title }}</h1>
       <p v-if="subtitle" class="xyf-page-header__subtitle">{{ subtitle }}</p>
@@ -32,7 +28,6 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 interface Props {
   title: string
   subtitle?: string
-  kicker?: string
   showBack?: boolean
   backText?: string
   backTo?: string
@@ -41,7 +36,6 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   subtitle: '',
-  kicker: '',
   showBack: false,
   backText: '返回',
   backTo: '',

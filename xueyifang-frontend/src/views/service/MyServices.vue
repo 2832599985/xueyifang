@@ -1,10 +1,7 @@
 <template>
   <div class="my-services-page xyf-page">
     <div class="xyf-container">
-      <XyfPageHeader
-        title="我的服务管理"
-        subtitle="集中管理已上架、审核中及下架修正的校园技能服务"
-      >
+      <XyfPageHeader title="我的服务">
         <template #actions>
           <el-button @click="router.push('/orders/sales')">销售订单</el-button>
           <el-button @click="router.push('/statistics/sales')">销售统计</el-button>

@@ -28,13 +28,8 @@
       </div>
 
       <div class="xyf-container hero-content">
-        <div class="hero-eyebrow">
-          <span class="hero-eyebrow__dot" />
-          <span>高校 .edu.cn 实名认证 · 电子围栏当面核销 · 平台全额担保</span>
-        </div>
-
         <h1 class="hero-title">找到身边的校园行家</h1>
-        <p class="hero-subtitle">标准化技能橱窗 · 反向悬赏急单 · 多人阶梯拼班</p>
+        <p class="hero-subtitle">实名同学 · 资金担保 · 满意再放款</p>
 
         <!-- Multi-Scope Commercial Search Capsule -->
         <div class="search-dock">
@@ -45,7 +40,7 @@
               :class="{ 'is-active': searchScope === 'services' }"
               @click="searchScope = 'services'"
             >
-              找技能服务
+              找服务
             </button>
             <button
               type="button"
@@ -53,7 +48,7 @@
               :class="{ 'is-active': searchScope === 'demands' }"
               @click="searchScope = 'demands'"
             >
-              接悬赏急单
+              看悬赏
             </button>
             <button
               type="button"
@@ -61,7 +56,7 @@
               :class="{ 'is-active': searchScope === 'groups' }"
               @click="searchScope = 'groups'"
             >
-              报拼班小班
+              报拼班
             </button>
           </div>
 
@@ -82,7 +77,7 @@
             >
               <el-icon><Close /></el-icon>
             </button>
-            <button type="submit" class="capsule-search__submit">探索</button>
+            <button type="submit" class="capsule-search__submit">搜索</button>
           </form>
         </div>
 
@@ -257,19 +252,16 @@
       <div class="xyf-container">
         <div class="eco-head">
           <div>
-            <span class="xyf-kicker">LIVE CAMPUS MARKETPLACE</span>
-            <h2 class="eco-title">实时校园协作矩阵</h2>
+            <h2 class="eco-title">悬赏与拼班</h2>
           </div>
-          <p class="eco-sub">找不到现成服务？发悬赏让全校行家主动报价，或加入多人阶梯小班平摊课时费。</p>
         </div>
 
         <div class="eco-bento">
-          <!-- Left Tall Card: C2B Reverse Bounties -->
+          <!-- Left Tall Card: Bounties -->
           <div class="xyf-surface-card bento-panel bento-panel--bounty">
             <div class="bento-panel__head">
               <div>
-                <span class="bento-tag">C2B 反向定制</span>
-                <h3>校内悬赏急单榜</h3>
+                <h3>悬赏需求</h3>
               </div>
               <div class="bento-head-actions">
                 <button
@@ -327,8 +319,7 @@
             <div class="xyf-surface-card bento-panel">
               <div class="bento-panel__head">
                 <div>
-                  <span class="bento-tag is-amber">阶梯自动退差价</span>
-                  <h3>近期拼班小班课</h3>
+                  <h3>拼班团课</h3>
                 </div>
                 <router-link to="/groups" class="bento-more">
                   团课大厅 <el-icon><ArrowRight /></el-icon>
@@ -369,8 +360,7 @@
             <div class="xyf-surface-card bento-panel">
               <div class="bento-panel__head">
                 <div>
-                  <span class="bento-tag">数字信用背书</span>
-                  <h3>标杆创作者席位</h3>
+                  <h3>热门行家</h3>
                 </div>
                 <router-link to="/leaderboard" class="bento-more">
                   完整榜单 <el-icon><ArrowRight /></el-icon>
@@ -415,8 +405,8 @@
               <path d="M17.5 22L20.5 25L26.8 18.6" stroke="#18181B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-check-pulse" />
             </svg>
           </div>
-          <h3>高校双核实名</h3>
-          <p>学号与 .edu.cn 教育邮箱双重核验，履约信用分全程公开</p>
+          <h3>实名认证</h3>
+          <p>学号与校园邮箱实名认证，信用记录全程公开</p>
         </div>
 
         <div class="trust-col">
@@ -428,8 +418,8 @@
               <circle cx="22" cy="27" r="5" stroke="rgba(217,119,6,0.35)" stroke-width="1.2" class="svg-ripple" />
             </svg>
           </div>
-          <h3>里程碑担保托管</h3>
-          <p>支持整单或分阶段托管冻结，验收通过再释放资金</p>
+          <h3>资金担保</h3>
+          <p>平台托管订单资金，验收通过后再放款</p>
         </div>
 
         <div class="trust-col">
@@ -441,8 +431,8 @@
               <circle cx="31.5" cy="14.5" r="2.4" fill="#D97706" class="svg-core-glow" />
             </svg>
           </div>
-          <h3>电子围栏当面核销</h3>
-          <p>真实校园地图米级选点，10s 动态码与蓝牙近场防伪交接</p>
+          <h3>当面核销</h3>
+          <p>校内地图约定交接地点，现场核验确认交付</p>
         </div>
       </div>
     </section>

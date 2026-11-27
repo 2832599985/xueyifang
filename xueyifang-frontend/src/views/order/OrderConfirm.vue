@@ -2,8 +2,7 @@
   <div class="order-confirm-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader
-        title="确认担保订单"
-        subtitle="核对服务项目、交易方式与校内地点，下单后由平台冻结担保款项"
+        title="确认订单"
         :show-back="true"
         back-text="返回服务详情"
         :back-to="serviceId ? `/services/${serviceId}` : '/services'"

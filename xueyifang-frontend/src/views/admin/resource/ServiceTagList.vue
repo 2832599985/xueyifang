@@ -1,10 +1,6 @@
 <template>
   <div class="admin-tag-page">
-    <XyfPageHeader
-      kicker="CAMPUS DICTIONARY"
-      title="服务分类标签管理"
-      subtitle="维护前台服务大厅与发布页的分类标签目录，更新后将自动刷新全局字典缓存"
-    >
+    <XyfPageHeader title="服务分类管理">
       <template #actions>
         <el-button @click="fetchList" :loading="loading">
           <el-icon><Refresh /></el-icon>

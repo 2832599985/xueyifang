@@ -7,8 +7,8 @@
           theme="light"
           compact
           :icon-only="collapsed"
-          title="学艺坊 Console"
-          subtitle="商业风控与治理中台"
+          title="学艺坊 Admin"
+          subtitle="管理后台"
         />
       </div>
 
@@ -87,7 +87,7 @@
           <div class="admin-pill">
             <XyfAvatar :src="userStore.userInfo?.avatar" :name="adminName" :size="26" />
             <span class="admin-pill__name">{{ adminName }}</span>
-            <span class="admin-pill__role">Admin</span>
+            <span class="admin-pill__role">管理员</span>
           </div>
         </div>
       </header>
@@ -107,7 +107,7 @@
     >
       <div class="mobile-admin-nav">
         <div class="mobile-admin-nav__brand">
-          <XyfBrandLogo compact title="学艺坊 Console" subtitle="商业治理中台" />
+          <XyfBrandLogo compact title="学艺坊 Admin" subtitle="管理后台" />
         </div>
         <template v-for="group in menuGroups" :key="group.title">
           <div class="mobile-nav-group">{{ group.title }}</div>
@@ -183,40 +183,40 @@ const menuGroups: MenuGroup[] = [
   {
     title: '运营总览',
     children: [
-      { path: '/admin/dashboard', title: '运营核心看板', icon: Odometer },
-      { path: '/admin/system-health', title: '架构与资金自检', icon: Monitor }
+      { path: '/admin/dashboard', title: '数据概览', icon: Odometer },
+      { path: '/admin/system-health', title: '系统检查', icon: Monitor }
     ]
   },
   {
-    title: '业务审核与巡检',
+    title: '业务管理',
     children: [
-      { path: '/admin/users', title: '用户与学籍治理', icon: User },
-      { path: '/admin/permissions', title: '创作者资质审核', icon: Stamp },
-      { path: '/admin/services', title: '技能服务巡检', icon: Checked },
-      { path: '/admin/demands', title: '反向悬赏治理', icon: Aim }
+      { path: '/admin/users', title: '用户管理', icon: User },
+      { path: '/admin/permissions', title: '权限审核', icon: Stamp },
+      { path: '/admin/services', title: '服务审核', icon: Checked },
+      { path: '/admin/demands', title: '悬赏管理', icon: Aim }
     ]
   },
   {
-    title: '风控与清分结算',
+    title: '财务与风控',
     children: [
-      { path: '/admin/finance', title: '日终对账与退赔', icon: Wallet },
-      { path: '/admin/risk-radar', title: '反互刷风控雷达', icon: Compass },
-      { path: '/admin/disputes', title: '担保纠纷仲裁庭', icon: ScaleToOriginal }
+      { path: '/admin/finance', title: '财务对账', icon: Wallet },
+      { path: '/admin/risk-radar', title: '异常订单监测', icon: Compass },
+      { path: '/admin/disputes', title: '纠纷处理', icon: ScaleToOriginal }
     ]
   },
   {
-    title: '校园空间与字典',
+    title: '基础配置',
     children: [
-      { path: '/admin/resource/campuses', title: '多校区电子围栏', icon: MapLocation },
-      { path: '/admin/resource/trade-locations', title: '安全交接点标定', icon: Location },
-      { path: '/admin/resource/service-tags', title: '服务分类目录', icon: CollectionTag },
-      { path: '/admin/resource/professionals', title: '院系专业目录', icon: School }
+      { path: '/admin/resource/campuses', title: '校区管理', icon: MapLocation },
+      { path: '/admin/resource/trade-locations', title: '交易地点', icon: Location },
+      { path: '/admin/resource/service-tags', title: '服务分类', icon: CollectionTag },
+      { path: '/admin/resource/professionals', title: '专业目录', icon: School }
     ]
   },
   {
-    title: '系统与批处理',
+    title: '系统设置',
     children: [
-      { path: '/admin/settings', title: '全局参数与导入', icon: Setting }
+      { path: '/admin/settings', title: '参数与导入', icon: Setting }
     ]
   }
 ]

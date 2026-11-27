@@ -2,9 +2,7 @@
   <div class="group-detail-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader
-        kicker="CO-LEARNING CLASSROOM"
-        title="拼班团课与阶梯成团教室"
-        subtitle="每位参团学员均生成独立米级围栏担保订单，满阶梯人数系统自动向全体早期学员退回差价"
+        title="拼班详情"
         :show-back="true"
         back-text="返回团课大厅"
         back-to="/groups"
@@ -31,8 +29,7 @@
         <section class="xyf-surface-card ladder-banner xyf-tabular">
           <div class="ladder-banner__head">
             <div>
-              <span class="xyf-kicker">TIERED REBATE PROGRESS</span>
-              <h2>阶梯成班与全员退差价进度轴</h2>
+              <h2>成团进度</h2>
             </div>
             <span class="rebate-pill" :class="{ 'is-hit': session.tierRebateApplied === 1 }">
               {{

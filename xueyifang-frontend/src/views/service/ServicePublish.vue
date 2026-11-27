@@ -2,9 +2,7 @@
   <div class="service-form-page xyf-page">
     <div class="xyf-container">
       <XyfPageHeader
-        kicker="CREATOR STUDIO"
-        title="发布校园技能服务"
-        subtitle="填写清晰的服务说明、定价与交付方式，提交后经管理员审核即可上架"
+        title="发布服务"
         :show-back="true"
         back-text="返回我的服务"
         back-to="/my-services"

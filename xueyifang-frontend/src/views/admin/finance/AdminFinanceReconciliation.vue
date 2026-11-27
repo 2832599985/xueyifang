@@ -1,26 +1,22 @@
 <template>
   <div class="admin-finance-page">
-    <XyfPageHeader
-      kicker="ESCROW CLEARING &amp; EOD RECONCILIATION"
-      title="财务日终自动对账与违约清分中心"
-      subtitle="自动核验担保总流入与分账结算、平台抽佣、退款赔付及在途托管池的总分勾稽平衡"
-    >
+    <XyfPageHeader title="财务对账">
       <template #actions>
         <el-date-picker
           v-model="selectedDate"
           type="date"
           value-format="YYYY-MM-DD"
-          placeholder="选择对账账期"
+          placeholder="选择对账日期"
           style="width: 152px"
         />
         <el-button type="primary" :loading="reconciling" @click="handleReconcile">
-          生成日终对账单
+          生成对账单
         </el-button>
         <el-button plain :loading="exporting" @click="handleExportCsv">
-          导出 CSV 台账
+          导出 CSV
         </el-button>
         <el-button plain :loading="scanningNoShow" @click="handleScanNoShow">
-          扫描逾期爽约退赔
+          扫描逾期爽约订单
         </el-button>
       </template>
     </XyfPageHeader>
@@ -28,24 +24,24 @@
     <!-- 4 Financial Pool KPIs -->
     <section class="kpi-grid">
       <XyfStatTile
-        label="累计平台技术服务抽佣"
+        label="累计平台服务费"
         :value="`¥${fmt(overview.totalPlatformCommission)}`"
-        :hint="`累计已出账 ${overview.totalReconcileReports} 份日终报表`"
+        :hint="`已生成 ${overview.totalReconcileReports} 份对账单`"
       />
       <XyfStatTile
-        label="累计创作者分账净额"
+        label="累计创作者结算"
         :value="`¥${fmt(overview.totalSellerSettled)}`"
-        :hint="`勾稽异常账期：${overview.discrepancyReportCount} 份`"
+        :hint="`差额异常：${overview.discrepancyReportCount} 份`"
       />
       <XyfStatTile
-        label="在途担保托管池余额"
+        label="在途托管余额"
         :value="`¥${fmt(overview.currentEscrowFrozenPool)}`"
-        :hint="`在池履约保证金：¥${fmt(overview.currentSellerDepositPool)}`"
+        :hint="`创作者保证金：¥${fmt(overview.currentSellerDepositPool)}`"
       />
       <XyfStatTile
-        label="累计爽约违约金赔付"
+        label="累计爽约赔付"
         :value="`¥${fmt(overview.totalNoshowCompensationAmount)}`"
-        :hint="`已自动执行 ${overview.totalNoshowClaims} 笔退本金+划扣`"
+        :hint="`已处理 ${overview.totalNoshowClaims} 笔爽约退赔`"
         tone="danger"
       />
     </section>
@@ -55,25 +51,25 @@
       <!-- Left: Total-to-Subledger Balance Flow Diagram -->
       <section class="xyf-surface-card equation-card xyf-tabular">
         <div class="xyf-section-heading">
-          <h2>总分账务勾稽平衡恒等式</h2>
+          <h2>收支平衡核对</h2>
         </div>
 
         <div class="equation-flow">
           <div class="eq-node is-dark">
-            <span>担保流入总池</span>
+            <span>托管流入总额</span>
             <strong>¥{{ fmt(latestReport?.grossEscrowInflow ?? overview.currentEscrowFrozenPool) }}</strong>
-            <small>{{ latestReport ? `账期 ${latestReport.reportDate}` : '实时快照' }}</small>
+            <small>{{ latestReport ? `日期 ${latestReport.reportDate}` : '实时快照' }}</small>
           </div>
 
           <span class="eq-symbol">=</span>
 
           <div class="eq-breakdown">
             <div class="eq-sub">
-              <span>创作者结算净额</span>
+              <span>创作者结算</span>
               <strong>¥{{ fmt(latestReport?.sellerSettledAmount ?? overview.totalSellerSettled) }}</strong>
             </div>
             <div class="eq-sub is-gold">
-              <span>平台抽佣收入</span>
+              <span>平台服务费</span>
               <strong>¥{{ fmt(latestReport?.platformCommissionAmount ?? overview.totalPlatformCommission) }}</strong>
             </div>
             <div class="eq-sub">
@@ -81,7 +77,7 @@
               <strong>¥{{ fmt(latestReport?.refundOutflowAmount ?? 0) }}</strong>
             </div>
             <div class="eq-sub">
-              <span>日终在途冻结池</span>
+              <span>在途冻结资金</span>
               <strong>¥{{ fmt(latestReport?.activeEscrowFrozenPool ?? overview.currentEscrowFrozenPool) }}</strong>
             </div>
           </div>
@@ -92,8 +88,8 @@
           <span>
             {{
               overview.discrepancyReportCount === 0
-                ? '全平台总分账务勾稽 100% 账平，零未明差额'
-                : `检测到 ${overview.discrepancyReportCount} 个账期存在勾稽差额，请核查下方台账`
+                ? '账目核对一致，无差额'
+                : `发现 ${overview.discrepancyReportCount} 个账期存在差额，请核查下方记录`
             }}
           </span>
         </div>
@@ -102,7 +98,7 @@
       <!-- Right: ECharts Reconcile Cashflow Chart -->
       <section class="xyf-surface-card chart-card">
         <div class="xyf-section-heading">
-          <h2>近期账期资金清分结构趋势</h2>
+          <h2>近期收支趋势</h2>
         </div>
         <div ref="chartRef" class="finance-chart-stage" />
       </section>
@@ -118,7 +114,7 @@
             :class="{ 'is-active': activeTab === 'reports' }"
             @click="activeTab = 'reports'"
           >
-            <span>日终自动对账单</span>
+            <span>每日对账单</span>
             <span class="xyf-segmented__count">{{ overview.recentReports.length }}</span>
           </button>
           <button
@@ -127,7 +123,7 @@
             :class="{ 'is-active': activeTab === 'noshow' }"
             @click="activeTab = 'noshow'"
           >
-            <span>预约爽约自动赔付台账</span>
+            <span>爽约赔付记录</span>
             <span class="xyf-segmented__count">{{ overview.recentNoshowClaims.length }}</span>
           </button>
         </div>

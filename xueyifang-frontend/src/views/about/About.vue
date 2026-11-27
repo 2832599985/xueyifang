@@ -1,10 +1,7 @@
 <template>
   <div class="about-page xyf-page">
     <div class="xyf-container">
-      <XyfPageHeader
-        title="交易保障与平台规则"
-        subtitle="清晰的资金托管与实名履约机制，让每一次校园协作都安心可靠。"
-      >
+      <XyfPageHeader title="平台规则">
         <template #actions>
           <el-button @click="router.push('/services')">进入服务大厅</el-button>
           <el-button type="primary" @click="router.push('/user/center')">个人中心</el-button>

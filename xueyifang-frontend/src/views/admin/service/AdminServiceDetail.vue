@@ -1,7 +1,6 @@
 <template>
   <div class="admin-service-detail">
     <XyfPageHeader
-      kicker="SERVICE AUDIT DETAIL"
       :title="detail ? `服务审查 · ${detail.serviceTitle}` : '服务审查详情'"
       :show-back="true"
       back-text="返回审核队列"

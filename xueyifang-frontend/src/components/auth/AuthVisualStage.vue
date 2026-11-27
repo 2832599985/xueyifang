@@ -8,7 +8,7 @@
     <!-- Top Brand -->
     <div class="auth-stage__top">
       <XyfBrandLogo theme="light" compact title="学艺坊" subtitle="" />
-      <span class="stage-pill">CAMPUS STUDIO</span>
+      <span class="stage-pill">校园技能平台</span>
     </div>
 
     <!-- Monochrome Titanium Kinetic SVG Sculpture -->

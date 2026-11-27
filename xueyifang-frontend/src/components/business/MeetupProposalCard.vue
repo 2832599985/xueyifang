@@ -2,8 +2,7 @@
   <section class="xyf-surface-card meetup-proposal-card">
     <div class="head-row">
       <div>
-        <span class="xyf-kicker">CAMPUS MEETUP CHECKPOINT</span>
-        <h2>校内当面交接点与电子围栏协商</h2>
+        <h2>线下交接地点</h2>
       </div>
       <XyfStatusBadge
         :tone="order.meetupConfirmed === 1 ? 'success' : 'warning'"
