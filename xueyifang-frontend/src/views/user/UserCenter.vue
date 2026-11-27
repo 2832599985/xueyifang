@@ -223,113 +223,144 @@
             </el-form>
           </section>
 
-          <!-- Tab 2: Campus Edu Email Verification & Credit Score Ledger -->
+          <!-- Tab 2: Campus Edu Email Passport & SVG Credit Score Dashboard -->
           <div v-else-if="activeTab === 'edu'" class="edu-credit-stack">
-            <section class="xyf-surface-card panel-card">
-              <div class="xyf-section-heading">
-                <h2>高校 .edu.cn 邮箱实名核验</h2>
-              </div>
+            <!-- Top Split: Credit Score Gauge + Academic Email Passport -->
+            <div class="trust-dashboard-grid">
+              <!-- Left: Credit Score Gauge Card -->
+              <section class="xyf-surface-card credit-gauge-panel xyf-tabular">
+                <span class="xyf-kicker">CAMPUS CREDIT SCORE</span>
+                <div class="gauge-flex">
+                  <div class="ring-stage">
+                    <svg viewBox="0 0 104 104" class="credit-svg">
+                      <circle cx="52" cy="52" r="42" fill="none" stroke="#f1f1f4" stroke-width="7.5" />
+                      <circle
+                        cx="52"
+                        cy="52"
+                        r="42"
+                        fill="none"
+                        stroke="#18181b"
+                        stroke-width="7.5"
+                        stroke-linecap="round"
+                        :stroke-dasharray="2 * Math.PI * 42"
+                        :stroke-dashoffset="2 * Math.PI * 42 * (1 - Math.min(1, Math.max(0.1, currentCreditScore / 130)))"
+                        transform="rotate(-90 52 52)"
+                      />
+                    </svg>
+                    <div class="ring-center">
+                      <strong>{{ currentCreditScore }}</strong>
+                      <span>信用分</span>
+                    </div>
+                  </div>
 
-              <div v-if="isEduVerified" class="edu-verified-banner">
-                <div>
-                  <span class="kicker">已完成高校身份核验</span>
-                  <strong class="xyf-mono">{{ userStore.userInfo?.verifiedEduEmail || userStore.userInfo?.email }}</strong>
-                  <p>您已获得校园实名认证标识与初始信用加成，可享受校内担保交易绿色通道。</p>
+                  <div class="gauge-info">
+                    <span class="tier-badge">{{ creditTierLabel }}</span>
+                    <p>按时交付、真实当面核销与五星好评可累积信用；爽约或违规将扣减信用分。</p>
+                    <el-button
+                      v-if="userStore.userInfo?.id"
+                      size="small"
+                      plain
+                      @click="router.push(`/creators/${userStore.userInfo.id}`)"
+                    >
+                      预览我的公开信用主页
+                    </el-button>
+                  </div>
                 </div>
-                <el-tag type="success" effect="dark">已实名核验</el-tag>
-              </div>
+              </section>
 
-              <template v-else>
-                <p class="edu-intro">
-                  绑定并验证本校 <code>.edu.cn</code> 教育邮箱，完成后立即点亮「本校实名认证」勋章并获得履约信用分奖励。
-                </p>
+              <!-- Right: Academic .edu.cn Credential Card -->
+              <section class="xyf-surface-card edu-passport-panel">
+                <span class="xyf-kicker">ACADEMIC IDENTITY</span>
+                <h3>高校 .edu.cn 教育邮箱核验</h3>
 
-                <el-form label-position="top" style="max-width: 500px">
-                  <el-form-item label="高校教育邮箱（需以 .edu.cn 结尾）">
-                    <div class="edu-code-row">
+                <div v-if="isEduVerified" class="edu-credential-card">
+                  <div class="edu-credential-card__top">
+                    <span class="cred-seal">✓ 高校实名已核验</span>
+                    <span class="cred-domain">.EDU.CN</span>
+                  </div>
+                  <strong class="cred-email xyf-mono">
+                    {{ userStore.userInfo?.verifiedEduEmail || userStore.userInfo?.email }}
+                  </strong>
+                  <p>已激活本校实名认证勋章与悬赏竞标绿色通道。</p>
+                </div>
+
+                <template v-else>
+                  <p class="edu-intro">
+                    验证本校 <code>.edu.cn</code> 邮箱后点亮实名认证勋章并获赠初始履约信用分奖励。
+                  </p>
+
+                  <el-form label-position="top">
+                    <el-form-item label="高校教育邮箱（以 .edu.cn 结尾）">
+                      <div class="edu-code-row">
+                        <el-input
+                          v-model="eduForm.eduEmail"
+                          placeholder="student2026@whu.edu.cn"
+                          clearable
+                        />
+                        <el-button
+                          plain
+                          :disabled="eduCountdown > 0"
+                          :loading="sendingEduCode"
+                          @click="handleSendEduCode"
+                        >
+                          {{ eduCountdown > 0 ? `${eduCountdown}s` : '获取验证码' }}
+                        </el-button>
+                      </div>
+                      <div v-if="devPreviewHint" class="dev-code-hint xyf-mono">
+                        测试环境验证码预览：{{ devPreviewHint }}
+                      </div>
+                    </el-form-item>
+
+                    <div class="edu-confirm-row">
                       <el-input
-                        v-model="eduForm.eduEmail"
-                        placeholder="例如 student2026@whu.edu.cn"
-                        clearable
+                        v-model="eduForm.verifyCode"
+                        maxlength="6"
+                        placeholder="输入 6 位数字验证码"
+                        class="xyf-mono"
                       />
                       <el-button
-                        plain
-                        :disabled="eduCountdown > 0"
-                        :loading="sendingEduCode"
-                        @click="handleSendEduCode"
+                        type="primary"
+                        :loading="confirmingEdu"
+                        @click="handleConfirmEduVerify"
                       >
-                        {{ eduCountdown > 0 ? `${eduCountdown}s 后重发` : '发送 6 位验证码' }}
+                        确认核验
                       </el-button>
                     </div>
-                    <div v-if="devPreviewHint" class="dev-code-hint xyf-mono">
-                      开发环境验证码预览：{{ devPreviewHint }}
-                    </div>
-                  </el-form-item>
+                  </el-form>
+                </template>
+              </section>
+            </div>
 
-                  <el-form-item label="6 位邮箱验证码">
-                    <el-input
-                      v-model="eduForm.verifyCode"
-                      maxlength="6"
-                      placeholder="输入收到的 6 位数字验证码"
-                      class="xyf-mono"
-                    />
-                  </el-form-item>
-
-                  <el-button
-                    type="primary"
-                    :loading="confirmingEdu"
-                    @click="handleConfirmEduVerify"
-                  >
-                    完成校园邮箱认证
-                  </el-button>
-                </el-form>
-              </template>
-            </section>
-
+            <!-- Bottom: Clean Credit Score Stream -->
             <section class="xyf-surface-card panel-card">
-              <div class="credit-head">
-                <div>
-                  <h2>校园履约信用账户</h2>
-                  <p>按时交付、当面核销与真实好评可稳步提升信用分；违约爽约或恶意仲裁败诉将扣减信用分</p>
-                </div>
-                <div class="credit-score-card">
-                  <span class="score-label">当前履约信用分</span>
-                  <strong class="score-num xyf-tabular">{{ currentCreditScore }}</strong>
-                  <span class="score-tier">{{ creditTierLabel }}</span>
-                </div>
+              <div class="xyf-section-heading">
+                <h2>履约信用变动明细</h2>
               </div>
 
-              <div v-if="creditLoading" style="margin-top: 16px">
+              <div v-if="creditLoading">
                 <el-skeleton :rows="3" animated />
               </div>
 
-              <el-table
-                v-else-if="creditLogs.length > 0"
-                :data="creditLogs"
-                stripe
-                style="width: 100%; margin-top: 16px"
-              >
-                <el-table-column prop="reasonDesc" label="信用变动事项" min-width="200" />
-                <el-table-column label="分值变动" width="110" align="center">
-                  <template #default="{ row }">
-                    <span
-                      class="delta-tag xyf-tabular"
-                      :class="row.delta >= 0 ? 'is-plus' : 'is-minus'"
-                    >
+              <div v-else-if="creditLogs.length > 0" class="credit-stream">
+                <div v-for="(row, idx) in creditLogs" :key="idx" class="credit-row">
+                  <div class="credit-row__left">
+                    <span class="credit-dot" :class="row.delta >= 0 ? 'is-plus' : 'is-minus'" />
+                    <div>
+                      <strong>{{ row.reasonDesc }}</strong>
+                      <span class="c-time xyf-tabular">{{ row.createTime }}</span>
+                    </div>
+                  </div>
+                  <div class="credit-row__right xyf-tabular">
+                    <span class="delta-tag" :class="row.delta >= 0 ? 'is-plus' : 'is-minus'">
                       {{ row.delta >= 0 ? `+${row.delta}` : row.delta }}
                     </span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="变动后信用分" width="120" align="center">
-                  <template #default="{ row }">
-                    <strong class="xyf-tabular">{{ row.scoreAfter }}</strong>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="createTime" label="记录时间" width="180" />
-              </el-table>
+                    <span class="after-score">变更后 {{ row.scoreAfter }} 分</span>
+                  </div>
+                </div>
+              </div>
 
               <div v-else class="empty-credit-note">
-                当前信用分保持初始良好状态（{{ currentCreditScore }} 分），完成首笔校园邮箱核验或担保订单后将在此展示履约明细。
+                当前信用分保持初始良好状态（{{ currentCreditScore }} 分），完成校园邮箱核验或担保订单验收后将在此记录每一笔履约轨迹。
               </div>
             </section>
           </div>
@@ -981,9 +1012,9 @@ onUnmounted(() => {
     border: 1px solid #e4e4e7;
 
     &.is-ok {
-      background: #ecfdf5;
-      color: #047857;
-      border-color: #a7f3d0;
+      background: var(--xyf-champagne-soft);
+      color: #9a5b13;
+      border-color: var(--xyf-champagne-border);
     }
 
     &.is-credit {
@@ -1059,6 +1090,199 @@ onUnmounted(() => {
   padding: 24px 28px;
 }
 
+
+.trust-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.credit-gauge-panel,
+.edu-passport-panel {
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  h3 {
+    margin: -6px 0 0;
+    font-size: 17px;
+    font-weight: 750;
+    color: var(--xyf-ink);
+  }
+}
+
+.gauge-flex {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+
+  .ring-stage {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+
+    .credit-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .ring-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.1;
+
+      strong {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--xyf-ink);
+      }
+
+      span {
+        font-size: 11px;
+        color: var(--xyf-ink-3);
+      }
+    }
+  }
+
+  .gauge-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+
+    .tier-badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: #18181b;
+      color: #e5c79e;
+      font-size: 11.5px;
+      font-weight: 650;
+    }
+
+    p {
+      margin: 0;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--xyf-ink-2);
+    }
+  }
+}
+
+.edu-credential-card {
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: #141417;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .cred-seal {
+      padding: 2px 9px;
+      border-radius: 999px;
+      background: rgba(200, 169, 126, 0.2);
+      border: 1px solid rgba(200, 169, 126, 0.45);
+      color: #e5c79e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .cred-domain {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: rgba(255, 255, 255, 0.45);
+    }
+  }
+
+  .cred-email {
+    font-size: 16px;
+    color: #ffffff;
+  }
+
+  p {
+    margin: 0;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.65);
+  }
+}
+
+.edu-confirm-row {
+  display: flex;
+  gap: 10px;
+}
+
+.credit-stream {
+  display: flex;
+  flex-direction: column;
+}
+
+.credit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--xyf-border-subtle);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .credit-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #18181b;
+
+      &.is-minus {
+        background: #dc2626;
+      }
+    }
+
+    strong {
+      display: block;
+      font-size: 14px;
+      color: var(--xyf-ink);
+    }
+
+    .c-time {
+      font-size: 12px;
+      color: var(--xyf-ink-3);
+    }
+  }
+
+  &__right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+
+    .after-score {
+      font-size: 11.5px;
+      color: var(--xyf-ink-3);
+    }
+  }
+}
+
 .edu-credit-stack {
   display: flex;
   flex-direction: column;
@@ -1081,14 +1305,14 @@ onUnmounted(() => {
 .dev-code-hint {
   margin-top: 6px;
   font-size: 12px;
-  color: #047857;
+  color: #9a5b13;
 }
 
 .edu-verified-banner {
   padding: 18px 20px;
   border-radius: 12px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+  background: #faf6ef;
+  border: 1px solid #e8dac4;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1098,7 +1322,7 @@ onUnmounted(() => {
   .kicker {
     display: block;
     font-size: 12px;
-    color: #047857;
+    color: #9a5b13;
     margin-bottom: 4px;
   }
 
@@ -1160,7 +1384,7 @@ onUnmounted(() => {
 
   .score-tier {
     font-size: 11.5px;
-    color: #34d399;
+    color: #e5c79e;
     font-weight: 600;
   }
 }
@@ -1168,7 +1392,7 @@ onUnmounted(() => {
 .delta-tag {
   font-weight: 700;
   &.is-plus {
-    color: #059669;
+    color: #18181b;
   }
   &.is-minus {
     color: #dc2626;

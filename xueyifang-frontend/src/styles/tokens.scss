@@ -1,15 +1,17 @@
 /**
- * 学艺坊 Design Tokens · Timeless Monochrome Editorial (曜石极简 · 高级商业画廊)
- * Inspired by Apple / Vercel / Notion / SSENSE:
- * Pure white canvas, crisp matte obsidian primary actions (#111111),
- * neutral zinc hairlines, and restrained warm amber for ratings/escrow accents.
+ * 学艺坊 Design Tokens · Timeless Monochrome Editorial v4.1 (曜石商业画廊 · 钛金微光)
+ * Inspired by Linear / Apple / Stripe / SSENSE:
+ * Crisp white & warm alabaster surfaces, matte obsidian primary actions (#18181b),
+ * brushed champagne gold escrow accents (#c8a97e / #d97706), and hairline zinc borders.
  */
 :root {
   /* Surfaces */
   --xyf-bg: #ffffff;
+  --xyf-bg-subtle: #fafafa;
   --xyf-surface: #ffffff;
   --xyf-surface-soft: #f7f7f8;
   --xyf-surface-muted: #f1f1f3;
+  --xyf-surface-elevated: rgba(255, 255, 255, 0.92);
   --xyf-surface-ink: #111113;
   --xyf-surface-ink-2: #1c1c20;
 
@@ -19,7 +21,7 @@
   --xyf-ink-3: #8e8e98;
   --xyf-ink-invert: #ffffff;
 
-  /* Brand Palette: Matte Obsidian Black (Zero Purple, Zero Hospital Green) */
+  /* Brand Palette: Matte Obsidian & Brushed Champagne Titanium */
   --xyf-primary: #18181b;
   --xyf-primary-hover: #27272a;
   --xyf-primary-active: #09090b;
@@ -30,45 +32,50 @@
   --xyf-accent-soft: #f4f4f5;
   --xyf-accent-border: #e4e4e7;
 
+  /* Champagne & Warm Gold (Escrow / Honor / Tier Highlights) */
   --xyf-gold: #d97706;
   --xyf-gold-soft: #fef3c7;
+  --xyf-champagne: #b89058;
+  --xyf-champagne-metallic: #c8a97e;
+  --xyf-champagne-soft: #faf6ef;
+  --xyf-champagne-border: #e8dac4;
 
-  /* Semantics (Used strictly for status pills / alerts, never dominating brand chrome) */
-  --xyf-success: #16a34a;
-  --xyf-success-soft: #f0fdf4;
-  --xyf-success-border: #bbf7d0;
+  /* Semantics (Restrained architectural tones for status indicators) */
+  --xyf-success: #15803d;
+  --xyf-success-soft: #f2fbf5;
+  --xyf-success-border: #ccebd7;
 
   --xyf-warning: #b45309;
   --xyf-warning-soft: #fffbeb;
-  --xyf-warning-border: #fde68a;
+  --xyf-warning-border: #f5deb0;
 
   --xyf-danger: #dc2626;
   --xyf-danger-soft: #fef2f2;
-  --xyf-danger-border: #fecaca;
+  --xyf-danger-border: #f7cece;
 
-  --xyf-info: #0284c7;
-  --xyf-info-soft: #f0f9ff;
-  --xyf-info-border: #bae6fd;
+  --xyf-info: #3f3f46;
+  --xyf-info-soft: #f4f4f5;
+  --xyf-info-border: #e4e4e7;
 
   /* Hairline Borders */
-  --xyf-border: #e7e7ea;
-  --xyf-border-strong: #d4d4d8;
-  --xyf-border-subtle: #f2f2f5;
+  --xyf-border: #e6e6ea;
+  --xyf-border-strong: #d1d1d6;
+  --xyf-border-subtle: #f1f1f4;
 
   /* Radii */
   --xyf-radius-xs: 6px;
   --xyf-radius-sm: 10px;
-  --xyf-radius-md: 14px;
-  --xyf-radius-lg: 18px;
-  --xyf-radius-xl: 24px;
+  --xyf-radius-md: 16px;
+  --xyf-radius-lg: 20px;
+  --xyf-radius-xl: 26px;
   --xyf-radius-pill: 999px;
 
   /* Crisp Architectural Shadows */
-  --xyf-shadow-xs: 0 1px 2px rgba(9, 9, 11, 0.04);
-  --xyf-shadow-sm: 0 4px 16px -4px rgba(9, 9, 11, 0.06), 0 1px 3px rgba(9, 9, 11, 0.03);
-  --xyf-shadow-md: 0 14px 36px -10px rgba(9, 9, 11, 0.1), 0 4px 12px -2px rgba(9, 9, 11, 0.04);
-  --xyf-shadow-lg: 0 26px 60px -16px rgba(9, 9, 11, 0.15), 0 8px 22px -6px rgba(9, 9, 11, 0.05);
-  --xyf-shadow-focus: 0 0 0 3px rgba(24, 24, 27, 0.1);
+  --xyf-shadow-xs: 0 1px 2px rgba(9, 9, 11, 0.035);
+  --xyf-shadow-sm: 0 4px 16px -4px rgba(9, 9, 11, 0.055), 0 1px 3px rgba(9, 9, 11, 0.03);
+  --xyf-shadow-md: 0 14px 36px -10px rgba(9, 9, 11, 0.095), 0 4px 12px -2px rgba(9, 9, 11, 0.04);
+  --xyf-shadow-lg: 0 26px 60px -16px rgba(9, 9, 11, 0.14), 0 8px 22px -6px rgba(9, 9, 11, 0.05);
+  --xyf-shadow-focus: 0 0 0 3px rgba(24, 24, 27, 0.09);
 
   /* Typography */
   --xyf-font-sans: 'PingFang SC', 'Hiragino Sans GB', 'Inter', 'Microsoft YaHei', 'Noto Sans SC',
@@ -78,7 +85,7 @@
   /* Spacing & Layout */
   --xyf-container-width: 1280px;
   --xyf-header-height: 68px;
-  --xyf-admin-sidebar-width: 248px;
+  --xyf-admin-sidebar-width: 256px;
   --xyf-transition: 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 
   /* Element Plus Overrides: Pure Monochrome Obsidian */
@@ -90,7 +97,7 @@
   --el-color-primary-light-9: #f4f4f5;
   --el-color-primary-dark-2: #09090b;
 
-  --el-color-success: #16a34a;
+  --el-color-success: #15803d;
   --el-color-warning: #b45309;
   --el-color-danger: #dc2626;
   --el-color-info: #52525b;

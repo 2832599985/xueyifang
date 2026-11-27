@@ -195,20 +195,45 @@
           </div>
         </section>
 
-        <!-- Seller Margin Deposit Pool Card -->
-        <section class="xyf-surface-card" style="padding: 20px 24px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap">
-          <div>
-            <div style="font-size: 16px; font-weight: 700; color: var(--xyf-ink)">
-              创作者履约保证金专户：
-              <strong class="xyf-tabular" style="font-size: 20px; color: #047857">¥{{ Number(sellerDepositBalance).toFixed(2) }}</strong>
+        <!-- Architectural Creator Deposit Shield Vault Card -->
+        <section class="deposit-vault-card">
+          <div class="deposit-vault-card__left">
+            <div class="vault-emblem" aria-hidden="true">
+              <svg viewBox="0 0 40 40" fill="none">
+                <path d="M20 5L32 9.8V18.8C32 26.2 26.9 32.3 20 34.8C13.1 32.3 8 26.2 8 18.8V9.8L20 5Z" stroke="#18181B" stroke-width="1.8" stroke-linejoin="round" />
+                <path d="M15.2 19.8L18.6 23.2L25.2 16.5" stroke="#B89058" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
             </div>
-            <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--xyf-ink-muted)">
-              缴纳保证金可在个人主页与悬赏竞标中点亮「已缴保证金」高信誉标识；无在途销售单与未结纠纷时可随时全额无息退回可用余额。
-            </p>
+
+            <div class="vault-copy">
+              <div class="vault-title-row">
+                <h3>创作者履约保证金专户</h3>
+                <span class="vault-status-pill" :class="{ 'is-active': sellerDepositBalance > 0 }">
+                  {{ sellerDepositBalance > 0 ? '✦ 金盾信誉护航中' : '可选开通' }}
+                </span>
+              </div>
+              <div class="vault-perks">
+                <span>个人工作室点亮金盾标识</span>
+                <span>·</span>
+                <span>悬赏竞标高信誉加权</span>
+                <span>·</span>
+                <span>无在途销售单随时无息秒退</span>
+              </div>
+            </div>
           </div>
-          <div style="display: flex; gap: 10px">
-            <el-button type="primary" plain @click="handlePayDeposit">缴纳保证金</el-button>
-            <el-button v-if="sellerDepositBalance > 0" plain @click="handleWithdrawDeposit">退还至余额</el-button>
+
+          <div class="deposit-vault-card__right xyf-tabular">
+            <div class="vault-balance">
+              <span>在池保证金</span>
+              <strong>¥{{ Number(sellerDepositBalance).toFixed(2) }}</strong>
+            </div>
+
+            <div class="vault-btns">
+              <el-button type="primary" @click="openDepositDialog('pay')">充入保证金</el-button>
+              <el-button v-if="sellerDepositBalance > 0" plain @click="openDepositDialog('withdraw')">
+                退回余额
+              </el-button>
+            </div>
           </div>
         </section>
 
@@ -324,6 +349,64 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- Dedicated Deposit Vault Dialog -->
+    <el-dialog
+      v-model="depositDialogVisible"
+      :title="depositMode === 'pay' ? '充入创作者履约保证金' : '无责退还保证金至钱包余额'"
+      width="440px"
+    >
+      <div class="withdraw-avail xyf-tabular">
+        <template v-if="depositMode === 'pay'">
+          当前钱包可用余额：<strong>{{ formatPrice(wallet?.walletBalance || 0) }}</strong>
+        </template>
+        <template v-else>
+          当前在池可退保证金：<strong>¥{{ Number(sellerDepositBalance).toFixed(2) }}</strong>
+          <el-button text type="primary" size="small" @click="depositAmount = sellerDepositBalance">
+            全额退回
+          </el-button>
+        </template>
+      </div>
+
+      <el-form label-position="top">
+        <el-form-item :label="depositMode === 'pay' ? '选择或输入充入金额（最低 ¥10）' : '输入退还金额（最低 ¥10）'">
+          <div v-if="depositMode === 'pay'" class="preset-chips" style="margin-bottom: 12px">
+            <button
+              v-for="amt in [50, 100, 200, 500]"
+              :key="amt"
+              type="button"
+              class="xyf-chip"
+              :class="{ 'is-active': depositAmount === amt }"
+              @click="depositAmount = amt"
+            >
+              ¥{{ amt }}
+            </button>
+          </div>
+          <el-input-number
+            v-model="depositAmount"
+            :min="10"
+            :max="depositMode === 'pay' ? Math.max(10, wallet?.walletBalance || 5000) : Math.max(10, sellerDepositBalance)"
+            :precision="2"
+            :step="10"
+            style="width: 100%"
+          />
+          <p class="wallet-risk-note">
+            {{
+              depositMode === 'pay'
+                ? '款项将从可用余额划入您的独立保证金专户，立即在创作者档案点亮金盾信誉标识。'
+                : '当名下无未完结销售订单及未处理仲裁时，保证金即时原路无息退回钱包可用余额。'
+            }}
+          </p>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="depositDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitDepositAction">
+          {{ depositMode === 'pay' ? '确认划入保证金' : '确认退回可用余额' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -332,7 +415,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowRight } from '@element-plus/icons-vue'
-import { ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getSellerDepositInfo, paySellerDeposit, withdrawSellerDeposit } from '@/api/milestone'
 import {
@@ -370,37 +452,36 @@ async function refreshDepositBalance() {
   }
 }
 
-async function handlePayDeposit() {
-  try {
-    const res = await ElMessageBox.prompt('请输入从钱包可用余额划转缴纳的履约保证金金额（最低 10 元）：', '缴纳创作者履约保证金', {
-      confirmButtonText: '确认缴纳',
-      cancelButtonText: '取消',
-      inputValue: '100',
-      inputPattern: /^\d+(\.\d{1,2})?$/,
-      inputErrorMessage: '请输入正确的金额数字'
-    })
-    await paySellerDeposit(Number(res.value))
-    ElMessage.success('履约保证金缴纳成功，专属信誉标识已点亮')
-    await Promise.all([fetchWalletData(), refreshDepositBalance()])
-  } catch (err: any) {
-    if (err !== 'cancel' && err?.message) notifyFallbackError(err, '缴纳保证金失败')
-  }
+const depositDialogVisible = ref(false)
+const depositMode = ref<'pay' | 'withdraw'>('pay')
+const depositAmount = ref(100)
+
+function openDepositDialog(mode: 'pay' | 'withdraw') {
+  depositMode.value = mode
+  depositAmount.value = mode === 'pay' ? 100 : Math.max(10, sellerDepositBalance.value)
+  depositDialogVisible.value = true
 }
 
-async function handleWithdrawDeposit() {
+async function submitDepositAction() {
+  if (!depositAmount.value || depositAmount.value < 10) {
+    ElMessage.warning('保证金操作金额最低为 10 元')
+    return
+  }
+  submitting.value = true
   try {
-    const res = await ElMessageBox.prompt(`当前保证金余额 ¥${sellerDepositBalance.value.toFixed(2)}，请输入退还金额（最低 10 元）：`, '退还创作者履约保证金', {
-      confirmButtonText: '申请退还',
-      cancelButtonText: '取消',
-      inputValue: String(sellerDepositBalance.value),
-      inputPattern: /^\d+(\.\d{1,2})?$/,
-      inputErrorMessage: '请输入正确的金额数字'
-    })
-    await withdrawSellerDeposit(Number(res.value))
-    ElMessage.success('履约保证金已无责退回您的钱包可用余额')
+    if (depositMode.value === 'pay') {
+      await paySellerDeposit(Number(depositAmount.value))
+      ElMessage.success('履约保证金划入成功，专属金盾信誉标识已点亮')
+    } else {
+      await withdrawSellerDeposit(Number(depositAmount.value))
+      ElMessage.success('履约保证金已无责退回您的钱包可用余额')
+    }
+    depositDialogVisible.value = false
     await Promise.all([fetchWalletData(), refreshDepositBalance()])
-  } catch (err: any) {
-    if (err !== 'cancel' && err?.message) notifyFallbackError(err, '退还保证金失败')
+  } catch (err) {
+    notifyFallbackError(err, depositMode.value === 'pay' ? '缴纳保证金失败' : '退还保证金失败')
+  } finally {
+    submitting.value = false
   }
 }
 const recentTransactions = ref<WalletTransaction[]>([])
@@ -928,6 +1009,112 @@ onMounted(() => {
   &:hover {
     border-color: var(--xyf-ink);
     background: var(--xyf-surface-soft);
+  }
+}
+
+
+/* Creator Deposit Shield Vault Card */
+.deposit-vault-card {
+  background: linear-gradient(180deg, #fffdf9 0%, #ffffff 70%);
+  border: 1px solid var(--xyf-champagne-border);
+  border-radius: 20px;
+  padding: 22px 26px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+    min-width: 260px;
+  }
+
+  .vault-emblem {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: var(--xyf-champagne-soft);
+    border: 1px solid var(--xyf-champagne-border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    svg {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  .vault-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+
+    h3 {
+      margin: 0;
+      font-size: 16.5px;
+      font-weight: 750;
+      color: var(--xyf-ink);
+    }
+  }
+
+  .vault-status-pill {
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 650;
+    background: var(--xyf-surface-muted);
+    color: var(--xyf-ink-3);
+
+    &.is-active {
+      background: #18181b;
+      color: #e5c79e;
+    }
+  }
+
+  .vault-perks {
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: var(--xyf-ink-2);
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+
+    .vault-balance {
+      text-align: right;
+
+      span {
+        display: block;
+        font-size: 11.5px;
+        color: var(--xyf-ink-3);
+      }
+
+      strong {
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--xyf-ink);
+      }
+    }
+
+    .vault-btns {
+      display: flex;
+      gap: 8px;
+    }
   }
 }
 

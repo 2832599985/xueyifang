@@ -1,76 +1,94 @@
 <template>
-  <div class="pricing-compass-card" v-if="benchmark">
-    <div class="compass-header">
-      <div class="compass-header__left">
-        <span class="compass-kicker">SMART PRICING BENCHMARK · 历史成交分位数参考</span>
+  <div
+    v-if="benchmark"
+    class="pricing-compass"
+    :class="{ 'is-studio': interactive, 'is-compact': !interactive }"
+  >
+    <div class="compass-head">
+      <div class="compass-head__left">
+        <span class="compass-eyebrow">MARKET PRICING BENCHMARK</span>
         <h4 class="compass-title">
-          {{ benchmark.tagName || '校内同类技能' }} · 定价分位罗盘
+          {{ benchmark.tagName || '同类校园技能' }} · 成交分位参考
         </h4>
       </div>
-      <div class="compass-badge" :class="positionClass">
-        {{ benchmark.pricePositionLabel }}（P{{ benchmark.percentileRank }}）
-      </div>
+      <span class="pos-pill xyf-tabular" :class="positionClass">
+        {{ benchmark.pricePositionLabel }} · P{{ benchmark.percentileRank }}
+      </span>
     </div>
 
-    <div class="percentile-grid">
-      <div
-        class="percentile-box"
-        :class="{ 'is-clickable': interactive }"
-        @click="interactive && emit('select-price', benchmark.p25Price)"
+    <!-- Interactive Studio Mode (ServicePublish): 4 Clickable Strategy Cards -->
+    <div v-if="interactive" class="strategy-grid xyf-tabular">
+      <button
+        type="button"
+        class="strategy-card"
+        :class="{ 'is-selected': isNearPrice(benchmark.p25Price) }"
+        @click="emit('select-price', Number(benchmark.p25Price))"
       >
-        <span class="p-label">P25 引流线</span>
-        <strong class="p-val">¥{{ formatMoney(benchmark.p25Price) }}</strong>
-        <span v-if="interactive" class="p-action">点击采用</span>
-      </div>
+        <span class="s-tag">P25 引流破冰</span>
+        <strong class="s-price">¥{{ formatMoney(benchmark.p25Price) }}</strong>
+        <span class="s-cta">点击填入</span>
+      </button>
 
-      <div
-        class="percentile-box is-highlight"
-        :class="{ 'is-clickable': interactive }"
-        @click="interactive && emit('select-price', benchmark.p50Price)"
+      <button
+        type="button"
+        class="strategy-card is-recommended"
+        :class="{ 'is-selected': isNearPrice(benchmark.p50Price) }"
+        @click="emit('select-price', Number(benchmark.p50Price))"
       >
-        <span class="p-label">P50 成交中位数</span>
-        <strong class="p-val">¥{{ formatMoney(benchmark.p50Price) }}</strong>
-        <span v-if="interactive" class="p-action">主流推荐</span>
-      </div>
+        <span class="s-tag">P50 主流中位 ✦</span>
+        <strong class="s-price">¥{{ formatMoney(benchmark.p50Price) }}</strong>
+        <span class="s-cta">黄金成交价</span>
+      </button>
 
-      <div
-        class="percentile-box"
-        :class="{ 'is-clickable': interactive }"
-        @click="interactive && emit('select-price', benchmark.p75Price)"
+      <button
+        type="button"
+        class="strategy-card"
+        :class="{ 'is-selected': isNearPrice(benchmark.p75Price) }"
+        @click="emit('select-price', Number(benchmark.p75Price))"
       >
-        <span class="p-label">P75 资深溢价线</span>
-        <strong class="p-val">¥{{ formatMoney(benchmark.p75Price) }}</strong>
-        <span v-if="interactive" class="p-action">点击采用</span>
-      </div>
+        <span class="s-tag">P75 资深溢价</span>
+        <strong class="s-price">¥{{ formatMoney(benchmark.p75Price) }}</strong>
+        <span class="s-cta">点击填入</span>
+      </button>
 
-      <div class="percentile-box">
-        <span class="p-label">P90 定制顶配线</span>
-        <strong class="p-val">¥{{ formatMoney(benchmark.p90Price) }}</strong>
-        <span class="p-sub">均价 ¥{{ formatMoney(benchmark.avgPrice) }}</span>
-      </div>
+      <button
+        type="button"
+        class="strategy-card"
+        :class="{ 'is-selected': isNearPrice(benchmark.p90Price) }"
+        @click="emit('select-price', Number(benchmark.p90Price))"
+      >
+        <span class="s-tag">P90 深度定制</span>
+        <strong class="s-price">¥{{ formatMoney(benchmark.p90Price) }}</strong>
+        <span class="s-cta">均价 ¥{{ formatMoney(benchmark.avgPrice) }}</span>
+      </button>
     </div>
 
-    <div class="spectrum-track-wrap">
-      <div class="spectrum-track">
-        <div class="spectrum-sweet-zone" />
+    <!-- Spectrum Distribution Gauge (Works cleanly in both narrow sidebar & wide studio) -->
+    <div class="gauge-box xyf-tabular">
+      <div class="gauge-track">
+        <div class="gauge-sweet-band" title="P25–P75 校内主流成交区间" />
         <div
-          class="spectrum-pointer"
-          :style="{ left: `${Math.min(96, Math.max(4, benchmark.percentileRank || 50))}%` }"
+          class="gauge-pin"
+          :style="{ left: `${Math.min(94, Math.max(6, benchmark.percentileRank || 50))}%` }"
         >
-          <span class="pointer-bubble">¥{{ formatMoney(proposedPrice || benchmark.p50Price) }}</span>
+          <span class="gauge-pin__bubble">¥{{ formatMoney(proposedPrice || benchmark.p50Price) }}</span>
         </div>
       </div>
-      <div class="spectrum-legend">
-        <span>高性价比区 (&lt;P25)</span>
-        <span class="sweet-text">校内黄金成交带 [¥{{ formatMoney(benchmark.recommendedMinPrice) }} ~ ¥{{ formatMoney(benchmark.recommendedMaxPrice) }}]</span>
-        <span>高客单区 (&gt;P75)</span>
+
+      <!-- Compact 3-Tick Quartile Strip for Narrow Sidebars -->
+      <div class="gauge-ticks">
+        <span>P25 ¥{{ formatShortMoney(benchmark.p25Price) }}</span>
+        <span class="is-mid">中位 ¥{{ formatShortMoney(benchmark.p50Price) }}</span>
+        <span>P75 ¥{{ formatShortMoney(benchmark.p75Price) }}</span>
       </div>
     </div>
 
-    <div class="compass-footer">
-      <p class="advice-text">{{ benchmark.conversionAdvice }}</p>
-      <span class="sample-meta">
-        统计样本：{{ benchmark.completedOrderSampleCount }} 笔真实完单 + {{ benchmark.activeListingSampleCount }} 项校内在售服务
+    <div class="compass-foot">
+      <p v-if="interactive && benchmark.conversionAdvice" class="advice-line">
+        {{ benchmark.conversionAdvice }}
+      </p>
+      <span class="sample-line xyf-tabular">
+        样本基数：{{ benchmark.completedOrderSampleCount }} 笔真实完单 · {{ benchmark.activeListingSampleCount }} 项校内在售
       </span>
     </div>
   </div>
@@ -113,6 +131,17 @@ const formatMoney = (val?: number) => {
   return Number(val).toFixed(2)
 }
 
+const formatShortMoney = (val?: number) => {
+  if (val === undefined || val === null) return '0'
+  const n = Number(val)
+  return Number.isInteger(n) ? String(n) : n.toFixed(0)
+}
+
+const isNearPrice = (target?: number) => {
+  if (target === undefined || props.proposedPrice === undefined) return false
+  return Math.abs(Number(target) - Number(props.proposedPrice)) < 0.01
+}
+
 const fetchBenchmark = async () => {
   try {
     const res = await getPricingBenchmark({
@@ -123,7 +152,7 @@ const fetchBenchmark = async () => {
     })
     benchmark.value = res
   } catch {
-    // 静默容错
+    // silent fallback
   }
 }
 
@@ -147,199 +176,215 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.pricing-compass-card {
-  margin: 12px 0 18px;
+.pricing-compass {
+  margin: 14px 0 18px;
   padding: 16px 18px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: var(--xyf-surface-soft);
+  border: 1px solid var(--xyf-border);
+
+  &.is-compact {
+    padding: 14px 16px;
+  }
 }
 
-.compass-header {
+.compass-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 14px;
 
-  .compass-kicker {
+  .compass-eyebrow {
     display: block;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    color: #64748b;
+    letter-spacing: 0.08em;
+    color: var(--xyf-ink-3);
   }
 
   .compass-title {
     margin: 2px 0 0;
-    font-size: 15px;
+    font-size: 13.5px;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--xyf-ink);
   }
 }
 
-.compass-badge {
-  padding: 4px 10px;
+.pos-pill {
+  padding: 2px 9px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 650;
+  background: #ffffff;
+  border: 1px solid var(--xyf-border);
+  color: var(--xyf-ink-2);
 
   &.is-sweet {
-    background: #dcfce7;
+    background: #18181b;
+    border-color: #18181b;
+    color: #ffffff;
+  }
+
+  &.is-value {
+    background: #f2fbf5;
+    border-color: #ccebd7;
     color: #15803d;
   }
-  &.is-value {
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
+
   &.is-premium {
-    background: #fef3c7;
-    color: #b45309;
+    background: var(--xyf-champagne-soft);
+    border-color: var(--xyf-champagne-border);
+    color: #9a5b13;
   }
+
   &.is-outlier {
-    background: #fee2e2;
+    background: #fef2f2;
+    border-color: #f7cece;
     color: #b91c1c;
   }
 }
 
-.percentile-grid {
+/* Interactive Studio 4-Card Grid */
+.strategy-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-bottom: 16px;
 
-  @media (max-width: 640px) {
+  @media (max-width: 680px) {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-.percentile-box {
+.strategy-card {
+  padding: 11px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--xyf-border);
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 12px;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  transition: all 0.18s ease;
+  transition: all var(--xyf-transition);
 
-  &.is-highlight {
-    border-color: #10b981;
-    background: #f0fdf4;
+  &:hover {
+    border-color: #18181b;
+    transform: translateY(-1px);
   }
 
-  &.is-clickable {
-    cursor: pointer;
-    &:hover {
-      transform: translateY(-2px);
-      border-color: #0f172a;
-      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.07);
+  &.is-recommended {
+    background: #fffdf9;
+    border-color: var(--xyf-champagne-border);
+  }
+
+  &.is-selected {
+    border-color: #18181b;
+    box-shadow: 0 0 0 1px #18181b inset;
+  }
+
+  .s-tag {
+    font-size: 11px;
+    color: var(--xyf-ink-3);
+    font-weight: 600;
+  }
+
+  .s-price {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--xyf-ink);
+  }
+
+  .s-cta {
+    font-size: 11px;
+    color: var(--xyf-ink-2);
+  }
+}
+
+/* Distribution Spectrum Bar */
+.gauge-box {
+  padding-top: 18px;
+}
+
+.gauge-track {
+  position: relative;
+  height: 7px;
+  border-radius: 999px;
+  background: #e4e4e7;
+
+  .gauge-sweet-band {
+    position: absolute;
+    left: 25%;
+    width: 50%;
+    top: 0;
+    bottom: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #52525b 0%, #18181b 50%, #b89058 100%);
+    opacity: 0.42;
+  }
+
+  .gauge-pin {
+    position: absolute;
+    top: 50%;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #18181b;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    transform: translate(-50%, -50%);
+    transition: left 0.22s ease;
+
+    &__bubble {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 1px 7px;
+      border-radius: 6px;
+      background: #18181b;
+      color: #ffffff;
+      font-size: 10.5px;
+      font-weight: 700;
+      white-space: nowrap;
     }
   }
-
-  .p-label {
-    font-size: 11.5px;
-    color: #64748b;
-  }
-
-  .p-val {
-    font-size: 16px;
-    font-weight: 700;
-    color: #0f172a;
-  }
-
-  .p-action {
-    font-size: 11px;
-    font-weight: 600;
-    color: #059669;
-  }
-
-  .p-sub {
-    font-size: 11px;
-    color: #94a3b8;
-  }
 }
 
-.spectrum-track-wrap {
-  margin: 18px 0 12px;
-}
-
-.spectrum-track {
-  position: relative;
-  height: 10px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #93c5fd 0%, #34d399 25%, #10b981 75%, #fbbf24 90%, #f87171 100%);
-}
-
-.spectrum-sweet-zone {
-  position: absolute;
-  left: 25%;
-  width: 50%;
-  top: -2px;
-  bottom: -2px;
-  border: 2px dashed rgba(15, 23, 42, 0.35);
-  border-radius: 999px;
-  pointer-events: none;
-}
-
-.spectrum-pointer {
-  position: absolute;
-  top: -5px;
-  width: 20px;
-  height: 20px;
-  margin-left: -10px;
-  border-radius: 50%;
-  background: #0f172a;
-  border: 3px solid #ffffff;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
-  transition: left 0.25s ease;
-
-  .pointer-bubble {
-    position: absolute;
-    bottom: 22px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #0f172a;
-    color: #ffffff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 6px;
-    white-space: nowrap;
-  }
-}
-
-.spectrum-legend {
+.gauge-ticks {
+  margin-top: 8px;
   display: flex;
   justify-content: space-between;
-  font-size: 11.5px;
-  color: #64748b;
-  margin-top: 8px;
+  font-size: 11px;
+  color: var(--xyf-ink-3);
 
-  .sweet-text {
-    font-weight: 600;
-    color: #047857;
+  .is-mid {
+    font-weight: 650;
+    color: var(--xyf-ink);
   }
 }
 
-.compass-footer {
+.compass-foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--xyf-border-subtle);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  border-top: 1px dashed #cbd5e1;
-  padding-top: 10px;
+  gap: 3px;
 
-  .advice-text {
+  .advice-line {
     margin: 0;
-    font-size: 12.5px;
-    color: #334155;
+    font-size: 12px;
+    color: var(--xyf-ink-2);
     line-height: 1.5;
   }
 
-  .sample-meta {
-    font-size: 11.5px;
-    color: #64748b;
+  .sample-line {
+    font-size: 11px;
+    color: var(--xyf-ink-3);
   }
 }
 </style>

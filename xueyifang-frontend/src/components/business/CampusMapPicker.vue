@@ -1,30 +1,31 @@
 <template>
   <div class="campus-map-picker">
-    <div class="picker-toolbar">
-      <div class="campus-tag">
-        <span class="dot" :class="{ 'is-ok': fenceValid, 'is-err': !fenceValid }" />
-        <span>{{ activeCampus?.campusName || '主校区安全电子围栏' }}</span>
-        <small class="fence-hint">{{ fenceMessage }}</small>
+    <!-- Top Fence Status & Quick Preset Landmarks -->
+    <div class="picker-head">
+      <div class="fence-banner" :class="{ 'is-err': !fenceValid }">
+        <span class="fence-dot" />
+        <strong>{{ activeCampus?.campusName || '校区电子围栏' }}</strong>
+        <span class="fence-msg">{{ fenceMessage }}</span>
       </div>
 
-      <!-- Preset Safe TradeLocations from Backend Dictionary (with real coordinates & configured radius) -->
-      <div class="preset-chips" v-if="availablePresets.length > 0">
+      <div v-if="availablePresets.length > 0" class="landmark-scroll">
         <button
           v-for="spot in availablePresets"
           :key="spot.name"
           type="button"
-          class="spot-chip"
+          class="landmark-chip"
           :class="{ 'is-selected': modelValue.poiName === spot.name }"
           @click="selectPresetSpot(spot)"
         >
-          {{ spot.name }}（{{ spot.radius }}m内）
+          <span class="landmark-chip__name">{{ spot.name }}</span>
+          <span class="landmark-chip__rad xyf-tabular">{{ spot.radius }}m</span>
         </button>
       </div>
     </div>
 
     <RealCampusMap
       ref="realMapRef"
-      :height="265"
+      :height="252"
       :interactive="true"
       :latitude="modelValue.latitude"
       :longitude="modelValue.longitude"
@@ -36,35 +37,45 @@
       @pick="onMapPick"
     />
 
-    <div class="coord-inputs">
-      <div class="radius-inline">
-        <span>当面核销有效范围半径：</span>
+    <!-- Radius Quick Presets + Slider + 2-Column Landmark Inputs -->
+    <div class="picker-controls">
+      <div class="radius-bar">
+        <span class="radius-bar__lbl">核销有效半径</span>
+        <div class="radius-quick">
+          <button
+            v-for="r in [50, 80, 120, 200]"
+            :key="r"
+            type="button"
+            class="r-pill xyf-tabular"
+            :class="{ 'is-active': (modelValue.radiusMeters || 80) === r }"
+            @click="emitUpdate({ radiusMeters: r })"
+          >
+            {{ r }}m
+          </button>
+        </div>
         <el-slider
           :model-value="modelValue.radiusMeters || 80"
           :min="20"
           :max="300"
           :step="10"
-          style="flex: 1"
+          style="flex: 1; min-width: 110px"
           @update:model-value="(val: any) => emitUpdate({ radiusMeters: Number(val) })"
         />
-        <strong class="xyf-tabular">{{ modelValue.radiusMeters || 80 }} 米内</strong>
+        <strong class="radius-val xyf-tabular">{{ modelValue.radiusMeters || 80 }}m</strong>
       </div>
 
-      <el-input
-        :model-value="modelValue.poiName"
-        placeholder="选点建筑/地标名称（如：南湖图书馆一楼大厅）"
-        @update:model-value="(val: string) => emitUpdate({ poiName: val })"
-      >
-        <template #prepend>会面地标</template>
-      </el-input>
-
-      <el-input
-        :model-value="modelValue.detailAddress"
-        placeholder="补充说明（如：东侧监控探头下长椅 / 刷卡闸机外）"
-        @update:model-value="(val: string) => emitUpdate({ detailAddress: val })"
-      >
-        <template #prepend>具体方位</template>
-      </el-input>
+      <div class="addr-grid">
+        <el-input
+          :model-value="modelValue.poiName"
+          placeholder="会面建筑/地标（如：南湖图书馆一楼大厅）"
+          @update:model-value="(val: string) => emitUpdate({ poiName: val })"
+        />
+        <el-input
+          :model-value="modelValue.detailAddress"
+          placeholder="具体碰面方位（如：刷卡闸机外右侧长椅）"
+          @update:model-value="(val: string) => emitUpdate({ detailAddress: val })"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -185,79 +196,156 @@ onMounted(async () => {
 .campus-map-picker {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
-.picker-toolbar {
+.picker-head {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.campus-tag {
+.fence-banner {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  flex-wrap: wrap;
+  font-size: 12.5px;
   color: var(--xyf-ink);
 
-  .dot {
-    width: 8px;
-    height: 8px;
+  .fence-dot {
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    &.is-ok {
-      background: #10b981;
-    }
-    &.is-err {
+    background: #15803d;
+  }
+
+  .fence-msg {
+    color: var(--xyf-ink-3);
+  }
+
+  &.is-err {
+    color: #b91c1c;
+    .fence-dot {
       background: #dc2626;
     }
-  }
-
-  .fence-hint {
-    font-weight: 400;
-    color: var(--xyf-ink-muted);
-    font-size: 12px;
+    .fence-msg {
+      color: #dc2626;
+    }
   }
 }
 
-.preset-chips {
+.landmark-scroll {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-.spot-chip {
+.landmark-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 11px;
   border-radius: 999px;
   border: 1px solid var(--xyf-border);
   background: #ffffff;
-  font-size: 12px;
   color: var(--xyf-ink-2);
+  font-size: 12px;
+  font-family: inherit;
+  white-space: nowrap;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all var(--xyf-transition);
 
-  &:hover,
+  &__name {
+    font-weight: 550;
+  }
+
+  &__rad {
+    font-size: 11px;
+    color: var(--xyf-ink-3);
+  }
+
+  &:hover {
+    border-color: #18181b;
+    color: #18181b;
+  }
+
   &.is-selected {
     background: #18181b;
-    color: #ffffff;
     border-color: #18181b;
+    color: #ffffff;
+
+    .landmark-chip__rad {
+      color: #e5c79e;
+    }
   }
 }
 
-.coord-inputs {
+.picker-controls {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--xyf-surface-soft);
+  border: 1px solid var(--xyf-border-subtle);
 }
 
-.radius-inline {
+.radius-bar {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12.5px;
-  color: var(--xyf-ink-2);
-  padding: 4px 2px;
+  flex-wrap: wrap;
+
+  &__lbl {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--xyf-ink-2);
+  }
+
+  .radius-quick {
+    display: flex;
+    gap: 4px;
+  }
+
+  .r-pill {
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--xyf-border);
+    background: #ffffff;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--xyf-ink-2);
+    cursor: pointer;
+
+    &.is-active {
+      background: #18181b;
+      border-color: #18181b;
+      color: #ffffff;
+    }
+  }
+
+  .radius-val {
+    font-size: 13px;
+    color: var(--xyf-ink);
+    min-width: 42px;
+    text-align: right;
+  }
+}
+
+.addr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -1,53 +1,116 @@
 <template>
   <div class="admin-campus-page">
-    <!-- Platform Commission Revenue KPI Banner -->
-    <div class="kpi-strip">
-      <div class="kpi-card">
-        <span class="kpi-label">平台累计技术服务费分账收入</span>
-        <strong class="kpi-value xyf-tabular">¥{{ Number(revenueSummary.totalCommissionRevenue || 0).toFixed(2) }}</strong>
-      </div>
-      <div class="kpi-card">
-        <span class="kpi-label">已完成分账结算订单笔数</span>
-        <strong class="kpi-value xyf-tabular">{{ revenueSummary.settledOrderCount || 0 }} 笔</strong>
-      </div>
-      <div class="kpi-card kpi-card--action">
-        <div>
-          <span class="kpi-label">多校区真实地图电子围栏治理</span>
-          <p class="kpi-desc">在真实高德校园地图上可视化点选勾勒多边形安全电子围栏与教育邮箱域名</p>
-        </div>
-        <el-button type="primary" @click="openEditDialog()">+ 新增开放校区</el-button>
-      </div>
-    </div>
+    <XyfPageHeader
+      kicker="MULTI-CAMPUS SPATIAL GOVERNANCE"
+      title="多校区电子围栏与清分治理台"
+      subtitle="在真实校园地图上可视化勾勒多边形安全电子围栏、配置 .edu.cn 实名域名白名单与分账结算监控"
+    >
+      <template #actions>
+        <el-button :loading="loading" @click="loadData">
+          <el-icon><Refresh /></el-icon>
+          刷新
+        </el-button>
+        <el-button type="primary" @click="openEditDialog()">
+          <el-icon><Plus /></el-icon>
+          新增开放校区
+        </el-button>
+      </template>
+    </XyfPageHeader>
 
-    <div class="xyf-surface-card table-card">
-      <el-table :data="campuses" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="campusCode" label="校区编码" width="140" />
-        <el-table-column prop="campusName" label="高校与校区名称" min-width="200" />
-        <el-table-column prop="city" label="城市" width="100" />
-        <el-table-column label="中心坐标 (GCJ-02)" width="210">
-          <template #default="{ row }">
-            <span class="xyf-mono">{{ row.centerLat }}, {{ row.centerLng }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="safeRadiusMeters" label="兜底半径(m)" width="120" />
-        <el-table-column prop="eduEmailDomains" label="实名邮箱后缀" width="150" />
-        <el-table-column label="状态" width="95">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'">
-              {{ row.status === 1 ? '运营中' : '已停用' }}
+    <!-- 3 KPI Tiles -->
+    <section class="kpi-row">
+      <XyfStatTile
+        label="平台累计技术服务费分账收入"
+        :value="`¥${Number(revenueSummary.totalCommissionRevenue || 0).toFixed(2)}`"
+        hint="担保验收完成自动清分入账"
+      />
+      <XyfStatTile
+        label="已完成清分结算订单笔数"
+        :value="`${revenueSummary.settledOrderCount || 0} 笔`"
+        hint="全校区线上担保与线下核销合计"
+      />
+      <XyfStatTile
+        label="已配置空间电子围栏校区"
+        :value="`${campuses.length} 个校区`"
+        hint="支持多边形顶点与中心安全半径双保险"
+      />
+    </section>
+
+    <!-- Master-Detail Spatial Governance Workbench -->
+    <section class="spatial-workbench">
+      <!-- Left: Campus Selector List -->
+      <div class="campus-list-col">
+        <div
+          v-for="item in campuses"
+          :key="item.id"
+          class="xyf-surface-card campus-card"
+          :class="{ 'is-selected': selectedCampus?.id === item.id }"
+          @click="selectCampusCard(item)"
+        >
+          <div class="campus-card__top">
+            <div>
+              <span class="c-code xyf-mono">{{ item.campusCode }}</span>
+              <h3>{{ item.campusName }}</h3>
+            </div>
+            <el-tag size="small" :type="item.status === 1 ? 'success' : 'info'">
+              {{ item.status === 1 ? '运营中' : '已暂停' }}
             </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openEditDialog(row)">地图编辑围栏</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+          </div>
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '在真实校园地图编辑校区电子围栏' : '新增开放校区'" width="720px" destroy-on-close>
+          <div class="campus-card__meta xyf-tabular">
+            <span>城市：{{ item.city || '未填写' }}</span>
+            <span>·</span>
+            <span>兜底半径：{{ item.safeRadiusMeters }}m</span>
+          </div>
+
+          <div class="campus-card__foot">
+            <span class="edu-domain xyf-mono">邮箱后缀：{{ item.eduEmailDomains || 'edu.cn' }}</span>
+            <el-button size="small" plain @click.stop="openEditDialog(item)">
+              编辑围栏多边形
+            </el-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Live Polygon Geofence Map Stage -->
+      <div class="xyf-surface-card map-stage-col">
+        <div class="map-stage-head">
+          <div>
+            <span class="xyf-kicker">LIVE POLYGON PREVIEW</span>
+            <h3>{{ selectedCampus?.campusName || '选择左侧校区预览电子围栏' }}</h3>
+          </div>
+          <el-button
+            v-if="selectedCampus"
+            size="small"
+            type="primary"
+            @click="openEditDialog(selectedCampus)"
+          >
+            进入地图顶点编辑器
+          </el-button>
+        </div>
+
+        <RealCampusMap
+          ref="previewMapRef"
+          :height="390"
+          :interactive="false"
+          :latitude="selectedCampus?.centerLat || 30.5128"
+          :longitude="selectedCampus?.centerLng || 114.3562"
+          :radius-meters="selectedCampus?.safeRadiusMeters || 1800"
+          :center-lat="selectedCampus?.centerLat || 30.5128"
+          :center-lng="selectedCampus?.centerLng || 114.3562"
+          :geofence-polygon="selectedCampus?.geofencePolygon"
+          :fence-valid="true"
+        />
+      </div>
+    </section>
+
+    <!-- Interactive Polygon Fence Editor Dialog -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="form.id ? '在真实校园地图编辑校区电子围栏' : '新增开放校区与电子围栏'"
+      width="740px"
+      destroy-on-close
+    >
       <el-form label-position="top">
         <div class="row-3">
           <el-form-item label="校区编码" required>
@@ -66,21 +129,36 @@
         </el-form-item>
 
         <!-- Interactive Map Polygon Fence Editor -->
-        <el-form-item label="真实校园地图可视化勾勒多边形电子围栏（点击地图依次追加围栏边界顶点或设中心）">
+        <el-form-item label="真实校园地图可视化勾勒多边形电子围栏">
           <div class="fence-editor-bar">
-            <el-radio-group v-model="mapPickMode" size="small">
-              <el-radio-button label="vertex">点击地图追加多边形顶点</el-radio-button>
-              <el-radio-button label="center">点击地图设置校区中心点</el-radio-button>
-            </el-radio-group>
+            <div class="xyf-segmented">
+              <button
+                type="button"
+                class="xyf-segmented__btn"
+                :class="{ 'is-active': mapPickMode === 'vertex' }"
+                @click="mapPickMode = 'vertex'"
+              >
+                点击地图追加多边形顶点
+              </button>
+              <button
+                type="button"
+                class="xyf-segmented__btn"
+                :class="{ 'is-active': mapPickMode === 'center' }"
+                @click="mapPickMode = 'center'"
+              >
+                点击地图设置校区中心点
+              </button>
+            </div>
+
             <div class="fence-btns">
-              <el-button size="small" @click="generateRectAroundCenter">按中心生成标准矩形围栏</el-button>
+              <el-button size="small" @click="generateRectAroundCenter">一键生成矩形围栏</el-button>
               <el-button size="small" :disabled="polygonVertices.length === 0" @click="undoLastVertex">撤销顶点</el-button>
-              <el-button size="small" type="danger" plain :disabled="polygonVertices.length === 0" @click="clearVertices">清空顶点</el-button>
+              <el-button size="small" type="danger" plain :disabled="polygonVertices.length === 0" @click="clearVertices">清空</el-button>
             </div>
           </div>
 
           <RealCampusMap
-            :height="300"
+            :height="290"
             :interactive="true"
             :latitude="form.centerLat"
             :longitude="form.centerLng"
@@ -89,12 +167,12 @@
             :center-lng="form.centerLng || 114.3562"
             :geofence-polygon="form.geofencePolygon"
             :fence-valid="true"
-            style="width: 100%; margin-top: 8px"
+            style="width: 100%; margin-top: 10px"
             @pick="handleMapClick"
           />
 
           <div class="vertex-summary xyf-mono">
-            当前已标定多边形顶点数：<strong>{{ polygonVertices.length }}</strong> 个（至少 3 个顶点构成闭合电子围栏，少于 3 个时自动按中心安全半径兜底）
+            已标定多边形顶点：<strong>{{ polygonVertices.length }}</strong> 个（满 3 个顶点构成闭合围栏，不足 3 个自动按中心安全半径兜底）
           </div>
         </el-form-item>
 
@@ -110,21 +188,18 @@
           </el-form-item>
         </div>
 
-        <el-form-item label="多边形电子围栏顶点 JSON（已与上方地图实时双向同步）">
-          <el-input
-            v-model="form.geofencePolygon"
-            type="textarea"
-            :rows="2"
-            placeholder="[[114.3465,30.5050],[114.3665,30.5050],[114.3665,30.5210],[114.3465,30.5210]]"
-          />
-        </el-form-item>
+        <div class="row-2">
+          <el-form-item label="多边形顶点 JSON（实时双向同步）">
+            <el-input v-model="form.geofencePolygon" placeholder="[[lng,lat],...]" />
+          </el-form-item>
 
-        <el-form-item label="开放状态">
-          <el-radio-group v-model="form.status">
-            <el-radio :label="1">正常开放</el-radio>
-            <el-radio :label="0">暂停开放</el-radio>
-          </el-radio-group>
-        </el-form-item>
+          <el-form-item label="开放状态">
+            <el-radio-group v-model="form.status">
+              <el-radio :label="1">正常开放运营</el-radio>
+              <el-radio :label="0">暂停开放</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -137,9 +212,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Refresh, Plus } from '@element-plus/icons-vue'
 import { adminListCampuses, adminSaveCampus, adminGetRevenueSummary } from '@/api/campus'
 import { notifyFallbackError } from '@/api/request'
 import type { CampusInfo } from '@/types/dict'
+import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
+import XyfStatTile from '@/components/ui/XyfStatTile.vue'
 import RealCampusMap from '@/components/business/RealCampusMap.vue'
 
 const loading = ref(false)
@@ -147,6 +225,9 @@ const saving = ref(false)
 const dialogVisible = ref(false)
 const mapPickMode = ref<'vertex' | 'center'>('vertex')
 const campuses = ref<CampusInfo[]>([])
+const selectedCampus = ref<CampusInfo | null>(null)
+const previewMapRef = ref<InstanceType<typeof RealCampusMap> | null>(null)
+
 const revenueSummary = ref({
   totalCommissionRevenue: 0,
   settledOrderCount: 0
@@ -176,6 +257,13 @@ const polygonVertices = computed<Array<[number, number]>>(() => {
   }
   return []
 })
+
+function selectCampusCard(item: CampusInfo) {
+  selectedCampus.value = item
+  if (item.centerLat && item.centerLng) {
+    previewMapRef.value?.focusCoordinate(item.centerLat, item.centerLng, 15)
+  }
+}
 
 function syncVerticesToJson(pts: Array<[number, number]>) {
   form.value.geofencePolygon = pts.length > 0 ? JSON.stringify(pts) : ''
@@ -220,6 +308,11 @@ async function loadData() {
     const [list, rev] = await Promise.all([adminListCampuses(), adminGetRevenueSummary()])
     campuses.value = list
     revenueSummary.value = rev
+    if (list.length > 0 && !selectedCampus.value) {
+      selectedCampus.value = list[0]
+    } else if (selectedCampus.value) {
+      selectedCampus.value = list.find(c => c.id === selectedCampus.value?.id) || list[0] || null
+    }
   } catch (err) {
     notifyFallbackError(err, '加载多校区与分账数据失败')
   } finally {
@@ -275,54 +368,120 @@ onMounted(loadData)
   gap: 18px;
 }
 
-.kpi-strip {
+.kpi-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+
+  @media (max-width: 820px) {
+    grid-template-columns: 1fr;
+  }
 }
 
-.kpi-card {
-  padding: 20px 22px;
-  border-radius: var(--xyf-radius-md);
-  background: #ffffff;
-  border: 1px solid var(--xyf-border);
+/* Master-Detail Spatial Workbench */
+.spatial-workbench {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.campus-list-col {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
+}
 
-  &--action {
-    flex-direction: row;
-    align-items: center;
+.campus-card {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: all var(--xyf-transition);
+
+  &:hover {
+    border-color: var(--xyf-border-strong);
+  }
+
+  &.is-selected {
+    border-color: #18181b;
+    box-shadow: 0 0 0 1px #18181b inset, var(--xyf-shadow-sm);
+  }
+
+  &__top {
+    display: flex;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
+    gap: 10px;
+
+    .c-code {
+      font-size: 11px;
+      color: var(--xyf-ink-3);
+    }
+
+    h3 {
+      margin: 2px 0 0;
+      font-size: 16px;
+      font-weight: 750;
+      color: var(--xyf-ink);
+    }
   }
 
-  .kpi-label {
-    font-size: 12.5px;
-    color: var(--xyf-ink-muted);
-    font-weight: 600;
-  }
-
-  .kpi-value {
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--xyf-ink);
-  }
-
-  .kpi-desc {
-    margin: 4px 0 0;
+  &__meta {
+    display: flex;
+    gap: 6px;
     font-size: 12.5px;
     color: var(--xyf-ink-2);
   }
+
+  &__foot {
+    padding-top: 10px;
+    border-top: 1px solid var(--xyf-border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    .edu-domain {
+      font-size: 11.5px;
+      color: var(--xyf-ink-3);
+    }
+  }
 }
 
-.table-card {
-  padding: 18px;
+.map-stage-col {
+  padding: 20px 22px;
+}
+
+.map-stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+
+  h3 {
+    margin: 3px 0 0;
+    font-size: 17px;
+    font-weight: 750;
+    color: var(--xyf-ink);
+  }
 }
 
 .row-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.row-2 {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
   gap: 12px;
 }
 
@@ -344,11 +503,12 @@ onMounted(loadData)
 .vertex-summary {
   margin-top: 8px;
   font-size: 12px;
-  color: var(--xyf-ink-muted);
+  color: var(--xyf-ink-3);
 }
 
 @media (max-width: 768px) {
-  .row-3 {
+  .row-3,
+  .row-2 {
     grid-template-columns: 1fr;
   }
 }

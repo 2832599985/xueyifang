@@ -1,10 +1,10 @@
 /**
  * Unified Element Plus component theme polish
- * Eliminates repetitive per-view `:deep(...)` overrides.
+ * Eliminates repetitive per-view `:deep(...)` overrides and enforces Monochrome Editorial quality.
  */
 
 .el-button {
-  font-weight: 500;
+  font-weight: 550;
   border-radius: 10px;
   letter-spacing: -0.005em;
   transition: all var(--xyf-transition);
@@ -100,31 +100,47 @@
 .el-dialog {
   border-radius: var(--xyf-radius-lg) !important;
   border: 1px solid var(--xyf-border);
-  box-shadow: var(--xyf-shadow-md) !important;
+  box-shadow: var(--xyf-shadow-lg) !important;
   overflow: hidden;
 
   .el-dialog__header {
-    padding: 18px 24px;
+    padding: 20px 26px 18px;
     margin-right: 0;
     border-bottom: 1px solid var(--xyf-border-subtle);
-    background: var(--xyf-surface-soft);
+    background: #ffffff;
   }
 
   .el-dialog__title {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
     color: var(--xyf-ink);
   }
 
   .el-dialog__body {
-    padding: 22px 24px;
+    padding: 22px 26px;
     color: var(--xyf-ink-2);
   }
 
   .el-dialog__footer {
-    padding: 14px 24px 18px;
+    padding: 14px 26px 18px;
     border-top: 1px solid var(--xyf-border-subtle);
     background: var(--xyf-surface-soft);
+  }
+}
+
+.el-drawer {
+  .el-drawer__header {
+    margin-bottom: 0;
+    padding: 20px 24px 18px;
+    border-bottom: 1px solid var(--xyf-border-subtle);
+    color: var(--xyf-ink);
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  .el-drawer__body {
+    padding: 22px 24px;
   }
 }
 
@@ -147,20 +163,23 @@
 }
 
 .el-table {
-  --el-table-header-bg-color: var(--xyf-surface-soft);
+  --el-table-header-bg-color: #fafafa;
   --el-table-header-text-color: var(--xyf-ink-2);
-  --el-table-row-hover-bg-color: #f7f7f8;
+  --el-table-row-hover-bg-color: #f8f8fa;
   --el-table-border-color: var(--xyf-border-subtle);
   border-radius: var(--xyf-radius-sm);
   overflow: hidden;
 
   th.el-table__cell {
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12.5px;
+    letter-spacing: 0.01em;
+    padding: 12px 0;
   }
 
   td.el-table__cell {
     font-size: 13.5px;
+    padding: 13px 0;
   }
 }
 
@@ -203,10 +222,10 @@
 }
 
 .el-message-box {
-  border-radius: 16px !important;
+  border-radius: 18px !important;
   border: 1px solid var(--xyf-border) !important;
   box-shadow: var(--xyf-shadow-lg) !important;
-  padding: 20px !important;
+  padding: 22px !important;
 
   .el-message-box__status {
     &.el-icon--success,
@@ -280,7 +299,7 @@
   padding: 6px !important;
 
   .el-dropdown-menu__item {
-    border-radius: var(--xyf-radius-xs);
+    border-radius: 8px;
     padding: 8px 14px;
     font-size: 13.5px;
 
@@ -292,7 +311,7 @@
 }
 
 .el-alert {
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   border: 1px solid var(--xyf-border) !important;
   background-color: #f7f7f8 !important;
   color: var(--xyf-ink) !important;
@@ -329,15 +348,52 @@
   }
 }
 
+/* Refined Commercial Tags */
 .el-tag {
   --el-tag-bg-color: #f4f4f5;
   --el-tag-border-color: #e4e4e7;
   --el-tag-text-color: #18181b;
-  border-radius: 6px;
+  border-radius: 999px;
+  font-weight: 550;
+  padding: 0 10px;
+
+  &--success {
+    --el-tag-bg-color: #f2fbf5;
+    --el-tag-border-color: #ccebd7;
+    --el-tag-text-color: #15803d;
+
+    &.el-tag--dark {
+      --el-tag-bg-color: #18181b;
+      --el-tag-border-color: #18181b;
+      --el-tag-text-color: #ffffff;
+    }
+  }
+
+  &--warning {
+    --el-tag-bg-color: #faf6ef;
+    --el-tag-border-color: #e8dac4;
+    --el-tag-text-color: #9a5b13;
+
+    &.el-tag--dark {
+      --el-tag-bg-color: #b45309;
+      --el-tag-border-color: #b45309;
+      --el-tag-text-color: #ffffff;
+    }
+  }
+
+  &--danger {
+    --el-tag-bg-color: #fef2f2;
+    --el-tag-border-color: #f5caca;
+    --el-tag-text-color: #b91c1c;
+  }
 }
 
 .el-switch {
   --el-switch-on-color: #18181b;
+}
+
+.el-slider {
+  --el-slider-main-bg-color: #18181b;
 }
 
 @media (max-width: 640px) {

@@ -519,12 +519,12 @@ onUnmounted(() => {
   }
 
   &.is-ready {
-    background: #ecfdf5;
-    border-color: #a7f3d0;
+    background: #faf6ef;
+    border-color: #e8dac4;
     color: #065f46;
 
     .gps-dot {
-      background: #10b981;
+      background: #18181b;
     }
   }
 

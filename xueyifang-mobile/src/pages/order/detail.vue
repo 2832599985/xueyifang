@@ -183,8 +183,8 @@ onShow(refreshAll)
   background: #fef3c7;
   color: #b45309;
   &.locked {
-    background: #ecfdf5;
-    color: #047857;
+    background: #faf6ef;
+    color: #9a5b13;
   }
 }
 .spot-box {

@@ -2,87 +2,107 @@
   <section class="xyf-surface-card meetup-proposal-card">
     <div class="head-row">
       <div>
-        <h2>线下会面位置双向确认</h2>
-        <p class="sub-text">
-          买卖双方均可在真实校园地图上标记会面点与有效核销半径，对方同意后正式锁定并执行当面围栏半径强校验
-        </p>
+        <span class="xyf-kicker">CAMPUS MEETUP CHECKPOINT</span>
+        <h2>校内当面交接点与电子围栏协商</h2>
       </div>
       <XyfStatusBadge
         :tone="order.meetupConfirmed === 1 ? 'success' : 'warning'"
-        :label="order.meetupConfirmed === 1 ? '双方已确认锁定' : '待双方协商锁定'"
+        :label="order.meetupConfirmed === 1 ? '双方已确认锁定' : '支持双向协商改点'"
       />
     </div>
 
-    <!-- Current Agreed Coordinates -->
-    <div class="current-spot-box">
-      <div class="spot-main">
-        <span class="spot-kicker">当前约定会面点</span>
-        <strong>{{ order.meetupPoiName || order.tradeLocationName || '暂未指定校内坐标' }}</strong>
-        <p v-if="order.meetupAddress">{{ order.meetupAddress }}</p>
-        <div class="spot-meta xyf-mono" v-if="order.meetupLat && order.meetupLng">
-          <span>坐标：{{ Number(order.meetupLat).toFixed(6) }}, {{ Number(order.meetupLng).toFixed(6) }}</span>
-          <span>· 有效核销范围：{{ effectiveRadiusMeters }} 米内</span>
-          <span v-if="order.scheduledStart">· 约定时间：{{ formatDateTime(order.scheduledStart) }}</span>
+    <!-- 2-Column Split: Mini Live Map Preview + Agreed Checkpoint Info -->
+    <div class="checkpoint-split" :class="{ 'has-map': Boolean(order.meetupLat && order.meetupLng) }">
+      <div v-if="order.meetupLat && order.meetupLng" class="mini-map-col">
+        <RealCampusMap
+          :height="168"
+          :interactive="false"
+          :latitude="Number(order.meetupLat)"
+          :longitude="Number(order.meetupLng)"
+          :radius-meters="effectiveRadiusMeters"
+          :center-lat="Number(order.meetupLat)"
+          :center-lng="Number(order.meetupLng)"
+          :fence-valid="true"
+        />
+      </div>
+
+      <div class="spot-detail-col">
+        <div class="spot-main">
+          <span class="spot-lbl">当前约定交接地标</span>
+          <strong class="spot-title">
+            {{ order.meetupPoiName || order.tradeLocationName || '暂未标定校内坐标' }}
+          </strong>
+          <p v-if="order.meetupAddress" class="spot-addr">{{ order.meetupAddress }}</p>
+        </div>
+
+        <div class="spot-chips xyf-tabular">
+          <span class="s-chip">核销有效半径 {{ effectiveRadiusMeters }}m</span>
+          <span v-if="order.scheduledStart" class="s-chip">
+            约定时间 {{ formatDateTime(order.scheduledStart).slice(0, 16) }}
+          </span>
+        </div>
+
+        <div v-if="canNegotiate" class="spot-actions">
+          <el-button plain size="small" @click="openProposeDialog">
+            发起改点 / 改期提案
+          </el-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Pending Proposal Diff Banner -->
+    <div v-if="pendingProposal" class="proposal-diff-bar">
+      <div class="proposal-diff-bar__info">
+        <span class="diff-badge">新位置协商提案</span>
+        <div>
+          <strong>
+            {{ pendingProposal.proposerRole === 1 ? '买方' : '卖方' }}（{{ pendingProposal.proposerName }}）提议改至「{{ pendingProposal.poiName }}」
+            <span v-if="pendingProposal.radiusMeters" class="xyf-tabular">（{{ pendingProposal.radiusMeters }}m 围栏）</span>
+          </strong>
+          <p v-if="pendingProposal.detailAddress || pendingProposal.remark">
+            {{ pendingProposal.detailAddress }}
+            <template v-if="pendingProposal.remark"> · 备注：{{ pendingProposal.remark }}</template>
+          </p>
         </div>
       </div>
 
-      <el-button
-        v-if="canNegotiate"
-        plain
-        size="small"
-        @click="openProposeDialog"
-      >
-        发起新位置/改期提案
-      </el-button>
-    </div>
-
-    <!-- Active Pending Proposal Banner -->
-    <div v-if="pendingProposal" class="pending-proposal-alert">
-      <div class="pending-info">
-        <span class="badge-pill">待确认新提案</span>
-        <strong>
-          {{ pendingProposal.proposerRole === 1 ? '买家' : '卖家' }}（{{ pendingProposal.proposerName }}）提议改至「{{ pendingProposal.poiName }}」
-          <span v-if="pendingProposal.radiusMeters">（{{ pendingProposal.radiusMeters }} 米内有效）</span>
-        </strong>
-        <p v-if="pendingProposal.detailAddress">具体方位：{{ pendingProposal.detailAddress }}</p>
-        <p v-if="pendingProposal.remark">协商留言：{{ pendingProposal.remark }}</p>
-      </div>
-
-      <div v-if="pendingProposal.proposerId !== currentUserId" class="pending-actions">
-        <el-button size="small" type="danger" plain :loading="submitting" @click="handleRespond(pendingProposal.id, false)">
+      <div v-if="pendingProposal.proposerId !== currentUserId" class="proposal-diff-bar__btns">
+        <el-button size="small" plain :loading="submitting" @click="handleRespond(pendingProposal.id, false)">
           婉拒重选
         </el-button>
         <el-button size="small" type="primary" :loading="submitting" @click="handleRespond(pendingProposal.id, true)">
           同意并锁定该位置
         </el-button>
       </div>
-      <span v-else class="waiting-tag">等待对方确认中...</span>
+      <span v-else class="waiting-pill">等待对方确认...</span>
     </div>
 
     <!-- Propose Dialog -->
-    <el-dialog v-model="proposeDialogVisible" title="在真实校园地图上提议新会面地点" width="600px">
+    <el-dialog v-model="proposeDialogVisible" title="在真实校园地图提议新会面地点" width="640px">
       <CampusMapPicker
         :campus-id="order.campusId || 1"
         v-model="draftLocation"
         @fence-change="val => (isFenceOk = val)"
       />
       <el-form label-position="top" style="margin-top: 14px">
-        <el-form-item label="提议会面时间（选填）">
-          <el-date-picker
-            v-model="draftTime"
-            type="datetime"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            placeholder="选择期望碰面时间"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="给对方的协商说明（选填）">
-          <el-input
-            v-model="draftRemark"
-            maxlength="120"
-            placeholder="例如：刚下高数课在南区，我们在图书馆一楼监控区 60 米内碰面可以吗？"
-          />
-        </el-form-item>
+        <div class="form-2col">
+          <el-form-item label="提议会面时间（选填）">
+            <el-date-picker
+              v-model="draftTime"
+              type="datetime"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              placeholder="选择期望碰面时间"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="给对方的协商留言（选填）">
+            <el-input
+              v-model="draftRemark"
+              maxlength="120"
+              placeholder="如：刚下课在南区，改到图书馆一楼方便吗？"
+            />
+          </el-form-item>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="proposeDialogVisible = false">取消</el-button>
@@ -107,6 +127,7 @@ import { notifyFallbackError } from '@/api/request'
 import { formatDateTime } from '@/utils/format'
 import { OrderStatus, type OrderDetail, type MeetupProposal } from '@/types/order'
 import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
+import RealCampusMap from './RealCampusMap.vue'
 import CampusMapPicker, { type MapLocationValue } from './CampusMapPicker.vue'
 
 const props = defineProps<{
@@ -228,7 +249,7 @@ onMounted(loadProposals)
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .head-row {
@@ -238,100 +259,135 @@ onMounted(loadProposals)
   gap: 12px;
 
   h2 {
-    margin: 0 0 4px;
-    font-size: 16px;
-    font-weight: 700;
+    margin: 3px 0 0;
+    font-size: 16.5px;
+    font-weight: 750;
     color: var(--xyf-ink);
-  }
-
-  .sub-text {
-    margin: 0;
-    font-size: 12.5px;
-    color: var(--xyf-ink-muted);
   }
 }
 
-.current-spot-box {
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border);
-  display: flex;
-  justify-content: space-between;
+.checkpoint-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
   align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
 
-  .spot-kicker {
+  &.has-map {
+    grid-template-columns: 280px minmax(0, 1fr);
+
+    @media (max-width: 720px) {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+.spot-detail-col {
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--xyf-surface-soft);
+  border: 1px solid var(--xyf-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .spot-lbl {
     display: block;
     font-size: 11.5px;
-    color: var(--xyf-ink-muted);
-    margin-bottom: 3px;
+    color: var(--xyf-ink-3);
   }
 
-  strong {
-    font-size: 15px;
+  .spot-title {
+    display: block;
+    margin-top: 2px;
+    font-size: 17px;
+    font-weight: 750;
     color: var(--xyf-ink);
   }
 
-  p {
+  .spot-addr {
     margin: 4px 0 0;
     font-size: 13px;
     color: var(--xyf-ink-2);
   }
 
-  .spot-meta {
-    margin-top: 6px;
-    font-size: 12px;
-    color: var(--xyf-ink-muted);
+  .spot-chips {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+
+    .s-chip {
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: #ffffff;
+      border: 1px solid var(--xyf-border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--xyf-ink-2);
+    }
   }
 }
 
-.pending-proposal-alert {
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
+.proposal-diff-bar {
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--xyf-champagne-soft);
+  border: 1px solid var(--xyf-champagne-border);
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   gap: 14px;
   flex-wrap: wrap;
 
-  .badge-pill {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: #f59e0b;
-    color: #ffffff;
-    font-size: 11px;
+  &__info {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex: 1;
+    min-width: 240px;
+
+    .diff-badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #18181b;
+      color: #e5c79e;
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+
+    strong {
+      display: block;
+      font-size: 13.5px;
+      color: var(--xyf-ink);
+    }
+
+    p {
+      margin: 3px 0 0;
+      font-size: 12.5px;
+      color: var(--xyf-ink-2);
+    }
+  }
+
+  &__btns {
+    display: flex;
+    gap: 8px;
+  }
+
+  .waiting-pill {
+    font-size: 12px;
     font-weight: 600;
-    margin-right: 8px;
-  }
-
-  strong {
-    font-size: 13.5px;
-    color: #78350f;
-  }
-
-  p {
-    margin: 4px 0 0;
-    font-size: 12.5px;
-    color: #92400e;
-  }
-
-  .waiting-tag {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: #b45309;
+    color: #9a5b13;
   }
 }
 
-.pending-actions {
-  display: flex;
-  gap: 8px;
+.form-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
