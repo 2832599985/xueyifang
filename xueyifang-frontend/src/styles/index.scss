@@ -93,14 +93,22 @@ a {
   align-items: center;
   gap: 10px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--xyf-ink);
   margin: 0 0 16px;
+
+  h2,
+  h3 {
+    margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
+  }
 
   &::before {
     content: '';
     width: 3px;
-    height: 16px;
+    height: 15px;
     border-radius: 2px;
     background: var(--xyf-primary);
     flex-shrink: 0;
@@ -127,9 +135,10 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--xyf-ink-3);
 }
 
@@ -148,6 +157,68 @@ a {
   text-overflow: ellipsis;
 }
 
+/* Commercial Segmented Pill Control (Linear / Apple style) */
+.xyf-segmented {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--xyf-surface-muted);
+  border: 1px solid var(--xyf-border-subtle);
+  gap: 2px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  &__btn {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: var(--xyf-ink-2);
+    font-size: 13px;
+    font-weight: 550;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--xyf-transition);
+
+    &:hover {
+      color: var(--xyf-ink);
+    }
+
+    &.is-active {
+      background: #ffffff;
+      color: var(--xyf-ink);
+      font-weight: 650;
+      box-shadow: 0 1px 3px rgba(9, 9, 11, 0.08), 0 1px 1px rgba(9, 9, 11, 0.04);
+    }
+  }
+
+  &__count {
+    font-size: 11px;
+    font-weight: 650;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(24, 24, 27, 0.07);
+    color: var(--xyf-ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__btn.is-active &__count {
+    background: var(--xyf-ink);
+    color: #ffffff;
+  }
+}
+
 /* Filter Pill Chips */
 .xyf-chip-group {
   display: flex;
@@ -163,17 +234,18 @@ a {
   border-radius: var(--xyf-radius-pill);
   font-size: 13px;
   font-weight: 500;
+  font-family: inherit;
   color: var(--xyf-ink-2);
-  background: var(--xyf-surface-muted);
-  border: 1px solid transparent;
+  background: var(--xyf-surface-soft);
+  border: 1px solid var(--xyf-border);
   cursor: pointer;
   user-select: none;
   transition: all var(--xyf-transition);
 
   &:hover {
     color: var(--xyf-primary);
-    background: var(--xyf-primary-soft);
-    border-color: var(--xyf-primary-border);
+    background: #ffffff;
+    border-color: var(--xyf-border-strong);
   }
 
   &.is-active {
@@ -202,6 +274,7 @@ a {
     padding: 11px 16px;
     font-size: 14px;
     font-weight: 500;
+    font-family: inherit;
     color: var(--xyf-ink-2);
     background: transparent;
     border: none;
@@ -215,7 +288,7 @@ a {
 
     &.is-active {
       color: var(--xyf-primary);
-      font-weight: 600;
+      font-weight: 650;
 
       &::after {
         content: '';
@@ -223,10 +296,20 @@ a {
         left: 12px;
         right: 12px;
         bottom: -1px;
-        height: 2.5px;
+        height: 2px;
         border-radius: 2px 2px 0 0;
         background: var(--xyf-primary);
       }
     }
   }
+}
+
+/* Subtle Live Status Pulse Dot */
+.xyf-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #15803d;
+  display: inline-block;
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.14);
 }

@@ -220,14 +220,14 @@ onLoad(async (query) => {
   .pick-cta {
     font-size: 25rpx;
     font-weight: 600;
-    color: #059669;
+    color: #18181b;
   }
 }
 .fence-status {
   display: block;
   margin-top: 12rpx;
   font-size: 22rpx;
-  color: #059669;
+  color: #18181b;
   &.is-err {
     color: #dc2626;
   }

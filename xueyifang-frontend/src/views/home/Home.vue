@@ -28,28 +28,63 @@
       </div>
 
       <div class="xyf-container hero-content">
-        <h1 class="hero-title">找到身边的校园行家</h1>
-        <p class="hero-subtitle">实名同学 · 资金担保 · 满意再放款</p>
+        <div class="hero-eyebrow">
+          <span class="hero-eyebrow__dot" />
+          <span>高校 .edu.cn 实名认证 · 电子围栏当面核销 · 平台全额担保</span>
+        </div>
 
-        <form class="capsule-search" @submit.prevent="handleSearch()">
-          <el-icon class="capsule-search__icon"><Search /></el-icon>
-          <input
-            v-model="keyword"
-            type="text"
-            class="capsule-search__input"
-            placeholder="搜索胶片约拍、毕设辅导、PPT 重塑、笔记本清灰..."
-          />
-          <button
-            v-if="keyword"
-            type="button"
-            class="capsule-search__clear"
-            aria-label="清空搜索"
-            @click="keyword = ''"
-          >
-            <el-icon><Close /></el-icon>
-          </button>
-          <button type="submit" class="capsule-search__submit">搜索</button>
-        </form>
+        <h1 class="hero-title">找到身边的校园行家</h1>
+        <p class="hero-subtitle">标准化技能橱窗 · 反向悬赏急单 · 多人阶梯拼班</p>
+
+        <!-- Multi-Scope Commercial Search Capsule -->
+        <div class="search-dock">
+          <div class="search-scopes" role="tablist" aria-label="搜索模式">
+            <button
+              type="button"
+              class="scope-pill"
+              :class="{ 'is-active': searchScope === 'services' }"
+              @click="searchScope = 'services'"
+            >
+              找技能服务
+            </button>
+            <button
+              type="button"
+              class="scope-pill"
+              :class="{ 'is-active': searchScope === 'demands' }"
+              @click="searchScope = 'demands'"
+            >
+              接悬赏急单
+            </button>
+            <button
+              type="button"
+              class="scope-pill"
+              :class="{ 'is-active': searchScope === 'groups' }"
+              @click="searchScope = 'groups'"
+            >
+              报拼班小班
+            </button>
+          </div>
+
+          <form class="capsule-search" @submit.prevent="handleSearch()">
+            <el-icon class="capsule-search__icon"><Search /></el-icon>
+            <input
+              v-model="keyword"
+              type="text"
+              class="capsule-search__input"
+              :placeholder="scopePlaceholder"
+            />
+            <button
+              v-if="keyword"
+              type="button"
+              class="capsule-search__clear"
+              aria-label="清空搜索"
+              @click="keyword = ''"
+            >
+              <el-icon><Close /></el-icon>
+            </button>
+            <button type="submit" class="capsule-search__submit">探索</button>
+          </form>
+        </div>
 
         <div class="hero-hot-queries">
           <button
@@ -75,7 +110,7 @@
       <div class="horizontal-sticky">
         <div class="xyf-container showcase-header">
           <div class="showcase-header__left">
-            <h2 class="showcase-heading">精选技能</h2>
+            <h2 class="showcase-heading">精选技能橱窗</h2>
             <div class="category-tabs" role="tablist" aria-label="服务分类筛选">
               <button
                 type="button"
@@ -217,6 +252,158 @@
       </div>
     </section>
 
+    <!-- 2.5 Live Campus Commercial Ecosystem Bento Matrix (Bounties + Co-Learning + Top Creators) -->
+    <section class="ecosystem-section">
+      <div class="xyf-container">
+        <div class="eco-head">
+          <div>
+            <span class="xyf-kicker">LIVE CAMPUS MARKETPLACE</span>
+            <h2 class="eco-title">实时校园协作矩阵</h2>
+          </div>
+          <p class="eco-sub">找不到现成服务？发悬赏让全校行家主动报价，或加入多人阶梯小班平摊课时费。</p>
+        </div>
+
+        <div class="eco-bento">
+          <!-- Left Tall Card: C2B Reverse Bounties -->
+          <div class="xyf-surface-card bento-panel bento-panel--bounty">
+            <div class="bento-panel__head">
+              <div>
+                <span class="bento-tag">C2B 反向定制</span>
+                <h3>校内悬赏急单榜</h3>
+              </div>
+              <div class="bento-head-actions">
+                <button
+                  type="button"
+                  class="bento-ghost-btn"
+                  @click="router.push('/demands?compose=1')"
+                >
+                  + 发悬赏
+                </button>
+                <router-link to="/demands" class="bento-more">
+                  全部 <el-icon><ArrowRight /></el-icon>
+                </router-link>
+              </div>
+            </div>
+
+            <div v-if="liveDemands.length === 0" class="bento-empty">
+              <p>当前暂无招募中的校内悬赏，立即发布第一条定制需求。</p>
+              <el-button size="small" type="primary" @click="router.push('/demands?compose=1')">
+                发布悬赏需求
+              </el-button>
+            </div>
+
+            <div v-else class="bounty-feed">
+              <div
+                v-for="d in liveDemands"
+                :key="d.id"
+                class="bounty-mini-ticket"
+                @click="router.push(`/demands/${d.id}`)"
+              >
+                <div class="bounty-mini-ticket__left">
+                  <div class="bounty-mini-meta">
+                    <span class="u-dot" :class="`is-u${d.urgencyLevel}`" />
+                    <span class="u-txt">
+                      {{ d.urgencyLevel === 3 ? '十万火急' : d.urgencyLevel === 2 ? '加急' : '常规' }}
+                    </span>
+                    <span class="sep">·</span>
+                    <span>{{ d.campusName || '主校区' }}</span>
+                    <span v-if="d.meetupPoiName" class="sep">·</span>
+                    <span v-if="d.meetupPoiName" class="ellipsis">{{ d.meetupPoiName }}</span>
+                  </div>
+                  <h4 class="ellipsis">{{ d.title }}</h4>
+                </div>
+
+                <div class="bounty-mini-ticket__right xyf-tabular">
+                  <strong>¥{{ Number(d.budgetMin).toFixed(0) }}-{{ Number(d.budgetMax).toFixed(0) }}</strong>
+                  <span>{{ d.bidCount || 0 }} 人竞标</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Stack: Group Sessions + Top Creators -->
+          <div class="bento-stack">
+            <!-- Top Card: Tiered Group Sessions -->
+            <div class="xyf-surface-card bento-panel">
+              <div class="bento-panel__head">
+                <div>
+                  <span class="bento-tag is-amber">阶梯自动退差价</span>
+                  <h3>近期拼班小班课</h3>
+                </div>
+                <router-link to="/groups" class="bento-more">
+                  团课大厅 <el-icon><ArrowRight /></el-icon>
+                </router-link>
+              </div>
+
+              <div v-if="liveSessions.length === 0" class="bento-empty is-compact">
+                <p>暂无招募中的拼班课程，认证创作者可发起期末冲刺或实战小班。</p>
+              </div>
+
+              <div v-else class="session-mini-list">
+                <div
+                  v-for="s in liveSessions"
+                  :key="s.id"
+                  class="session-mini-row"
+                  @click="router.push(`/groups/${s.id}`)"
+                >
+                  <div class="date-cube xyf-tabular">
+                    <span class="date-cube__m">{{ formatMonthLabel(s.sessionStart) }}</span>
+                    <strong class="date-cube__d">{{ formatDayLabel(s.sessionStart) }}</strong>
+                  </div>
+                  <div class="session-mini-body">
+                    <h4 class="ellipsis">{{ s.title }}</h4>
+                    <div class="session-mini-sub xyf-tabular">
+                      <span>已报 {{ s.joinedCount }}/{{ s.maxParticipants }} 人</span>
+                      <span>·</span>
+                      <span class="tier-highlight">满{{ s.tierTargetCount }}人降至 ¥{{ Number(s.tierDiscountPrice).toFixed(0) }}</span>
+                    </div>
+                  </div>
+                  <div class="session-mini-price xyf-tabular">
+                    ¥{{ Number(s.currentUnitPrice || s.basePrice).toFixed(0) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bottom Card: Hall of Fame Creators -->
+            <div class="xyf-surface-card bento-panel">
+              <div class="bento-panel__head">
+                <div>
+                  <span class="bento-tag">数字信用背书</span>
+                  <h3>标杆创作者席位</h3>
+                </div>
+                <router-link to="/leaderboard" class="bento-more">
+                  完整榜单 <el-icon><ArrowRight /></el-icon>
+                </router-link>
+              </div>
+
+              <div v-if="topCreators.length === 0" class="bento-empty is-compact">
+                <p>实名创作者榜单加载中，点击查看全部校内行家。</p>
+              </div>
+
+              <div v-else class="creator-mini-strip">
+                <div
+                  v-for="c in topCreators"
+                  :key="c.userId"
+                  class="creator-mini-chip"
+                  @click="router.push(`/creators/${c.userId}`)"
+                >
+                  <div class="creator-mini-avatar">
+                    <XyfAvatar :src="c.avatar" :name="c.displayName" :size="40" />
+                    <span class="rank-corner xyf-tabular">{{ c.rank }}</span>
+                  </div>
+                  <div class="creator-mini-info">
+                    <strong class="ellipsis">{{ c.displayName }}</strong>
+                    <span class="ellipsis">{{ c.professionalName || c.creatorLevelTitle }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- 3. Ultra-Minimal Trust Strip with Bespoke Animated SVG Icons -->
     <section class="trust-section">
       <div class="xyf-container trust-grid">
@@ -228,8 +415,8 @@
               <path d="M17.5 22L20.5 25L26.8 18.6" stroke="#18181B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-check-pulse" />
             </svg>
           </div>
-          <h3>学号实名认证</h3>
-          <p>校内身份核验，履约评价透明</p>
+          <h3>高校双核实名</h3>
+          <p>学号与 .edu.cn 教育邮箱双重核验，履约信用分全程公开</p>
         </div>
 
         <div class="trust-col">
@@ -241,8 +428,8 @@
               <circle cx="22" cy="27" r="5" stroke="rgba(217,119,6,0.35)" stroke-width="1.2" class="svg-ripple" />
             </svg>
           </div>
-          <h3>平台资金托管</h3>
-          <p>付款先行冻结，满意再确认结算</p>
+          <h3>里程碑担保托管</h3>
+          <p>支持整单或分阶段托管冻结，验收通过再释放资金</p>
         </div>
 
         <div class="trust-col">
@@ -254,8 +441,8 @@
               <circle cx="31.5" cy="14.5" r="2.4" fill="#D97706" class="svg-core-glow" />
             </svg>
           </div>
-          <h3>灵活校内交付</h3>
-          <p>线上交付或图书馆、体育馆当面完成</p>
+          <h3>电子围栏当面核销</h3>
+          <p>真实校园地图米级选点，10s 动态码与蓝牙近场防伪交接</p>
         </div>
       </div>
     </section>
@@ -266,12 +453,17 @@
         <div class="creator-card">
           <div>
             <h2>也有一技之长？</h2>
-            <p>两分钟发布你的校园服务，自由定价，按单结算。</p>
+            <p>开通创作者工作室，上架标准服务、参与高额悬赏竞标或发起多人拼班团课。</p>
           </div>
-          <button type="button" class="creator-cta-btn" @click="handlePublishEntry">
-            {{ publishActionText }}
-            <el-icon><ArrowRight /></el-icon>
-          </button>
+          <div class="creator-cta-group">
+            <button type="button" class="creator-cta-ghost" @click="router.push('/demands')">
+              浏览悬赏大厅
+            </button>
+            <button type="button" class="creator-cta-btn" @click="handlePublishEntry">
+              {{ publishActionText }}
+              <el-icon><ArrowRight /></el-icon>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -291,7 +483,11 @@ import {
 import { useDictStore } from '@/stores/dict'
 import { useUserStore } from '@/stores/user'
 import { getServiceList, buildImageUrl } from '@/api/service'
+import { listDemands } from '@/api/demand'
+import { listGroupSessions, type GroupSessionItem } from '@/api/groupSession'
+import { getCreatorLeaderboard, type CreatorLeaderboardItem } from '@/api/leaderboard'
 import type { ServiceListItem } from '@/types/service'
+import type { DemandItem } from '@/types/demand'
 import CampusAmbientCanvas from '@/components/home/CampusAmbientCanvas.vue'
 import XyfImage from '@/components/ui/XyfImage.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
@@ -301,19 +497,34 @@ const router = useRouter()
 const dictStore = useDictStore()
 const userStore = useUserStore()
 
+const searchScope = ref<'services' | 'demands' | 'groups'>('services')
 const keyword = ref('')
 const activeTagId = ref<number | undefined>(undefined)
 const servicesLoading = ref(false)
 const services = ref<ServiceListItem[]>([])
 const totalServiceCount = ref(0)
 
-const hotQueries = ['胶片约拍', '全栈辅导', '笔记本清灰', '路演PPT', '羽毛球陪练']
+const liveDemands = ref<DemandItem[]>([])
+const liveSessions = ref<GroupSessionItem[]>([])
+const topCreators = ref<CreatorLeaderboardItem[]>([])
+
+const hotQueries = ['胶片约拍', '全栈辅导', '笔记本清灰', '路演PPT', '高数突击']
 const tags = computed(() => dictStore.serviceTags || [])
+
+const scopePlaceholder = computed(() => {
+  if (searchScope.value === 'demands') {
+    return '搜索正在招募的校内悬赏急单（如 STM32 联调、考前突击、跟拍）...'
+  }
+  if (searchScope.value === 'groups') {
+    return '搜索近期开班的多人阶梯团课（如 线代冲刺、算法集训、建模）...'
+  }
+  return '搜索胶片约拍、毕设辅导、PPT 重塑、笔记本清灰...'
+})
 
 const publishActionText = computed(() => {
   if (!userStore.isLogin) return '成为创作者'
-  if (userStore.isAdmin) return '返回管理后台'
-  return userStore.hasPublishPermission ? '立即发布服务' : '申请发布权限'
+  if (userStore.isAdmin) return '进入治理后台'
+  return userStore.hasPublishPermission ? '立即发布服务' : '申请创作者认证'
 })
 
 // ==================== Hero Peripheral Parallax Works ====================
@@ -356,8 +567,8 @@ const viewportRef = ref<HTMLElement | null>(null)
 const trackRef = ref<HTMLElement | null>(null)
 
 const isDesktopMotion = ref(true)
-const scrollProgress = ref(0) // 0..1 vertical-scroll coupled progress
-const manualBias = ref(0) // arrow/wheel manual offset (-1..1)
+const scrollProgress = ref(0)
+const manualBias = ref(0)
 let targetProgress = 0
 let targetBias = 0
 let rafId = 0
@@ -398,7 +609,6 @@ function getCardDynamicStyle(index: number) {
   const cardCenterX = currentTranslateX.value + index * stride + CARD_WIDTH / 2
   const viewportCenterX = viewportWidth.value / 2
   const distance = Math.abs(cardCenterX - viewportCenterX) / stride
-  // Center card gently lifts to 1.04x; neighbors recede smoothly
   const clamped = Math.min(distance, 2.2)
   const scale = 1.045 - clamped * 0.052
   const opacity = 1 - Math.min(distance, 2.6) * 0.1
@@ -415,7 +625,6 @@ function measureTrack() {
   isDesktopMotion.value = window.innerWidth >= 960
   if (!isDesktopMotion.value) return
   const vw = viewportRef.value?.clientWidth || window.innerWidth
-  // Align card #1 cleanly with the left container margin so 3 cards greet the viewer immediately
   const containerLeft = Math.max(32, Math.round((vw - 1280) / 2 + 28))
   startInset.value = containerLeft
   const totalTrackW =
@@ -428,7 +637,6 @@ function updateScrollTarget() {
   if (!isDesktopMotion.value || !runwayRef.value) return
   const rect = runwayRef.value.getBoundingClientRect()
   const vh = window.innerHeight
-  // Active while scrolling naturally past the section ("边滚边往下走" — zero sticky lock!)
   const enterY = vh * 0.9
   const leaveY = -rect.height * 0.72
   const span = enterY - leaveY
@@ -477,20 +685,44 @@ function scrollToShowcase() {
   })
 }
 
-// ==================== Actions & Data ====================
+// ==================== Helpers & Data ====================
 function formatCleanPrice(val: number | string) {
   const num = Number(val)
   if (Number.isNaN(num)) return '¥0'
   return Number.isInteger(num) ? `¥${num}` : `¥${num.toFixed(2)}`
 }
 
+function formatMonthLabel(dt?: string) {
+  if (!dt) return '近期'
+  const d = new Date(dt)
+  return Number.isNaN(d.getTime()) ? '近期' : `${d.getMonth() + 1}月`
+}
+
+function formatDayLabel(dt?: string) {
+  if (!dt) return '--'
+  const d = new Date(dt)
+  return Number.isNaN(d.getTime()) ? '--' : String(d.getDate()).padStart(2, '0')
+}
+
 function handleSearch() {
   const q = keyword.value.trim()
-  router.push({ path: '/services', query: q ? { keyword: q } : {} })
+  const target =
+    searchScope.value === 'demands'
+      ? '/demands'
+      : searchScope.value === 'groups'
+        ? '/groups'
+        : '/services'
+  router.push({ path: target, query: q ? { keyword: q } : {} })
 }
 
 function quickSearch(q: string) {
-  router.push({ path: '/services', query: { keyword: q } })
+  const target =
+    searchScope.value === 'demands'
+      ? '/demands'
+      : searchScope.value === 'groups'
+        ? '/groups'
+        : '/services'
+  router.push({ path: target, query: { keyword: q } })
 }
 
 function handlePublishEntry() {
@@ -538,6 +770,17 @@ async function fetchShowcase() {
   }
 }
 
+async function fetchEcosystemPulse() {
+  const [demRes, grpRes, rankRes] = await Promise.all([
+    listDemands({ pageNum: 1, pageSize: 4 }).catch(() => null),
+    listGroupSessions({ pageNum: 1, pageSize: 2 }).catch(() => null),
+    getCreatorLeaderboard({ rankBy: 'COMPREHENSIVE', limit: 3 }).catch(() => [])
+  ])
+  liveDemands.value = (demRes?.records || []).slice(0, 4)
+  liveSessions.value = (grpRes?.records || []).slice(0, 2)
+  topCreators.value = (rankRes || []).slice(0, 3)
+}
+
 function selectCategory(tagId: number | undefined) {
   if (activeTagId.value === tagId) return
   activeTagId.value = tagId
@@ -559,7 +802,8 @@ onMounted(async () => {
 
   await Promise.all([
     dictStore.fetchServiceTags().catch(() => {}),
-    fetchShowcase()
+    fetchShowcase(),
+    fetchEcosystemPulse()
   ])
 })
 
@@ -591,8 +835,30 @@ onUnmounted(() => {
 .hero-content {
   position: relative;
   z-index: 3;
-  max-width: 720px;
+  max-width: 740px;
   text-align: center;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--xyf-border);
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--xyf-ink-2);
+  margin-bottom: 22px;
+  backdrop-filter: blur(10px);
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--xyf-gold);
+  }
 }
 
 .hero-float-layer {
@@ -679,27 +945,65 @@ onUnmounted(() => {
 .hero-title {
   margin: 0;
   font-size: clamp(38px, 5vw, 60px);
-  font-weight: 750;
+  font-weight: 760;
   line-height: 1.12;
   letter-spacing: -0.035em;
   color: var(--xyf-ink);
 }
 
 .hero-subtitle {
-  margin: 18px 0 0;
-  font-size: 17px;
+  margin: 16px 0 0;
+  font-size: 16.5px;
   line-height: 1.5;
   color: var(--xyf-ink-2);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.015em;
+}
+
+.search-dock {
+  margin: 34px auto 0;
+  max-width: 636px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-scopes {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(244, 244, 245, 0.85);
+  border: 1px solid rgba(228, 228, 231, 0.8);
+  backdrop-filter: blur(10px);
+  gap: 2px;
+}
+
+.scope-pill {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--xyf-ink-2);
+  font-size: 12.5px;
+  font-weight: 550;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--xyf-transition);
+
+  &.is-active {
+    background: #18181b;
+    color: #ffffff;
+    font-weight: 600;
+  }
 }
 
 .capsule-search {
-  margin: 40px auto 0;
-  max-width: 620px;
+  width: 100%;
   height: 58px;
   padding: 6px 6px 6px 24px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(16px);
   border: 1px solid #e4e4e7;
   box-shadow: 0 16px 44px -12px rgba(17, 24, 39, 0.11), 0 2px 6px rgba(17, 24, 39, 0.04);
@@ -763,7 +1067,7 @@ onUnmounted(() => {
     transition: background var(--xyf-transition), transform 0.15s ease;
 
     &:hover {
-      background: var(--xyf-primary);
+      background: var(--xyf-primary-hover);
     }
 
     &:active {
@@ -773,7 +1077,7 @@ onUnmounted(() => {
 }
 
 .hero-hot-queries {
-  margin-top: 22px;
+  margin-top: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1124,10 +1428,370 @@ onUnmounted(() => {
   letter-spacing: 0.06em;
 }
 
+/* ==================== 2.5 Live Campus Ecosystem Bento ==================== */
+.ecosystem-section {
+  padding: 68px 0 84px;
+  border-top: 1px solid var(--xyf-border-subtle);
+  background: #fafafa;
+}
+
+.eco-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.eco-title {
+  margin: 4px 0 0;
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--xyf-ink);
+}
+
+.eco-sub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--xyf-ink-2);
+  max-width: 480px;
+}
+
+.eco-bento {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.bento-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.bento-panel {
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: #ffffff;
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+
+    h3 {
+      margin: 4px 0 0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      color: var(--xyf-ink);
+    }
+  }
+}
+
+.bento-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--xyf-surface-muted);
+  color: var(--xyf-ink-2);
+
+  &.is-amber {
+    background: var(--xyf-champagne-soft);
+    color: #9a5b13;
+    border: 1px solid var(--xyf-champagne-border);
+  }
+}
+
+.bento-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bento-ghost-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--xyf-ink);
+  background: var(--xyf-ink);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity var(--xyf-transition);
+
+  &:hover {
+    opacity: 0.88;
+  }
+}
+
+.bento-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--xyf-ink-2);
+
+  &:hover {
+    color: var(--xyf-ink);
+  }
+}
+
+.bento-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--xyf-ink-3);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+
+  &.is-compact {
+    padding: 16px 8px;
+  }
+}
+
+.bounty-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bounty-mini-ticket {
+  padding: 13px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--xyf-border);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  transition: all var(--xyf-transition);
+
+  &:hover {
+    border-color: var(--xyf-ink);
+    transform: translateX(2px);
+    box-shadow: var(--xyf-shadow-xs);
+  }
+
+  &__left {
+    min-width: 0;
+    flex: 1;
+
+    h4 {
+      margin: 4px 0 0;
+      font-size: 14.5px;
+      font-weight: 650;
+      color: var(--xyf-ink);
+    }
+  }
+
+  &__right {
+    text-align: right;
+    flex-shrink: 0;
+
+    strong {
+      display: block;
+      font-size: 15.5px;
+      font-weight: 750;
+      color: var(--xyf-ink);
+    }
+
+    span {
+      font-size: 11.5px;
+      color: var(--xyf-ink-3);
+    }
+  }
+}
+
+.bounty-mini-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--xyf-ink-3);
+  min-width: 0;
+
+  .u-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #71717a;
+
+    &.is-u3 {
+      background: #dc2626;
+    }
+    &.is-u2 {
+      background: #d97706;
+    }
+  }
+
+  .u-txt {
+    font-weight: 600;
+    color: var(--xyf-ink-2);
+  }
+}
+
+.session-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.session-mini-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--xyf-border);
+  cursor: pointer;
+  transition: all var(--xyf-transition);
+
+  &:hover {
+    border-color: var(--xyf-ink);
+    background: var(--xyf-surface-soft);
+  }
+}
+
+.date-cube {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: #18181b;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1.1;
+
+  &__m {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__d {
+    font-size: 15px;
+    font-weight: 750;
+  }
+}
+
+.session-mini-body {
+  min-width: 0;
+  flex: 1;
+
+  h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 650;
+    color: var(--xyf-ink);
+  }
+
+  .session-mini-sub {
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--xyf-ink-3);
+  }
+
+  .tier-highlight {
+    color: #9a5b13;
+    font-weight: 600;
+  }
+}
+
+.session-mini-price {
+  font-size: 16px;
+  font-weight: 750;
+  color: var(--xyf-ink);
+  flex-shrink: 0;
+}
+
+.creator-mini-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.creator-mini-chip {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--xyf-border);
+  background: var(--xyf-surface-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all var(--xyf-transition);
+
+  &:hover {
+    background: #ffffff;
+    border-color: var(--xyf-ink);
+    box-shadow: var(--xyf-shadow-xs);
+  }
+}
+
+.creator-mini-avatar {
+  position: relative;
+  flex-shrink: 0;
+
+  .rank-corner {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: #18181b;
+    color: #ffffff;
+    border: 1.5px solid #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.creator-mini-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  strong {
+    font-size: 13.5px;
+    font-weight: 650;
+    color: var(--xyf-ink);
+  }
+
+  span {
+    font-size: 11.5px;
+    color: var(--xyf-ink-3);
+  }
+}
+
 /* ==================== 3. Ultra-Minimal Trust Strip ==================== */
 .trust-section {
-  padding: 88px 0;
-  background: var(--xyf-surface-soft);
+  padding: 80px 0;
+  background: #ffffff;
   border-top: 1px solid var(--xyf-border);
   border-bottom: 1px solid var(--xyf-border);
 }
@@ -1261,6 +1925,33 @@ onUnmounted(() => {
   }
 }
 
+.creator-cta-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.creator-cta-ghost {
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: transparent;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 550;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--xyf-transition);
+
+  &:hover {
+    border-color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
 .creator-cta-btn {
   height: 48px;
   padding: 0 30px;
@@ -1327,6 +2018,14 @@ onUnmounted(() => {
   .cinema-card {
     width: 300px;
     scroll-snap-align: center;
+  }
+
+  .eco-bento {
+    grid-template-columns: 1fr;
+  }
+
+  .creator-mini-strip {
+    grid-template-columns: 1fr;
   }
 
   .trust-grid {

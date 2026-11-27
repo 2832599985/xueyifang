@@ -322,7 +322,7 @@ onUnload(() => {
     height: 210rpx;
     border-radius: 50%;
     background: rgba(16, 185, 129, 0.16);
-    border: 3rpx solid #10b981;
+    border: 3rpx solid #18181b;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -330,7 +330,7 @@ onUnload(() => {
     .rssi-val {
       font-size: 34rpx;
       font-weight: 800;
-      color: #34d399;
+      color: #e5c79e;
     }
     .role-tag {
       font-size: 22rpx;
@@ -377,7 +377,7 @@ onUnload(() => {
     font-weight: 700;
   }
   .start-btn {
-    background: #10b981;
+    background: #18181b;
     color: #09090b;
   }
   .done-btn {

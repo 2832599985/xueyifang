@@ -1,193 +1,243 @@
 <template>
   <div class="creator-leaderboard-page xyf-page">
     <div class="xyf-container">
-      <!-- Hero Header -->
-      <section class="leaderboard-hero xyf-surface-card">
-        <div class="hero-main">
-          <span class="hero-kicker">CAMPUS SKILL HALL OF FAME · 校友创作者技能风云榜</span>
-          <h1>学艺坊校友技能荣誉殿堂与能力勋章榜</h1>
+      <!-- Editorial Gallery Header -->
+      <header class="fame-header">
+        <div class="fame-header__left">
+          <span class="xyf-kicker">CAMPUS CREATOR DIRECTORY &amp; HALL OF FAME</span>
+          <h1>校园技能行家风云榜</h1>
           <p>
-            综合考量「教育邮箱双核认证、校园履约信用分、历史真实完单量、SHA-256 实践学时、五星好评率与在池履约保证金」六大维度，实时遴选各校区最具实力的标杆技能创作者。
+            综合教育邮箱双核认证、履约信用分、历史真实完单、SHA-256 实践学时与在池保证金，实时呈现各校区标杆技能创作者。
           </p>
         </div>
 
-        <div class="hero-filters">
-          <el-radio-group v-model="filters.rankBy" size="large" @change="fetchLeaderboard">
-            <el-radio-button value="COMPREHENSIVE">综合影响力总榜</el-radio-button>
-            <el-radio-button value="COMPLETED_ORDERS">实战完单榜</el-radio-button>
-            <el-radio-button value="CREDIT_SCORE">履约信用标杆榜</el-radio-button>
-            <el-radio-button value="RATING">五星口碑好评榜</el-radio-button>
-          </el-radio-group>
+        <!-- Dimension Segmented Switcher -->
+        <div class="xyf-segmented" role="tablist" aria-label="排行维度">
+          <button
+            v-for="tab in rankDimensions"
+            :key="tab.value"
+            type="button"
+            class="xyf-segmented__btn"
+            :class="{ 'is-active': filters.rankBy === tab.value }"
+            @click="selectRankBy(tab.value)"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+      </header>
 
-          <div class="sub-filter-row">
-            <el-select
-              v-model="filters.campusId"
-              placeholder="全部校区"
-              clearable
-              style="width: 180px"
-              @change="fetchLeaderboard"
-            >
-              <el-option
-                v-for="c in campusList"
-                :key="c.id"
-                :label="c.campusName"
-                :value="c.id"
-              />
-            </el-select>
+      <!-- Clean Filter Strip -->
+      <section class="fame-filter-bar">
+        <div class="xyf-tabs">
+          <button
+            type="button"
+            class="xyf-tab"
+            :class="{ 'is-active': !filters.tagId }"
+            @click="selectTag(undefined)"
+          >
+            全部技能领域
+          </button>
+          <button
+            v-for="t in dictStore.serviceTags || []"
+            :key="t.tagId"
+            type="button"
+            class="xyf-tab"
+            :class="{ 'is-active': filters.tagId === t.tagId }"
+            @click="selectTag(t.tagId)"
+          >
+            {{ t.tagName }}
+          </button>
+        </div>
 
-            <el-select
-              v-model="filters.tagId"
-              placeholder="全部技能领域"
-              clearable
-              style="width: 200px"
-              @change="fetchLeaderboard"
-            >
-              <el-option
-                v-for="t in dictStore.serviceTags || []"
-                :key="t.tagId"
-                :label="t.tagName"
-                :value="t.tagId"
-              />
-            </el-select>
-          </div>
+        <div class="campus-pills">
+          <button
+            type="button"
+            class="campus-pill"
+            :class="{ 'is-active': !filters.campusId }"
+            @click="selectCampus(undefined)"
+          >
+            全部校区
+          </button>
+          <button
+            v-for="c in campusList"
+            :key="c.id"
+            type="button"
+            class="campus-pill"
+            :class="{ 'is-active': filters.campusId === c.id }"
+            @click="selectCampus(c.id)"
+          >
+            {{ c.campusName }}
+          </button>
         </div>
       </section>
 
-      <div v-if="loading" class="xyf-surface-card" style="padding: 28px">
-        <el-skeleton :rows="6" animated />
+      <div v-if="loading" class="xyf-surface-card" style="padding: 36px">
+        <el-skeleton :rows="7" animated />
       </div>
 
-      <div v-else-if="!leaders.length" class="xyf-surface-card" style="padding: 36px">
+      <div v-else-if="!leaders.length" class="xyf-surface-card" style="padding: 52px">
         <XyfEmptyState
           title="当前筛选条件下暂无上榜创作者"
-          description="尝试切换全部校区或全部技能分类查看全校技能风云榜"
-        />
+          description="切换全部校区或全部技能分类查看全校认证行家席位"
+        >
+          <template #action>
+            <el-button plain @click="resetAll">重置筛选</el-button>
+          </template>
+        </XyfEmptyState>
       </div>
 
       <template v-else>
-        <!-- Top 3 Podium -->
-        <section class="podium-grid" v-if="topThree.length">
+        <!-- Architectural Podium Stage (2 - 1 - 3 Asymmetric Layout on Desktop) -->
+        <section v-if="podiumDisplay.length" class="podium-stage">
           <article
-            v-for="item in topThree"
+            v-for="item in podiumDisplay"
             :key="item.userId"
-            class="podium-card xyf-surface-card"
+            class="podium-monument"
             :class="`is-rank-${item.rank}`"
             @click="router.push(`/creators/${item.userId}`)"
           >
-            <div class="podium-medal">
-              <span class="medal-rank">TOP {{ item.rank }}</span>
-              <span class="level-pill">{{ item.creatorLevelTitle }}</span>
-            </div>
-
-            <div class="podium-profile">
-              <XyfAvatar :src="item.avatar" :name="item.displayName" :size="60" />
-              <div class="podium-profile__info">
-                <h3>{{ item.displayName }}</h3>
-                <p>{{ item.campusName }} · {{ item.professionalName }}</p>
+            <div class="podium-monument__top">
+              <div class="rank-emblem xyf-tabular">
+                <svg v-if="item.rank === 1" viewBox="0 0 20 20" fill="none" class="crown-svg">
+                  <path d="M3 15L4.8 7L10 11L15.2 7L17 15H3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+                </svg>
+                <span>NO.0{{ item.rank }}</span>
               </div>
+
+              <span class="level-seal">{{ item.creatorLevelTitle }}</span>
             </div>
 
-            <div class="badge-wall" v-if="item.badges?.length">
+            <div class="podium-identity">
+              <div class="podium-avatar-ring">
+                <XyfAvatar
+                  :src="item.avatar"
+                  :name="item.displayName"
+                  :size="item.rank === 1 ? 74 : 62"
+                />
+              </div>
+              <h3>{{ item.displayName }}</h3>
+              <p class="podium-campus ellipsis">
+                {{ item.campusName }} · {{ item.professionalName }}
+              </p>
+            </div>
+
+            <!-- Honor Badges -->
+            <div v-if="item.badges?.length" class="podium-badges">
               <span
-                v-for="b in item.badges"
+                v-for="b in item.badges.slice(0, 3)"
                 :key="b.badgeCode"
-                class="honor-badge"
-                :class="`tone-${b.badgeTone}`"
+                class="honor-pill"
                 :title="b.badgeDesc"
               >
                 ✦ {{ b.badgeName }}
               </span>
             </div>
 
-            <div class="podium-metrics xyf-tabular">
-              <div class="m-cell">
+            <!-- 4-Cell Tabular Metric Grid -->
+            <div class="podium-stats xyf-tabular">
+              <div class="p-stat">
                 <strong>{{ Number(item.compositeInfluenceScore || 0).toFixed(1) }}</strong>
                 <span>影响力指数</span>
               </div>
-              <div class="m-cell">
-                <strong>{{ item.completedOrderCount }} 笔</strong>
+              <div class="p-stat">
+                <strong>{{ item.completedOrderCount }}</strong>
                 <span>担保完单</span>
               </div>
-              <div class="m-cell">
+              <div class="p-stat">
                 <strong>{{ item.creditScore }}</strong>
                 <span>履约信用分</span>
               </div>
-              <div class="m-cell">
+              <div class="p-stat">
                 <strong>{{ Number(item.totalPracticeHours || 0).toFixed(1) }}h</strong>
                 <span>实践学时</span>
               </div>
             </div>
+
+            <div class="podium-foot">
+              <span>访问数字作品集主页</span>
+              <el-icon><ArrowRight /></el-icon>
+            </div>
           </article>
         </section>
 
-        <!-- Full Ranked Table / List -->
-        <section class="rank-list-card xyf-surface-card">
-          <div class="rank-list-head">
-            <h2>校友创作者荣誉席位（共 {{ leaders.length }} 位认证导师）</h2>
-            <span>点击创作者可调阅其公开数字信用档案、在架服务与历史成交评价</span>
+        <!-- Full Honor Directory Matrix -->
+        <section class="xyf-surface-card directory-card">
+          <div class="directory-head">
+            <div>
+              <h2>认证创作者荣誉名录（共 {{ leaders.length }} 席）</h2>
+              <p>点击任意创作者可调阅其公开数字信用护照、在架技能橱窗与历史真实评价</p>
+            </div>
           </div>
 
-          <div class="rank-rows">
+          <div class="directory-table">
+            <div class="dir-thead">
+              <span class="col-rank">席位</span>
+              <span class="col-user">创作者与认证资质</span>
+              <span class="col-bar">综合影响力刻度</span>
+              <span class="col-kpi">完单 / 信用 / 口碑</span>
+              <span class="col-act">工作室</span>
+            </div>
+
             <div
               v-for="row in leaders"
               :key="row.userId"
-              class="rank-row"
+              class="dir-row"
               @click="router.push(`/creators/${row.userId}`)"
             >
-              <div class="rank-num" :class="`is-top-${row.rank}`">
-                {{ row.rank }}
+              <div class="col-rank xyf-tabular">
+                <span class="rank-index" :class="{ 'is-top': row.rank <= 3 }">
+                  {{ String(row.rank).padStart(2, '0') }}
+                </span>
               </div>
 
-              <div class="rank-user">
-                <XyfAvatar :src="row.avatar" :name="row.displayName" :size="46" />
-                <div class="rank-user__meta">
-                  <div class="name-line">
+              <div class="col-user">
+                <XyfAvatar :src="row.avatar" :name="row.displayName" :size="44" />
+                <div class="user-meta">
+                  <div class="user-meta__name">
                     <strong>{{ row.displayName }}</strong>
-                    <span class="level-tag">{{ row.creatorLevelTitle }}</span>
-                    <span v-if="row.eduVerified === 1" class="edu-tag">教育邮箱已核验</span>
+                    <span class="tier-chip">{{ row.creatorLevelTitle }}</span>
+                    <span v-if="row.eduVerified === 1" class="edu-seal">edu.cn 已核验</span>
                   </div>
-                  <div class="sub-line">
+                  <div class="user-meta__sub ellipsis">
                     {{ row.campusName }} · {{ row.professionalName }}
-                    <span v-if="row.topSkillTags?.length">
-                      · 擅长：{{ row.topSkillTags.join(' / ') }}
-                    </span>
-                  </div>
-                  <div class="badge-inline" v-if="row.badges?.length">
-                    <span
-                      v-for="b in row.badges"
-                      :key="b.badgeCode"
-                      class="mini-badge"
-                      :class="`tone-${b.badgeTone}`"
-                      :title="b.badgeDesc"
-                    >
-                      {{ b.badgeName }}
-                    </span>
+                    <template v-if="row.topSkillTags?.length">
+                      · {{ row.topSkillTags.join(' / ') }}
+                    </template>
                   </div>
                 </div>
               </div>
 
-              <div class="rank-stats xyf-tabular">
-                <div class="stat-col">
-                  <span class="s-val is-primary">{{ Number(row.compositeInfluenceScore || 0).toFixed(1) }}</span>
-                  <span class="s-lbl">影响力指数</span>
+              <div class="col-bar xyf-tabular">
+                <div class="inf-row">
+                  <strong>{{ Number(row.compositeInfluenceScore || 0).toFixed(1) }}</strong>
+                  <span>{{ Number(row.totalPracticeHours || 0).toFixed(1) }} 学时</span>
                 </div>
-                <div class="stat-col">
-                  <span class="s-val">{{ row.completedOrderCount }}</span>
-                  <span class="s-lbl">完结担保单</span>
-                </div>
-                <div class="stat-col">
-                  <span class="s-val">{{ row.creditScore }}</span>
-                  <span class="s-lbl">履约信用分</span>
-                </div>
-                <div class="stat-col">
-                  <span class="s-val">★ {{ Number(row.averageRating || 5).toFixed(1) }}</span>
-                  <span class="s-lbl">综合口碑</span>
+                <div class="inf-track">
+                  <div
+                    class="inf-fill"
+                    :style="{ width: `${calcInfluencePercent(row.compositeInfluenceScore)}%` }"
+                  />
                 </div>
               </div>
 
-              <div class="rank-action" @click.stop>
-                <el-button type="primary" plain size="small" @click="router.push(`/creators/${row.userId}`)">
-                  查看数字主页
+              <div class="col-kpi xyf-tabular">
+                <div class="kpi-mini">
+                  <strong>{{ row.completedOrderCount }}</strong>
+                  <span>完单</span>
+                </div>
+                <div class="kpi-mini">
+                  <strong>{{ row.creditScore }}</strong>
+                  <span>信用</span>
+                </div>
+                <div class="kpi-mini">
+                  <strong>★ {{ Number(row.averageRating || 5).toFixed(1) }}</strong>
+                  <span>评分</span>
+                </div>
+              </div>
+
+              <div class="col-act" @click.stop>
+                <el-button size="small" plain @click="router.push(`/creators/${row.userId}`)">
+                  访问主页
                 </el-button>
               </div>
             </div>
@@ -201,6 +251,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { useDictStore } from '@/stores/dict'
 import { listCampuses } from '@/api/campus'
 import type { CampusInfo } from '@/types/dict'
@@ -215,13 +266,58 @@ const loading = ref(false)
 const leaders = ref<CreatorLeaderboardItem[]>([])
 const campusList = ref<CampusInfo[]>([])
 
+const rankDimensions = [
+  { label: '综合影响力', value: 'COMPREHENSIVE' },
+  { label: '实战完单量', value: 'COMPLETED_ORDERS' },
+  { label: '履约信用分', value: 'CREDIT_SCORE' },
+  { label: '五星口碑榜', value: 'RATING' }
+]
+
 const filters = reactive({
   rankBy: 'COMPREHENSIVE',
   campusId: undefined as number | undefined,
   tagId: undefined as number | undefined
 })
 
-const topThree = computed(() => leaders.value.slice(0, 3))
+const podiumDisplay = computed(() => {
+  const top = leaders.value.slice(0, 3)
+  if (top.length === 3) {
+    // 2 - 1 - 3 Olympic visual order on desktop
+    return [top[1], top[0], top[2]]
+  }
+  return top
+})
+
+const maxInfluence = computed(() => {
+  if (!leaders.value.length) return 100
+  return Math.max(100, ...leaders.value.map(i => Number(i.compositeInfluenceScore || 0)))
+})
+
+function calcInfluencePercent(score?: number) {
+  const val = Number(score || 0)
+  return Math.min(100, Math.max(12, Math.round((val / maxInfluence.value) * 100)))
+}
+
+function selectRankBy(val: string) {
+  filters.rankBy = val
+  fetchLeaderboard()
+}
+
+function selectTag(id?: number) {
+  filters.tagId = id
+  fetchLeaderboard()
+}
+
+function selectCampus(id?: number) {
+  filters.campusId = id
+  fetchLeaderboard()
+}
+
+function resetAll() {
+  filters.campusId = undefined
+  filters.tagId = undefined
+  fetchLeaderboard()
+}
 
 const fetchLeaderboard = async () => {
   loading.value = true
@@ -249,352 +345,459 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.creator-leaderboard-page {
-  padding: 28px 0 64px;
-}
-
-.leaderboard-hero {
-  padding: 28px 32px;
-  margin-bottom: 24px;
+.fame-header {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  color: #f8fafc;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
 
-  .hero-kicker {
-    font-size: 11.5px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    color: #34d399;
-  }
+  &__left {
+    max-width: 640px;
 
-  h1 {
-    margin: 6px 0 8px;
-    font-size: 26px;
-    font-weight: 800;
-    color: #ffffff;
-  }
+    h1 {
+      margin: 6px 0 8px;
+      font-size: 32px;
+      font-weight: 780;
+      letter-spacing: -0.03em;
+      color: var(--xyf-ink);
+    }
 
-  p {
-    margin: 0;
-    font-size: 14px;
-    color: #cbd5e1;
-    max-width: 780px;
-    line-height: 1.6;
+    p {
+      margin: 0;
+      font-size: 14.5px;
+      color: var(--xyf-ink-2);
+      line-height: 1.55;
+    }
   }
 }
 
-.hero-filters {
+.fame-filter-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   flex-wrap: wrap;
-  gap: 14px;
+  border-bottom: 1px solid var(--xyf-border);
+  margin-bottom: 32px;
 
-  .sub-filter-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
+  .xyf-tabs {
+    border-bottom: none;
+    flex: 1;
+    min-width: 240px;
   }
 }
 
-.podium-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-  margin-bottom: 24px;
+.campus-pills {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 8px;
+  flex-wrap: wrap;
+}
 
-  @media (max-width: 920px) {
+.campus-pill {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--xyf-border);
+  background: #ffffff;
+  color: var(--xyf-ink-2);
+  font-size: 12px;
+  font-weight: 550;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--xyf-transition);
+
+  &.is-active {
+    background: #18181b;
+    border-color: #18181b;
+    color: #ffffff;
+  }
+}
+
+/* Architectural 2 - 1 - 3 Podium Stage */
+.podium-stage {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: end;
+  margin-bottom: 32px;
+
+  @media (max-width: 960px) {
     grid-template-columns: 1fr;
   }
 }
 
-.podium-card {
-  padding: 22px 24px;
+.podium-monument {
+  background: #ffffff;
+  border: 1px solid var(--xyf-border);
+  border-radius: 20px;
+  padding: 24px 24px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border-top: 4px solid #94a3b8;
+  transition: transform var(--xyf-transition), box-shadow var(--xyf-transition), border-color var(--xyf-transition);
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.09);
+    border-color: #18181b;
+    box-shadow: var(--xyf-shadow-md);
   }
 
   &.is-rank-1 {
-    border-top-color: #f59e0b;
-    background: linear-gradient(180deg, #fffbeb 0%, #ffffff 45%);
-  }
-  &.is-rank-2 {
-    border-top-color: #64748b;
-  }
-  &.is-rank-3 {
-    border-top-color: #d97706;
-  }
-}
-
-.podium-medal {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
-
-  .medal-rank {
-    font-size: 13px;
-    font-weight: 800;
-    padding: 3px 10px;
-    border-radius: 999px;
-    background: #0f172a;
+    background: #141417;
     color: #ffffff;
+    border-color: #27272a;
+    padding: 30px 26px 20px;
+    box-shadow: 0 24px 52px -18px rgba(9, 9, 11, 0.34);
+
+    @media (max-width: 960px) {
+      order: -1;
+    }
+
+    .rank-emblem {
+      background: rgba(200, 169, 126, 0.18);
+      border-color: rgba(200, 169, 126, 0.45);
+      color: #e5c79e;
+    }
+
+    .level-seal {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f4f4f5;
+    }
+
+    .podium-identity h3 {
+      color: #ffffff;
+      font-size: 20px;
+    }
+
+    .podium-campus {
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    .podium-avatar-ring {
+      padding: 3px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f3e2c7 0%, #a88554 100%);
+    }
+
+    .honor-pill {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #e5c79e;
+    }
+
+    .podium-stats {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+
+      strong {
+        color: #ffffff;
+      }
+      span {
+        color: rgba(255, 255, 255, 0.58);
+      }
+    }
+
+    .podium-foot {
+      border-top-color: rgba(255, 255, 255, 0.1);
+      color: #e5c79e;
+    }
   }
 
-  .level-pill {
-    font-size: 12px;
-    font-weight: 700;
-    color: #059669;
-    background: #ecfdf5;
-    padding: 3px 10px;
-    border-radius: 999px;
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 }
 
-.podium-profile {
-  display: flex;
+.rank-emblem {
+  display: inline-flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--xyf-surface-soft);
+  border: 1px solid var(--xyf-border);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--xyf-ink);
+
+  .crown-svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.level-seal {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--xyf-surface-muted);
+  color: var(--xyf-ink-2);
+}
+
+.podium-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
 
   h3 {
-    margin: 0 0 4px;
+    margin: 4px 0 0;
     font-size: 18px;
-    font-weight: 700;
-    color: #0f172a;
+    font-weight: 750;
+    color: var(--xyf-ink);
   }
 
-  p {
+  .podium-campus {
     margin: 0;
     font-size: 12.5px;
-    color: #64748b;
+    color: var(--xyf-ink-3);
+    max-width: 100%;
   }
 }
 
-.badge-wall {
+.podium-badges {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
-  margin-bottom: 16px;
-  min-height: 28px;
+  flex-wrap: wrap;
 }
 
-.honor-badge,
-.mini-badge {
+.honor-pill {
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
-
-  &.tone-gold {
-    background: #fef3c7;
-    color: #b45309;
-  }
-  &.tone-emerald {
-    background: #d1fae5;
-    color: #047857;
-  }
-  &.tone-blue {
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
-  &.tone-purple {
-    background: #f3e8ff;
-    color: #7e22ce;
-  }
+  background: var(--xyf-champagne-soft);
+  border: 1px solid var(--xyf-champagne-border);
+  color: #9a5b13;
 }
 
-.podium-metrics {
+.podium-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  padding-top: 14px;
-  border-top: 1px dashed #e2e8f0;
+  gap: 6px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  background: var(--xyf-surface-soft);
+  border: 1px solid var(--xyf-border-subtle);
+  text-align: center;
 
-  .m-cell {
+  .p-stat {
     display: flex;
     flex-direction: column;
     gap: 2px;
 
     strong {
       font-size: 15px;
-      font-weight: 800;
-      color: #0f172a;
+      font-weight: 750;
+      color: var(--xyf-ink);
     }
 
     span {
-      font-size: 11px;
-      color: #64748b;
+      font-size: 10.5px;
+      color: var(--xyf-ink-3);
     }
   }
 }
 
-.rank-list-card {
-  padding: 24px 28px;
+.podium-foot {
+  padding-top: 12px;
+  border-top: 1px solid var(--xyf-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--xyf-ink-2);
 }
 
-.rank-list-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
+/* Directory Matrix */
+.directory-card {
+  padding: 26px 28px;
+}
+
+.directory-head {
   margin-bottom: 18px;
 
   h2 {
     margin: 0;
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 750;
+    color: var(--xyf-ink);
   }
 
-  span {
-    font-size: 12.5px;
-    color: #64748b;
+  p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--xyf-ink-3);
   }
 }
 
-.rank-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.dir-thead {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1.5fr) minmax(160px, 0.9fr) 210px 96px;
+  gap: 16px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--xyf-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--xyf-ink-3);
+
+  @media (max-width: 920px) {
+    display: none;
+  }
 }
 
-.rank-row {
-  display: flex;
+.dir-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1.5fr) minmax(160px, 0.9fr) 210px 96px;
+  gap: 16px;
   align-items: center;
-  gap: 18px;
-  padding: 16px 18px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  padding: 15px 14px;
+  border-bottom: 1px solid var(--xyf-border-subtle);
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: background var(--xyf-transition);
+
+  &:last-child {
+    border-bottom: none;
+  }
 
   &:hover {
-    border-color: #0f172a;
-    background: #f8fafc;
+    background: var(--xyf-surface-soft);
   }
 
-  @media (max-width: 768px) {
-    flex-wrap: wrap;
+  @media (max-width: 920px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
-.rank-num {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: #f1f5f9;
-  color: #475569;
-  font-weight: 800;
-  font-size: 15px;
-  display: flex;
+.rank-index {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--xyf-surface-soft);
+  color: var(--xyf-ink-2);
+  font-size: 13px;
+  font-weight: 700;
 
-  &.is-top-1 {
-    background: #f59e0b;
-    color: #ffffff;
-  }
-  &.is-top-2 {
-    background: #64748b;
-    color: #ffffff;
-  }
-  &.is-top-3 {
-    background: #d97706;
-    color: #ffffff;
+  &.is-top {
+    background: #18181b;
+    color: #e5c79e;
   }
 }
 
-.rank-user {
-  flex: 1;
-  min-width: 240px;
+.col-user {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  min-width: 0;
 
-  &__meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
+  .user-meta {
+    min-width: 0;
 
-  .name-line {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    &__name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
 
-    strong {
-      font-size: 15.5px;
-      color: #0f172a;
-    }
-
-    .level-tag {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 1px 8px;
-      border-radius: 999px;
-      background: #f1f5f9;
-      color: #334155;
-    }
-
-    .edu-tag {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 1px 8px;
-      border-radius: 999px;
-      background: #ecfdf5;
-      color: #047857;
-    }
-  }
-
-  .sub-line {
-    font-size: 12.5px;
-    color: #64748b;
-  }
-
-  .badge-inline {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 2px;
-  }
-}
-
-.rank-stats {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-
-  .stat-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    min-width: 68px;
-
-    .s-val {
-      font-size: 16px;
-      font-weight: 800;
-      color: #0f172a;
-
-      &.is-primary {
-        color: #059669;
+      strong {
+        font-size: 14.5px;
+        color: var(--xyf-ink);
       }
     }
 
-    .s-lbl {
+    .tier-chip,
+    .edu-seal {
       font-size: 11px;
-      color: #64748b;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--xyf-surface-muted);
+      color: var(--xyf-ink-2);
+    }
+
+    .edu-seal {
+      background: var(--xyf-champagne-soft);
+      border: 1px solid var(--xyf-champagne-border);
+      color: #9a5b13;
+    }
+
+    &__sub {
+      margin-top: 3px;
+      font-size: 12.5px;
+      color: var(--xyf-ink-3);
     }
   }
+}
+
+.col-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .inf-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--xyf-ink-3);
+
+    strong {
+      color: var(--xyf-ink);
+      font-size: 13.5px;
+    }
+  }
+
+  .inf-track {
+    height: 6px;
+    border-radius: 999px;
+    background: #ececef;
+    overflow: hidden;
+
+    .inf-fill {
+      height: 100%;
+      background: #18181b;
+      border-radius: 999px;
+    }
+  }
+}
+
+.col-kpi {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+
+  .kpi-mini {
+    display: flex;
+    flex-direction: column;
+
+    strong {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--xyf-ink);
+    }
+
+    span {
+      font-size: 11px;
+      color: var(--xyf-ink-3);
+    }
+  }
+}
+
+.col-act {
+  text-align: right;
 }
 </style>

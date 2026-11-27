@@ -1,46 +1,59 @@
 <template>
-  <section v-if="shouldShowCard" class="xyf-surface-card noshow-card">
-    <div class="noshow-head">
+  <section v-if="shouldShowCard" class="xyf-surface-card sla-card">
+    <div class="sla-head">
       <div>
-        <span class="noshow-kicker">APPOINTMENT NO-SHOW PROTECTION · 预约爽约自动赔付保障</span>
-        <h3>{{ claim ? '预约爽约自动退赔存证单' : '预约时段履约与爽约自动赔付保障' }}</h3>
+        <span class="xyf-kicker">APPOINTMENT SLA &amp; DEPOSIT PROTECTION</span>
+        <h3>{{ claim ? '预约爽约自动退赔结算凭证' : '预约时段履约与保证金爽约赔付护航' }}</h3>
       </div>
-      <el-tag v-if="claim" type="danger" effect="dark">已执行爽约退一赔十</el-tag>
-      <el-tag v-else-if="isOverdue" type="warning" effect="dark">预约时段已逾期未履约</el-tag>
-      <el-tag v-else type="success" effect="plain">爽约保证金护航中</el-tag>
+
+      <el-tag v-if="claim" type="danger">已执行退本金+违约赔付</el-tag>
+      <el-tag v-else-if="isOverdue" type="warning">超出预约结束时间</el-tag>
+      <el-tag v-else type="success">SLA 保证金护航中</el-tag>
     </div>
 
-    <!-- 已完成赔付存证展示 -->
-    <div v-if="claim" class="claim-certificate">
-      <div class="cert-grid">
-        <div class="cert-item">
-          <span class="c-label">赔付存证单号</span>
-          <strong class="c-val">{{ claim.claimNo }}</strong>
+    <!-- Completed Compensation Voucher -->
+    <div v-if="claim" class="claim-voucher xyf-tabular">
+      <div class="voucher-grid">
+        <div class="v-item">
+          <span>赔付存证单号</span>
+          <strong class="xyf-mono">{{ claim.claimNo }}</strong>
         </div>
-        <div class="cert-item">
-          <span class="c-label">全额退回买方本金</span>
-          <strong class="c-val is-green">¥{{ Number(claim.refundToBuyerAmount || 0).toFixed(2) }}</strong>
+        <div class="v-item">
+          <span>原路退回买方本金</span>
+          <strong>¥{{ Number(claim.refundToBuyerAmount || 0).toFixed(2) }}</strong>
         </div>
-        <div class="cert-item">
-          <span class="c-label">卖方保证金划扣赔付</span>
-          <strong class="c-val is-red">+¥{{ Number(claim.compensationAmount || 0).toFixed(2) }}</strong>
+        <div class="v-item is-accent">
+          <span>保证金划扣违约赔付</span>
+          <strong>+¥{{ Number(claim.compensationAmount || 0).toFixed(2) }}</strong>
         </div>
-        <div class="cert-item">
-          <span class="c-label">卖方履约信用分扣减</span>
-          <strong class="c-val">-{{ claim.creditDeducted }} 分</strong>
+        <div class="v-item">
+          <span>卖方履约信用扣减</span>
+          <strong>-{{ claim.creditDeducted }} 分</strong>
         </div>
       </div>
-      <p class="cert-note">{{ claim.evidenceNote }}</p>
+      <p class="voucher-note">{{ claim.evidenceNote }}</p>
     </div>
 
-    <!-- 待履约或已逾期可一键申领爽约赔付 -->
-    <div v-else class="noshow-body">
-      <p class="policy-desc">
-        本订单受「学艺坊预约爽约自动赔付机制」保护：若卖方超出约定结束时间（{{ order?.scheduledEnd || '约定档期' }}）仍未签到或交付，买方可一键触发系统自动解冻退还 100% 托管本金，并直接从卖方履约保证金专户划扣 10%（最低 ¥5.00）违约金即时赔付至买方钱包。
-      </p>
-      <div v-if="isBuyer && isOverdue && order?.orderStatus === OrderStatus.PENDING_SHIP" class="claim-action-bar">
+    <!-- Active Protection Flow -->
+    <div v-else class="sla-body">
+      <div class="sla-flow">
+        <div class="sla-step">
+          <span class="sla-num xyf-tabular">01</span>
+          <span>锁定档期：{{ order?.scheduledEnd ? String(order.scheduledEnd).replace('T', ' ').slice(0, 16) : '双方约定交付时段' }}</span>
+        </div>
+        <div class="sla-step">
+          <span class="sla-num xyf-tabular">02</span>
+          <span>超时未签到/未交付可一键申领</span>
+        </div>
+        <div class="sla-step">
+          <span class="sla-num xyf-tabular">03</span>
+          <span>100% 退本金 + 划扣卖方 10% 保证金赔付</span>
+        </div>
+      </div>
+
+      <div v-if="isBuyer && isOverdue && order?.orderStatus === OrderStatus.PENDING_SHIP" class="sla-action">
         <el-button type="danger" :loading="submitting" @click="handleClaimNoShow">
-          卖方逾期未到场 · 一键申领爽约全额退本金 + 保证金赔付
+          卖方逾期未履约 · 一键触发退本金与保证金赔付
         </el-button>
       </div>
     </div>
@@ -135,12 +148,11 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.noshow-card {
-  padding: 20px 22px;
-  border-left: 4px solid #f59e0b;
+.sla-card {
+  padding: 20px 24px;
 }
 
-.noshow-head {
+.sla-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -148,77 +160,99 @@ onMounted(() => {
   flex-wrap: wrap;
   margin-bottom: 14px;
 
-  .noshow-kicker {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    color: #b45309;
-  }
-
   h3 {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 750;
+    color: var(--xyf-ink);
   }
 }
 
-.claim-certificate {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 10px;
+.claim-voucher {
   padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--xyf-surface-soft);
+  border: 1px solid var(--xyf-border);
+
+  .voucher-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 10px;
+
+    @media (max-width: 640px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .v-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    span {
+      font-size: 11.5px;
+      color: var(--xyf-ink-3);
+    }
+
+    strong {
+      font-size: 14.5px;
+      font-weight: 750;
+      color: var(--xyf-ink);
+    }
+
+    &.is-accent strong {
+      color: #b91c1c;
+    }
+  }
+
+  .voucher-note {
+    margin: 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--xyf-border-subtle);
+    font-size: 12px;
+    color: var(--xyf-ink-2);
+  }
 }
 
-.cert-grid {
+.sla-flow {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 
-  @media (max-width: 640px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.cert-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-
-  .c-label {
-    font-size: 11.5px;
-    color: #78350f;
+  @media (max-width: 680px) {
+    grid-template-columns: 1fr;
   }
 
-  .c-val {
-    font-size: 15px;
-    font-weight: 700;
-    color: #0f172a;
+  .sla-step {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--xyf-surface-soft);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--xyf-ink-2);
 
-    &.is-green {
-      color: #059669;
+    .sla-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #18181b;
+      color: #ffffff;
+      font-size: 10.5px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
-    &.is-red {
-      color: #dc2626;
-    }
   }
 }
 
-.cert-note {
-  margin: 0;
-  font-size: 12.5px;
-  color: #92400e;
-}
-
-.policy-desc {
-  margin: 0;
-  font-size: 13px;
-  color: var(--xyf-ink-2);
-  line-height: 1.6;
-}
-
-.claim-action-bar {
+.sla-action {
   margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

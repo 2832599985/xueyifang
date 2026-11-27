@@ -1,21 +1,29 @@
 <template>
   <div class="admin-shell">
-    <!-- Desktop Sidebar -->
+    <!-- Desktop Obsidian SaaS Sidebar -->
     <aside class="admin-sidebar" :class="{ 'is-collapsed': collapsed }">
       <div class="admin-sidebar__logo">
         <XyfBrandLogo
           theme="light"
           compact
           :icon-only="collapsed"
-          title="学艺坊 Admin"
-          subtitle="运营治理控制台"
+          title="学艺坊 Console"
+          subtitle="商业风控与治理中台"
         />
       </div>
 
       <nav class="admin-sidebar__nav">
-        <template v-for="item in menuItems" :key="item.title">
+        <div
+          v-for="group in menuGroups"
+          :key="group.title"
+          class="nav-group"
+        >
+          <div v-show="!collapsed" class="nav-group__label">
+            {{ group.title }}
+          </div>
           <router-link
-            v-if="!isMenuGroup(item)"
+            v-for="item in group.children"
+            :key="item.path"
             :to="item.path"
             class="nav-item"
             :class="{ 'is-active': isActive(item.path) }"
@@ -24,34 +32,17 @@
             <el-icon class="nav-item__icon"><component :is="item.icon" /></el-icon>
             <span v-show="!collapsed" class="nav-item__text">{{ item.title }}</span>
           </router-link>
-
-          <div v-else class="nav-group" :class="{ 'is-active': isGroupActive(item.children) }">
-            <div v-show="!collapsed" class="nav-group__label">
-              {{ item.title }}
-            </div>
-            <router-link
-              v-for="child in item.children"
-              :key="child.path"
-              :to="child.path"
-              class="nav-item"
-              :class="{ 'is-active': isActive(child.path) }"
-              :title="collapsed ? child.title : ''"
-            >
-              <el-icon class="nav-item__icon"><component :is="child.icon" /></el-icon>
-              <span v-show="!collapsed" class="nav-item__text">{{ child.title }}</span>
-            </router-link>
-          </div>
-        </template>
+        </div>
       </nav>
 
       <div class="admin-sidebar__foot">
         <router-link to="/" class="foot-btn" title="进入前台市场浏览">
           <el-icon><Shop /></el-icon>
-          <span v-show="!collapsed">查看前台市场</span>
+          <span v-show="!collapsed">打开前台市场</span>
         </router-link>
         <button type="button" class="foot-btn is-danger" @click="handleLogout" title="退出登录">
           <el-icon><SwitchButton /></el-icon>
-          <span v-show="!collapsed">退出登录</span>
+          <span v-show="!collapsed">安全退出</span>
         </button>
       </div>
     </aside>
@@ -74,19 +65,29 @@
             :title="collapsed ? '展开侧栏' : '收起侧栏'"
             @click="collapsed = !collapsed"
           >
-            <el-icon :size="18">
+            <el-icon :size="17">
               <Expand v-if="collapsed" />
               <Fold v-else />
             </el-icon>
           </button>
-          <h1 class="admin-header__title">{{ currentTitle }}</h1>
+
+          <div class="admin-crumb">
+            <span v-if="currentGroupTitle" class="admin-crumb__group">{{ currentGroupTitle }}</span>
+            <span v-if="currentGroupTitle" class="admin-crumb__sep">/</span>
+            <h1 class="admin-header__title">{{ currentTitle }}</h1>
+          </div>
         </div>
 
         <div class="admin-header__right">
+          <router-link to="/" class="market-jump-btn">
+            <el-icon><Shop /></el-icon>
+            <span>前台预览</span>
+          </router-link>
+
           <div class="admin-pill">
-            <XyfAvatar :src="userStore.userInfo?.avatar" :name="adminName" :size="28" />
+            <XyfAvatar :src="userStore.userInfo?.avatar" :name="adminName" :size="26" />
             <span class="admin-pill__name">{{ adminName }}</span>
-            <span class="admin-pill__role">管理员</span>
+            <span class="admin-pill__role">Admin</span>
           </div>
         </div>
       </header>
@@ -97,36 +98,30 @@
     </div>
 
     <!-- Mobile Drawer -->
-    <el-drawer v-model="mobileDrawerVisible" direction="ltr" size="256px" :with-header="false" class="admin-mobile-drawer">
+    <el-drawer
+      v-model="mobileDrawerVisible"
+      direction="ltr"
+      size="268px"
+      :with-header="false"
+      class="admin-mobile-drawer"
+    >
       <div class="mobile-admin-nav">
         <div class="mobile-admin-nav__brand">
-          <XyfBrandLogo compact title="学艺坊 Admin" />
+          <XyfBrandLogo compact title="学艺坊 Console" subtitle="商业治理中台" />
         </div>
-        <template v-for="item in menuItems" :key="item.title">
+        <template v-for="group in menuGroups" :key="group.title">
+          <div class="mobile-nav-group">{{ group.title }}</div>
           <router-link
-            v-if="!isMenuGroup(item)"
-            :to="item.path"
+            v-for="child in group.children"
+            :key="child.path"
+            :to="child.path"
             class="mobile-nav-item"
-            :class="{ 'is-active': isActive(item.path) }"
+            :class="{ 'is-active': isActive(child.path) }"
             @click="mobileDrawerVisible = false"
           >
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.title }}</span>
+            <el-icon><component :is="child.icon" /></el-icon>
+            <span>{{ child.title }}</span>
           </router-link>
-          <template v-else>
-            <div class="mobile-nav-group">{{ item.title }}</div>
-            <router-link
-              v-for="child in item.children"
-              :key="child.path"
-              :to="child.path"
-              class="mobile-nav-item"
-              :class="{ 'is-active': isActive(child.path) }"
-              @click="mobileDrawerVisible = false"
-            >
-              <el-icon><component :is="child.icon" /></el-icon>
-              <span>{{ child.title }}</span>
-            </router-link>
-          </template>
         </template>
 
         <div class="mobile-admin-nav__foot">
@@ -146,9 +141,14 @@ import {
   User,
   Stamp,
   Checked,
-  WarnTriangleFilled,
+  Aim,
+  Compass,
+  Wallet,
+  Monitor,
+  ScaleToOriginal,
   CollectionTag,
   School,
+  MapLocation,
   Location,
   Setting,
   Shop,
@@ -179,34 +179,47 @@ type MenuGroup = {
   children: MenuItem[]
 }
 
-const menuItems: Array<MenuItem | MenuGroup> = [
-  { path: '/admin/dashboard', title: '运营仪表盘', icon: Odometer },
-  { path: '/admin/users', title: '用户与账号治理', icon: User },
-  { path: '/admin/permissions', title: '发布权限审核', icon: Stamp },
-  { path: '/admin/services', title: '服务审核与巡检', icon: Checked },
-  { path: '/admin/demands', title: '悬赏需求巡检', icon: Checked },
-  { path: '/admin/risk-radar', title: '异常互刷风控雷达', icon: WarnTriangleFilled },
-  { path: '/admin/finance', title: '财务对账与爽约赔付', icon: Stamp },
-  { path: '/admin/system-health', title: '安全与索引健康巡检', icon: Odometer },
-  { path: '/admin/disputes', title: '订单纠纷仲裁', icon: WarnTriangleFilled },
+const menuGroups: MenuGroup[] = [
   {
-    title: '平台字典管理',
+    title: '运营总览',
     children: [
-      { path: '/admin/resource/service-tags', title: '服务分类标签', icon: CollectionTag },
-      { path: '/admin/resource/professionals', title: '专业目录管理', icon: School },
-      { path: '/admin/resource/campuses', title: '校区围栏与分账', icon: Location },
-      { path: '/admin/resource/trade-locations', title: '预设交接点管理', icon: Location }
+      { path: '/admin/dashboard', title: '运营核心看板', icon: Odometer },
+      { path: '/admin/system-health', title: '架构与资金自检', icon: Monitor }
     ]
   },
-  { path: '/admin/settings', title: '系统配置与导入', icon: Setting }
+  {
+    title: '业务审核与巡检',
+    children: [
+      { path: '/admin/users', title: '用户与学籍治理', icon: User },
+      { path: '/admin/permissions', title: '创作者资质审核', icon: Stamp },
+      { path: '/admin/services', title: '技能服务巡检', icon: Checked },
+      { path: '/admin/demands', title: '反向悬赏治理', icon: Aim }
+    ]
+  },
+  {
+    title: '风控与清分结算',
+    children: [
+      { path: '/admin/finance', title: '日终对账与退赔', icon: Wallet },
+      { path: '/admin/risk-radar', title: '反互刷风控雷达', icon: Compass },
+      { path: '/admin/disputes', title: '担保纠纷仲裁庭', icon: ScaleToOriginal }
+    ]
+  },
+  {
+    title: '校园空间与字典',
+    children: [
+      { path: '/admin/resource/campuses', title: '多校区电子围栏', icon: MapLocation },
+      { path: '/admin/resource/trade-locations', title: '安全交接点标定', icon: Location },
+      { path: '/admin/resource/service-tags', title: '服务分类目录', icon: CollectionTag },
+      { path: '/admin/resource/professionals', title: '院系专业目录', icon: School }
+    ]
+  },
+  {
+    title: '系统与批处理',
+    children: [
+      { path: '/admin/settings', title: '全局参数与导入', icon: Setting }
+    ]
+  }
 ]
-
-const currentTitle = computed(() => (route.meta.title as string) || '管理后台')
-const adminName = computed(() => userStore.userInfo?.realName || userStore.userInfo?.nickname || '管理员')
-
-const isMenuGroup = (item: MenuItem | MenuGroup): item is MenuGroup => {
-  return 'children' in item
-}
 
 const isActive = (path: string): boolean => {
   if (path === '/admin/disputes') {
@@ -218,9 +231,20 @@ const isActive = (path: string): boolean => {
   return route.path === path
 }
 
-const isGroupActive = (children: MenuItem[]): boolean => {
-  return children.some(child => isActive(child.path))
-}
+const currentGroupTitle = computed(() => {
+  const matched = menuGroups.find(g => g.children.some(c => isActive(c.path)))
+  return matched?.title || ''
+})
+
+const currentTitle = computed(() => {
+  for (const g of menuGroups) {
+    const item = g.children.find(c => isActive(c.path))
+    if (item) return item.title
+  }
+  return (route.meta.title as string) || '管理后台'
+})
+
+const adminName = computed(() => userStore.userInfo?.realName || userStore.userInfo?.nickname || '管理员')
 
 const handleLogout = async () => {
   try {
@@ -243,12 +267,12 @@ const handleLogout = async () => {
 .admin-shell {
   display: flex;
   min-height: 100vh;
-  background: var(--xyf-bg);
+  background: #fafafa;
 }
 
 .admin-sidebar {
   width: var(--xyf-admin-sidebar-width);
-  background: var(--xyf-surface-ink);
+  background: #0f0f12;
   color: var(--xyf-ink-invert);
   display: flex;
   flex-direction: column;
@@ -257,6 +281,7 @@ const handleLogout = async () => {
   top: 0;
   bottom: 0;
   z-index: 200;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   transition: width 0.22s ease;
 
   &.is-collapsed {
@@ -287,39 +312,38 @@ const handleLogout = async () => {
     padding: 0 18px;
     display: flex;
     align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   }
 
   &__nav {
     flex: 1;
-    padding: 14px 12px;
+    padding: 12px 12px 18px;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__foot {
+    padding: 10px 12px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
     display: flex;
     flex-direction: column;
     gap: 4px;
   }
-
-  &__foot {
-    padding: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
 }
 
 .nav-group {
-  margin-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 
   &__label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: rgba(248, 247, 243, 0.44);
-    padding: 6px 12px 4px;
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.38);
+    padding: 4px 12px 5px;
     text-transform: uppercase;
   }
 }
@@ -327,28 +351,29 @@ const handleLogout = async () => {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 10px 12px;
-  border-radius: var(--xyf-radius-sm);
-  color: rgba(248, 247, 243, 0.72);
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  color: rgba(244, 244, 245, 0.68);
   font-size: 13.5px;
   font-weight: 500;
   transition: all var(--xyf-transition);
 
   &__icon {
-    font-size: 17px;
+    font-size: 16px;
     flex-shrink: 0;
   }
 
   &:hover {
     color: #ffffff;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
   }
 
   &.is-active {
-    color: #ffffff;
-    background: var(--xyf-primary);
-    box-shadow: 0 4px 12px rgba(24, 24, 27, 0.35);
+    color: #111113;
+    background: #ffffff;
+    font-weight: 650;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
   }
 }
 
@@ -356,17 +381,18 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
-  border-radius: var(--xyf-radius-sm);
+  padding: 8px 12px;
+  border-radius: 9px;
   background: transparent;
   border: none;
-  color: rgba(248, 247, 243, 0.72);
+  font-family: inherit;
+  color: rgba(244, 244, 245, 0.68);
   font-size: 13px;
   cursor: pointer;
   transition: all var(--xyf-transition);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.07);
     color: #ffffff;
   }
 
@@ -397,9 +423,9 @@ const handleLogout = async () => {
   top: 0;
   z-index: 100;
   height: 64px;
-  padding: 0 24px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
+  padding: 0 28px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--xyf-border);
   display: flex;
   align-items: center;
@@ -412,18 +438,73 @@ const handleLogout = async () => {
     gap: 12px;
   }
 
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
   &__title {
     margin: 0;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--xyf-ink);
+  }
+}
+
+.admin-crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &__group {
+    font-size: 13px;
+    color: var(--xyf-ink-3);
+    font-weight: 500;
+
+    @media (max-width: 640px) {
+      display: none;
+    }
+  }
+
+  &__sep {
+    color: var(--xyf-border-strong);
+    font-size: 13px;
+
+    @media (max-width: 640px) {
+      display: none;
+    }
+  }
+}
+
+.market-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--xyf-border);
+  background: #ffffff;
+  color: var(--xyf-ink-2);
+  font-size: 12.5px;
+  font-weight: 550;
+  transition: all var(--xyf-transition);
+
+  &:hover {
+    border-color: var(--xyf-ink);
+    color: var(--xyf-ink);
+  }
+
+  @media (max-width: 640px) {
+    display: none;
   }
 }
 
 .icon-toggle {
   width: 34px;
   height: 34px;
-  border-radius: var(--xyf-radius-sm);
+  border-radius: 9px;
   border: 1px solid var(--xyf-border);
   background: var(--xyf-surface);
   color: var(--xyf-ink-2);
@@ -455,10 +536,10 @@ const handleLogout = async () => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px 4px 4px;
+  padding: 3px 11px 3px 4px;
   border-radius: var(--xyf-radius-pill);
   border: 1px solid var(--xyf-border);
-  background: var(--xyf-surface-soft);
+  background: #ffffff;
 
   &__name {
     font-size: 13px;
@@ -467,10 +548,11 @@ const handleLogout = async () => {
   }
 
   &__role {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--xyf-primary);
-    background: var(--xyf-primary-soft);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #ffffff;
+    background: #18181b;
     padding: 1px 7px;
     border-radius: var(--xyf-radius-pill);
   }
@@ -478,8 +560,8 @@ const handleLogout = async () => {
 
 .admin-content {
   flex: 1;
-  padding: 24px;
-  max-width: 1400px;
+  padding: 28px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
 
@@ -491,13 +573,13 @@ const handleLogout = async () => {
 .mobile-admin-nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   height: 100%;
 
   &__brand {
     padding-bottom: 14px;
     border-bottom: 1px solid var(--xyf-border);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   &__foot {
@@ -507,24 +589,25 @@ const handleLogout = async () => {
 }
 
 .mobile-nav-group {
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 650;
   color: var(--xyf-ink-3);
   padding: 10px 8px 4px;
+  text-transform: uppercase;
 }
 
 .mobile-nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--xyf-radius-sm);
+  padding: 9px 12px;
+  border-radius: 9px;
   color: var(--xyf-ink-2);
   font-weight: 500;
 
   &.is-active {
-    background: var(--xyf-primary-soft);
-    color: var(--xyf-primary);
+    background: #18181b;
+    color: #ffffff;
     font-weight: 600;
   }
 }

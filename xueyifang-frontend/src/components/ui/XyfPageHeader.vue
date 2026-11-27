@@ -1,15 +1,19 @@
 <template>
   <header class="xyf-page-header" :class="{ 'has-border': bordered }">
     <div class="xyf-page-header__left">
-      <el-button
-        v-if="showBack"
-        text
-        class="xyf-page-header__back"
-        @click="handleBack"
-      >
-        <el-icon><ArrowLeft /></el-icon>
-        <span>{{ backText }}</span>
-      </el-button>
+      <div v-if="showBack || kicker" class="xyf-page-header__eyebrow">
+        <el-button
+          v-if="showBack"
+          text
+          class="xyf-page-header__back"
+          @click="handleBack"
+        >
+          <el-icon><ArrowLeft /></el-icon>
+          <span>{{ backText }}</span>
+        </el-button>
+        <span v-if="showBack && kicker" class="xyf-page-header__sep">/</span>
+        <span v-if="kicker" class="xyf-page-header__kicker">{{ kicker }}</span>
+      </div>
 
       <h1 class="xyf-page-header__title">{{ title }}</h1>
       <p v-if="subtitle" class="xyf-page-header__subtitle">{{ subtitle }}</p>
@@ -72,42 +76,54 @@ function handleBack() {
     min-width: 0;
   }
 
+  &__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  &__sep {
+    color: var(--xyf-border-strong);
+    font-size: 12px;
+  }
+
   &__back {
-    margin-bottom: 8px;
-    padding: 4px 8px 4px 2px;
+    padding: 2px 6px 2px 0;
+    height: auto;
     color: var(--xyf-ink-2);
     font-size: 13px;
 
     &:hover {
       color: var(--xyf-primary);
-      background: var(--xyf-primary-soft);
+      background: transparent;
     }
   }
 
   &__kicker {
     display: inline-block;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 650;
     letter-spacing: 0.08em;
     color: var(--xyf-ink-3);
     text-transform: uppercase;
-    margin-bottom: 6px;
   }
 
   &__title {
     margin: 0;
     font-size: 28px;
-    font-weight: 750;
+    font-weight: 760;
     color: var(--xyf-ink);
     line-height: 1.22;
     letter-spacing: -0.025em;
   }
 
   &__subtitle {
-    margin: 7px 0 0;
+    margin: 6px 0 0;
     font-size: 14px;
-    color: var(--xyf-ink-3);
-    line-height: 1.5;
+    color: var(--xyf-ink-2);
+    line-height: 1.55;
+    max-width: 720px;
   }
 
   &__actions {
@@ -115,6 +131,7 @@ function handleBack() {
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
+    flex-wrap: wrap;
   }
 }
 
@@ -130,7 +147,6 @@ function handleBack() {
 
     &__actions {
       width: 100%;
-      flex-wrap: wrap;
     }
   }
 }

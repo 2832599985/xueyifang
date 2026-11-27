@@ -85,6 +85,14 @@
             </el-form-item>
           </div>
 
+          <SmartPricingCompassCard
+            :tag-id="form.tagId"
+            :trade-type="form.tradeType"
+            :proposed-price="form.price"
+            :interactive="true"
+            @select-price="(val: number) => (form.price = Number(val))"
+          />
+
           <el-form-item label="服务详细描述" prop="serviceDescription">
             <el-input
               v-model="form.serviceDescription"
@@ -217,6 +225,7 @@ import {
 import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import XyfImage from '@/components/ui/XyfImage.vue'
+import SmartPricingCompassCard from '@/components/service/SmartPricingCompassCard.vue'
 
 interface UploadedImageItem {
   raw: string

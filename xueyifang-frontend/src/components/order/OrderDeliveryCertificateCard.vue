@@ -1,54 +1,73 @@
 <template>
-  <section v-if="order && order.orderStatus === OrderStatus.COMPLETED" class="xyf-surface-card cert-card">
-    <div class="cert-header">
+  <section v-if="order && order.orderStatus === OrderStatus.COMPLETED" class="xyf-surface-card cert-shell">
+    <div class="cert-toolbar">
       <div>
-        <span class="cert-kicker">SHA-256 DIGITAL FULFILLMENT CERTIFICATE · 校园技能实践数字存证</span>
-        <h3>学艺坊校园技能交付与社会实践存证证书</h3>
+        <span class="xyf-kicker">CRYPTOGRAPHIC PRACTICE CREDENTIAL</span>
+        <h3>校园技能履约与社会实践数字存证</h3>
       </div>
-      <div class="cert-actions">
-        <el-button size="small" type="primary" plain :loading="verifying" @click="handleVerifySeal">
-          SHA-256 指纹在线验真
+
+      <div class="cert-toolbar__btns">
+        <el-button size="small" plain :loading="verifying" @click="handleVerifySeal">
+          {{ verifiedAuthentic ? '✓ 指纹已核验真实' : 'SHA-256 在线验真' }}
         </el-button>
-        <el-button size="small" @click="handlePrint">打印 / 导出证书</el-button>
+        <el-button size="small" type="primary" @click="handlePrint">
+          打印 / 导出证书
+        </el-button>
       </div>
     </div>
 
-    <div v-if="certificate" class="cert-frame">
-      <div class="cert-top-bar">
-        <span class="cert-no">证书编号：{{ certificate.certificateNo }}</span>
-        <span class="cert-status">✓ 平台担保核销已验真 ({{ certificate.verifyChannel }})</span>
+    <!-- Architectural Double-Hairline Parchment Certificate Frame -->
+    <div v-if="certificate" class="diploma-frame">
+      <!-- Official SVG Wax/Ink Stamp Emblem -->
+      <svg class="diploma-seal-svg" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="42" stroke="rgba(184,144,88,0.38)" stroke-width="1.5" stroke-dasharray="4 3" />
+        <circle cx="48" cy="48" r="34" stroke="rgba(184,144,88,0.55)" stroke-width="1.2" />
+        <path d="M35 49L44 58L62 39" stroke="rgba(184,144,88,0.65)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+
+      <div class="diploma-head">
+        <div>
+          <span class="diploma-serial xyf-mono">NO. {{ certificate.certificateNo }}</span>
+          <h4>学艺坊校园技能交付实践凭证</h4>
+        </div>
+        <span class="channel-pill">
+          核销通道：{{ certificate.verifyChannel }}
+        </span>
       </div>
 
-      <div class="cert-grid">
-        <div class="cert-field">
-          <span class="f-label">技能服务项目</span>
-          <strong class="f-val">{{ certificate.serviceTitle }}（{{ certificate.serviceTagName }}）</strong>
+      <div class="diploma-grid xyf-tabular">
+        <div class="d-cell">
+          <span>技能服务项目</span>
+          <strong>{{ certificate.serviceTitle }}（{{ certificate.serviceTagName }}）</strong>
         </div>
-        <div class="cert-field">
-          <span class="f-label">所属校区与交接地标</span>
-          <strong class="f-val">{{ certificate.campusName }}{{ certificate.meetupPoiName ? ` · ${certificate.meetupPoiName}` : '' }}</strong>
+        <div class="d-cell">
+          <span>所属校区与核销地标</span>
+          <strong>{{ certificate.campusName }}{{ certificate.meetupPoiName ? ` · ${certificate.meetupPoiName}` : '' }}</strong>
         </div>
-        <div class="cert-field">
-          <span class="f-label">技能创作者（服务方）</span>
-          <strong class="f-val">{{ certificate.sellerName }}（学号 {{ certificate.sellerStudentIdMasked }}）</strong>
+        <div class="d-cell">
+          <span>技能服务创作者</span>
+          <strong>{{ certificate.sellerName }}（{{ certificate.sellerStudentIdMasked }}）</strong>
         </div>
-        <div class="cert-field">
-          <span class="f-label">校内委托方（需求方）</span>
-          <strong class="f-val">{{ certificate.buyerName }}（学号 {{ certificate.buyerStudentIdMasked }}）</strong>
+        <div class="d-cell">
+          <span>校内委托需求方</span>
+          <strong>{{ certificate.buyerName }}（{{ certificate.buyerStudentIdMasked }}）</strong>
         </div>
-        <div class="cert-field">
-          <span class="f-label">担保结算金额</span>
-          <strong class="f-val">¥{{ Number(certificate.totalAmount || 0).toFixed(2) }}</strong>
+        <div class="d-cell">
+          <span>担保结算总额</span>
+          <strong>¥{{ Number(certificate.totalAmount || 0).toFixed(2) }}</strong>
         </div>
-        <div class="cert-field">
-          <span class="f-label">折算技能实践学时</span>
-          <strong class="f-val is-highlight">{{ certificate.practiceCreditHours }} 学时</strong>
+        <div class="d-cell is-gold">
+          <span>折算技能实践学时</span>
+          <strong>{{ certificate.practiceCreditHours }} 学时</strong>
         </div>
       </div>
 
-      <div class="seal-box">
-        <span class="seal-label">SHA-256 防篡改数字指纹签章（链上/平台交叉核验锚点）：</span>
-        <code class="seal-code">{{ certificate.sha256Seal }}</code>
+      <div class="hash-vault">
+        <div class="hash-vault__top">
+          <span>SHA-256 防篡改数字指纹签章</span>
+          <button type="button" class="copy-hash-btn" @click="copySealHash">复制指纹</button>
+        </div>
+        <code class="hash-code xyf-mono">{{ certificate.sha256Seal }}</code>
       </div>
     </div>
   </section>
@@ -70,6 +89,7 @@ const props = defineProps<{
 
 const certificate = ref<OrderDeliveryCertificateData | null>(null)
 const verifying = ref(false)
+const verifiedAuthentic = ref(false)
 
 const fetchCertificate = async () => {
   if (!props.order?.id || props.order.orderStatus !== OrderStatus.COMPLETED) {
@@ -91,6 +111,7 @@ const handleVerifySeal = async () => {
       certificate.value.orderId,
       certificate.value.sha256Seal
     )
+    verifiedAuthentic.value = Boolean(res.authentic)
     if (res.authentic) {
       ElMessage.success(res.message)
     } else {
@@ -101,6 +122,16 @@ const handleVerifySeal = async () => {
   }
 }
 
+const copySealHash = async () => {
+  if (!certificate.value?.sha256Seal) return
+  try {
+    await navigator.clipboard.writeText(certificate.value.sha256Seal)
+    ElMessage.success('SHA-256 数字指纹已复制')
+  } catch {
+    ElMessage.info(certificate.value.sha256Seal)
+  }
+}
+
 const handlePrint = () => {
   window.print()
 }
@@ -108,6 +139,7 @@ const handlePrint = () => {
 watch(
   () => [props.order?.id, props.order?.orderStatus],
   () => {
+    verifiedAuthentic.value = false
     fetchCertificate()
   }
 )
@@ -118,119 +150,151 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.cert-card {
-  padding: 20px 22px;
-  border-left: 4px solid #10b981;
+.cert-shell {
+  padding: 22px 24px;
 }
 
-.cert-header {
+.cert-toolbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
-
-  .cert-kicker {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    color: #059669;
-  }
+  margin-bottom: 16px;
 
   h3 {
-    margin: 4px 0 0;
-    font-size: 16px;
-    font-weight: 700;
+    margin: 3px 0 0;
+    font-size: 16.5px;
+    font-weight: 750;
+    color: var(--xyf-ink);
   }
 
-  .cert-actions {
+  &__btns {
     display: flex;
     gap: 8px;
   }
 }
 
-.cert-frame {
-  background: linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%);
-  border: 1px solid #bbf7d0;
-  border-radius: 12px;
-  padding: 16px 18px;
+.diploma-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fffdf9 0%, #ffffff 65%);
+  border: 1px solid #e6d7be;
+  box-shadow: inset 0 0 0 3px #ffffff, inset 0 0 0 4px rgba(230, 215, 190, 0.55);
+  padding: 22px 22px 18px;
 }
 
-.cert-top-bar {
+.diploma-seal-svg {
+  position: absolute;
+  right: 18px;
+  top: 14px;
+  width: 82px;
+  height: 82px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.diploma-head {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
-  gap: 8px;
-  padding-bottom: 12px;
-  margin-bottom: 12px;
-  border-bottom: 1px dashed #86efac;
-  font-size: 12.5px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #eee4d3;
 
-  .cert-no {
-    font-weight: 700;
-    color: #065f46;
+  .diploma-serial {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #9a5b13;
   }
 
-  .cert-status {
-    font-weight: 600;
-    color: #059669;
+  h4 {
+    margin: 3px 0 0;
+    font-size: 16px;
+    font-weight: 750;
+    color: var(--xyf-ink);
+  }
+
+  .channel-pill {
+    position: relative;
+    z-index: 2;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #18181b;
+    color: #e5c79e;
+    font-size: 11px;
+    font-weight: 650;
   }
 }
 
-.cert-grid {
+.diploma-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 14px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
 
-  @media (max-width: 640px) {
+  @media (max-width: 680px) {
     grid-template-columns: 1fr;
   }
 }
 
-.cert-field {
+.d-cell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 
-  .f-label {
+  span {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--xyf-ink-3);
   }
 
-  .f-val {
+  strong {
     font-size: 13.5px;
-    font-weight: 600;
-    color: #0f172a;
+    font-weight: 700;
+    color: var(--xyf-ink);
+  }
 
-    &.is-highlight {
-      color: #059669;
-      font-weight: 700;
-    }
+  &.is-gold strong {
+    color: #9a5b13;
   }
 }
 
-.seal-box {
-  background: #0f172a;
-  color: #e2e8f0;
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.hash-vault {
+  background: #141417;
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: #e4e4e7;
 
-  .seal-label {
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-size: 11px;
-    color: #94a3b8;
+    color: #a1a1aa;
+    margin-bottom: 4px;
   }
 
-  .seal-code {
-    font-family: monospace;
-    font-size: 12px;
-    color: #34d399;
+  .copy-hash-btn {
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #f4f4f5;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  .hash-code {
+    display: block;
+    font-size: 11.5px;
+    color: #e5c79e;
     word-break: break-all;
   }
 }

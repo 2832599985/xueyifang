@@ -22,7 +22,7 @@
       <div class="overview-map-head">
         <div>
           <h3>校内预设安全交接点空间分布总览</h3>
-          <p>绿色圆圈代表各点位配置的真实当面核销有效范围（超出设定米数将自动拦截远程核销），点击表格行或图标可聚焦查看</p>
+          <p>香槟金圆圈代表各点位配置的真实当面核销有效范围（超出设定米数将自动拦截远程核销），点击表格行或图标可聚焦查看</p>
         </div>
         <el-select v-model="selectedCampusId" style="width: 220px" @change="onCampusSwitch">
           <el-option
@@ -526,9 +526,9 @@ onMounted(async () => {
     font-weight: 600;
     padding: 1px 7px;
     border-radius: 999px;
-    background: #ecfdf5;
-    color: #047857;
-    border: 1px solid #a7f3d0;
+    background: #faf6ef;
+    color: #9a5b13;
+    border: 1px solid #e8dac4;
   }
 }
 
@@ -555,7 +555,7 @@ onMounted(async () => {
 .fence-tip {
   margin-top: 6px;
   font-size: 12px;
-  color: #059669;
+  color: #18181b;
   &.is-err {
     color: #dc2626;
     font-weight: 600;

@@ -145,8 +145,8 @@ onLoad((query) => {
     background: #f4f4f5;
     color: #52525b;
     &.is-verified {
-      background: #ecfdf5;
-      color: #047857;
+      background: #faf6ef;
+      color: #9a5b13;
       font-weight: 600;
     }
   }

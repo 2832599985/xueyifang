@@ -148,7 +148,7 @@ onShow(syncProfile)
     color: #a1a1aa;
   }
   .credit-pill {
-    background: #10b981;
+    background: #18181b;
     color: #09090b;
     padding: 8rpx 20rpx;
     border-radius: 999rpx;
@@ -189,7 +189,7 @@ onShow(syncProfile)
     font-size: 22rpx;
     color: #b45309;
     &.ok {
-      color: #059669;
+      color: #18181b;
       font-weight: 700;
     }
   }

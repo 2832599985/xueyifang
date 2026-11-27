@@ -235,7 +235,7 @@
                 <div class="seller-card__info">
                   <div class="seller-name-row">
                     <span class="seller-name">{{ service.sellerName || `校园创作者 #${service.sellerId}` }}</span>
-                    <span class="alumni-verify-tag" :style="service.sellerEduVerified === 1 ? 'background:#ecfdf5;color:#047857;border-color:#a7f3d0' : ''">{{ service.sellerEduVerified === 1 ? '教育邮箱已核验' : '学籍待核验' }} · 信用 {{ service.sellerCreditScore ?? 100 }}</span>
+                    <span class="alumni-verify-tag" :class="{ 'is-verified': service.sellerEduVerified === 1 }">{{ service.sellerEduVerified === 1 ? 'edu.cn 已核验' : '学籍已登记' }} · 信用 {{ service.sellerCreditScore ?? 100 }}</span>
                   </div>
                   <div class="seller-meta">
                     <span v-if="service.sellerGrade">{{ service.sellerGrade }}</span>
@@ -681,12 +681,18 @@ watch(
 
   .alumni-verify-tag {
     font-size: 11px;
-    font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 5px;
+    font-weight: 650;
+    padding: 2px 8px;
+    border-radius: 999px;
     background: #f4f4f5;
     border: 1px solid #e4e4e7;
     color: var(--xyf-ink-2);
+
+    &.is-verified {
+      background: var(--xyf-champagne-soft);
+      border-color: var(--xyf-champagne-border);
+      color: #9a5b13;
+    }
   }
 
   .seller-meta {

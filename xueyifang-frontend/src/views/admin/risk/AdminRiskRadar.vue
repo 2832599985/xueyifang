@@ -1,149 +1,210 @@
 <template>
   <div class="admin-risk-radar-page">
-    <div class="radar-banner xyf-surface-card">
-      <div class="radar-banner__info">
-        <span class="radar-kicker">ANTI-WASH-TRADING &amp; GRAPH RISK ENGINE · v4.3</span>
-        <h2>异常高频互刷与反作弊风控审计雷达</h2>
-        <p>
-          实时扫描近 7 日校内订单关系图谱，自动识别「买卖角色互换双向对倒」、「同买卖对高频重复刷单」、「3分钟内极速秒拍秒确」与「超低价微额刷信誉」行为。
-        </p>
-      </div>
-      <div class="radar-banner__actions">
-        <el-select v-model="scanDays" style="width: 130px" size="large">
-          <el-option :value="3" label="回溯近 3 天" />
-          <el-option :value="7" label="回溯近 7 天" />
-          <el-option :value="30" label="回溯近 30 天" />
-        </el-select>
-        <el-button type="primary" size="large" :loading="scanning" @click="handleRunScan">
-          立即执行全链路图谱扫描
+    <XyfPageHeader
+      kicker="GRAPH ANTI-FRAUD &amp; WASH-TRADING ENGINE"
+      title="反互刷交易图谱与风控审计雷达"
+      subtitle="扫描校内买卖关系网络，精准识别角色互换双向对倒、同对高频刷单、180秒极速秒确与超低价刷信誉行为"
+    >
+      <template #actions>
+        <div class="xyf-segmented">
+          <button
+            v-for="d in [3, 7, 30]"
+            :key="d"
+            type="button"
+            class="xyf-segmented__btn"
+            :class="{ 'is-active': scanDays === d }"
+            @click="scanDays = d"
+          >
+            回溯 {{ d }} 天
+          </button>
+        </div>
+
+        <el-button type="primary" :loading="scanning" @click="handleRunScan">
+          执行全链路图谱扫描
         </el-button>
-      </div>
-    </div>
+      </template>
+    </XyfPageHeader>
 
-    <!-- KPI Cards -->
-    <div class="kpi-grid">
-      <div class="kpi-card xyf-surface-card">
-        <span class="kpi-label">待人工核查预警</span>
-        <strong class="kpi-value is-warning">{{ overview.pendingAlerts }}</strong>
-        <span class="kpi-sub">累计识别 {{ overview.totalAlerts }} 条风控线索</span>
-      </div>
-      <div class="kpi-card xyf-surface-card">
-        <span class="kpi-label">高危互刷/对倒阻断 (L3)</span>
-        <strong class="kpi-value is-danger">{{ overview.highSeverityAlerts }}</strong>
-        <span class="kpi-sub">双向对倒 {{ overview.bidirectionalWashCount }} · 高频同对 {{ overview.highFreqPairCount }}</span>
-      </div>
-      <div class="kpi-card xyf-surface-card">
-        <span class="kpi-label">极速秒拍秒确异常</span>
-        <strong class="kpi-value">{{ overview.ultraFastCompletionCount }}</strong>
-        <span class="kpi-sub">支付至确认验收 &lt; 180 秒</span>
-      </div>
-      <div class="kpi-card xyf-surface-card">
-        <span class="kpi-label">已确认违规并处罚</span>
-        <strong class="kpi-value is-success">{{ overview.confirmedPenalties }}</strong>
-        <span class="kpi-sub">近7日覆盖订单 {{ overview.scannedOrders7d }} 笔 · 排除误报 {{ overview.dismissedAlerts }}</span>
-      </div>
-    </div>
-
-    <!-- Filter Bar -->
-    <div class="filter-bar xyf-surface-card">
-      <el-input
-        v-model="query.keyword"
-        placeholder="搜索风控单号 / 订单号 / 取证关键词"
-        clearable
-        style="width: 260px"
-        @keyup.enter="handleSearch"
+    <!-- 4 KPI Tiles -->
+    <section class="kpi-grid">
+      <XyfStatTile
+        label="待人工核查预警"
+        :value="overview.pendingAlerts"
+        :hint="`累计识别 ${overview.totalAlerts} 条图谱线索`"
       />
-      <el-select v-model="query.ruleCode" placeholder="全部风控规则" clearable style="width: 210px" @change="handleSearch">
-        <el-option value="BIDIRECTIONAL_WASH_TRADE" label="买卖角色互换双向对倒" />
-        <el-option value="HIGH_FREQ_SAME_PAIR" label="同买卖对高频重复交易" />
-        <el-option value="ULTRA_FAST_COMPLETION" label="极速秒拍秒确异常履约" />
-        <el-option value="LOW_PRICE_SCORE_BRUSHING" label="超低价微额疑似刷分" />
-      </el-select>
-      <el-select v-model="query.severity" placeholder="风险等级" clearable style="width: 150px" @change="handleSearch">
-        <el-option :value="3" label="L3 高危互刷" />
-        <el-option :value="2" label="L2 中危可疑" />
-        <el-option :value="1" label="L1 低风险提示" />
-      </el-select>
-      <el-select v-model="query.handleStatus" placeholder="处置状态" clearable style="width: 160px" @change="handleSearch">
-        <el-option :value="0" label="待核查" />
-        <el-option :value="1" label="已确认违规并处罚" />
-        <el-option :value="2" label="已排除误报" />
-      </el-select>
-      <el-button type="primary" plain @click="handleSearch">筛选</el-button>
-      <el-button @click="resetFilters">重置</el-button>
-    </div>
+      <XyfStatTile
+        label="L3 高危互刷对倒"
+        :value="overview.highSeverityAlerts"
+        :hint="`双向对倒 ${overview.bidirectionalWashCount} · 同对高频 ${overview.highFreqPairCount}`"
+        tone="danger"
+      />
+      <XyfStatTile
+        label="极速秒拍秒确异常"
+        :value="overview.ultraFastCompletionCount"
+        hint="支付至确认验收耗时 < 180 秒"
+      />
+      <XyfStatTile
+        label="已核实处罚归档"
+        :value="overview.confirmedPenalties"
+        :hint="`近7日扫描 ${overview.scannedOrders7d} 单 · 排除误报 ${overview.dismissedAlerts}`"
+      />
+    </section>
 
-    <!-- Alert Table -->
-    <div class="table-card xyf-surface-card">
+    <!-- Interactive 4-Rule Hit Filter Matrix -->
+    <section class="rule-matrix">
+      <button
+        v-for="r in ruleCards"
+        :key="r.code"
+        type="button"
+        class="rule-card"
+        :class="{ 'is-active': query.ruleCode === r.code }"
+        @click="toggleRuleFilter(r.code)"
+      >
+        <div class="rule-card__top">
+          <span class="rule-tag">{{ r.level }}</span>
+          <span class="rule-code xyf-mono">{{ r.short }}</span>
+        </div>
+        <strong>{{ r.title }}</strong>
+        <p>{{ r.desc }}</p>
+      </button>
+    </section>
+
+    <!-- Filter Bar + Alert Table -->
+    <section class="xyf-surface-card table-card">
+      <div class="filter-strip">
+        <div class="xyf-segmented">
+          <button
+            type="button"
+            class="xyf-segmented__btn"
+            :class="{ 'is-active': query.handleStatus === undefined }"
+            @click="setHandleStatus(undefined)"
+          >
+            全部处置状态
+          </button>
+          <button
+            type="button"
+            class="xyf-segmented__btn"
+            :class="{ 'is-active': query.handleStatus === 0 }"
+            @click="setHandleStatus(0)"
+          >
+            待核查
+          </button>
+          <button
+            type="button"
+            class="xyf-segmented__btn"
+            :class="{ 'is-active': query.handleStatus === 1 }"
+            @click="setHandleStatus(1)"
+          >
+            已处罚
+          </button>
+          <button
+            type="button"
+            class="xyf-segmented__btn"
+            :class="{ 'is-active': query.handleStatus === 2 }"
+            @click="setHandleStatus(2)"
+          >
+            已排除误报
+          </button>
+        </div>
+
+        <div class="filter-right">
+          <el-select v-model="query.severity" placeholder="风险等级" clearable style="width: 140px" @change="handleSearch">
+            <el-option :value="3" label="L3 高危互刷" />
+            <el-option :value="2" label="L2 中危可疑" />
+            <el-option :value="1" label="L1 低风险提示" />
+          </el-select>
+
+          <el-input
+            v-model="query.keyword"
+            placeholder="搜索风控单号 / 订单号 / 关键词..."
+            clearable
+            :prefix-icon="Search"
+            style="width: 240px"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          />
+
+          <el-button v-if="hasActiveFilter" plain @click="resetFilters">重置</el-button>
+        </div>
+      </div>
+
       <el-table :data="alertList" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="alertNo" label="风控单号 / 规则" min-width="200">
+        <el-table-column label="风控单号 / 命中模型" min-width="205">
           <template #default="{ row }">
             <div class="cell-primary">{{ row.ruleName }}</div>
-            <div class="cell-sub">{{ row.alertNo }} · 评分 {{ row.riskScore }}</div>
+            <div class="cell-sub xyf-mono">{{ row.alertNo }}</div>
           </template>
         </el-table-column>
 
-        <el-table-column label="风险等级" width="120">
+        <el-table-column label="风险指数" width="145">
           <template #default="{ row }">
-            <el-tag v-if="row.severity === 3" type="danger" effect="dark">L3 高危互刷</el-tag>
-            <el-tag v-else-if="row.severity === 2" type="warning" effect="light">L2 中危可疑</el-tag>
-            <el-tag v-else type="info" effect="plain">L1 低风险</el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="涉事买卖双方" min-width="220">
-          <template #default="{ row }">
-            <div class="pair-line">
-              <span class="role-pill is-buyer">买</span>
-              <span>{{ row.buyerName || `用户#${row.buyerId}` }}</span>
-              <span class="credit-chip" v-if="row.buyerCreditScore !== undefined">信用 {{ row.buyerCreditScore }}</span>
-            </div>
-            <div class="pair-line">
-              <span class="role-pill is-seller">卖</span>
-              <span>{{ row.sellerName || `用户#${row.sellerId}` }}</span>
-              <span class="credit-chip" v-if="row.sellerCreditScore !== undefined">信用 {{ row.sellerCreditScore }}</span>
+            <div class="score-meter xyf-tabular">
+              <div class="score-meter__head">
+                <el-tag size="small" :type="row.severity === 3 ? 'danger' : row.severity === 2 ? 'warning' : 'info'">
+                  L{{ row.severity }}
+                </el-tag>
+                <strong>{{ row.riskScore }} 分</strong>
+              </div>
+              <div class="score-track">
+                <div
+                  class="score-fill"
+                  :class="{ 'is-high': row.severity === 3 }"
+                  :style="{ width: `${Math.min(100, Number(row.riskScore || 60))}%` }"
+                />
+              </div>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column label="关联订单与图谱特征" min-width="230">
+        <el-table-column label="涉事交易对关系" min-width="245">
           <template #default="{ row }">
-            <div class="cell-primary">
-              订单 {{ row.orderNumber || `#${row.orderId}` }}（¥{{ Number(row.orderAmount || 0).toFixed(2) }}）
+            <div class="pair-graph">
+              <span class="party-chip">
+                <small>买</small>
+                {{ row.buyerName || `#${row.buyerId}` }}
+              </span>
+              <span class="pair-arrow">⇄</span>
+              <span class="party-chip">
+                <small>卖</small>
+                {{ row.sellerName || `#${row.sellerId}` }}
+              </span>
             </div>
-            <div class="cell-sub">
-              7日同对 {{ row.pairOrderCount7d || 1 }} 笔 · 反向对倒 {{ row.reverseOrderCount7d || 0 }} 笔
+            <div class="cell-sub xyf-tabular">
+              7日同对 {{ row.pairOrderCount7d || 1 }} 单 · 反向对倒 {{ row.reverseOrderCount7d || 0 }} 单
               <span v-if="row.fulfillDurationSeconds !== null && row.fulfillDurationSeconds !== undefined">
-                · 耗时 {{ row.fulfillDurationSeconds }}s
+                · 履约 {{ row.fulfillDurationSeconds }}s
               </span>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="evidenceSummary" label="风控取证摘要" min-width="280" show-overflow-tooltip />
-
-        <el-table-column label="处置状态" width="160">
+        <el-table-column label="关联订单与取证摘要" min-width="260">
           <template #default="{ row }">
-            <el-tag v-if="row.handleStatus === 0" type="warning">待管理员核查</el-tag>
-            <div v-else-if="row.handleStatus === 1">
-              <el-tag type="danger">已处罚 (-{{ row.creditDeducted }}分)</el-tag>
-              <div class="cell-sub">{{ row.handleRemark }}</div>
+            <div class="cell-primary xyf-tabular">
+              {{ row.orderNumber || `订单#${row.orderId}` }} · ¥{{ Number(row.orderAmount || 0).toFixed(2) }}
             </div>
-            <div v-else>
-              <el-tag type="success">已排除误报</el-tag>
-              <div class="cell-sub">{{ row.handleRemark }}</div>
-            </div>
+            <div class="cell-sub ellipsis">{{ row.evidenceSummary }}</div>
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="170" fixed="right">
+        <el-table-column label="状态" width="150">
+          <template #default="{ row }">
+            <el-tag v-if="row.handleStatus === 0" type="warning">待管理员核查</el-tag>
+            <div v-else-if="row.handleStatus === 1">
+              <el-tag type="danger">已扣罚 -{{ row.creditDeducted }}分</el-tag>
+            </div>
+            <el-tag v-else type="success">已排除误报</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="处置" width="165" fixed="right" align="right">
           <template #default="{ row }">
             <template v-if="row.handleStatus === 0">
-              <el-button type="danger" size="small" @click="openResolveDialog(row, 1)">
-                处罚互刷
+              <el-button type="danger" size="small" plain @click="openResolveDialog(row, 1)">
+                处罚
               </el-button>
-              <el-button type="success" plain size="small" @click="openResolveDialog(row, 2)">
-                排除误报
+              <el-button size="small" plain @click="openResolveDialog(row, 2)">
+                放行
               </el-button>
             </template>
             <span v-else class="cell-sub">已归档</span>
@@ -157,10 +218,11 @@
           v-model:page-size="query.pageSize"
           :total="total"
           layout="total, prev, pager, next"
+          background
           @current-change="fetchAlerts"
         />
       </div>
-    </div>
+    </section>
 
     <!-- Resolve Modal -->
     <el-dialog
@@ -169,8 +231,8 @@
       width="520px"
     >
       <div v-if="currentAlert" class="dialog-alert-summary">
-        <p><strong>命中规则：</strong>{{ currentAlert.ruleName }}（{{ currentAlert.alertNo }}）</p>
-        <p><strong>取证摘要：</strong>{{ currentAlert.evidenceSummary }}</p>
+        <strong>{{ currentAlert.ruleName }}（{{ currentAlert.alertNo }}）</strong>
+        <p>{{ currentAlert.evidenceSummary }}</p>
       </div>
 
       <el-form label-position="top">
@@ -181,18 +243,18 @@
           <el-form-item label="关联技能服务治理">
             <el-switch
               v-model="resolveForm.offlineService"
-              active-text="同时强制下架涉事技能服务并发送站内整改通知"
+              active-text="同时强制下架涉事技能服务并推送整改通知"
               inactive-text="仅扣减双方信用分并警告"
             />
           </el-form-item>
         </template>
 
-        <el-form-item label="核查结论备注">
+        <el-form-item label="核查审计结论备注">
           <el-input
             v-model="resolveForm.handleRemark"
             type="textarea"
             :rows="3"
-            placeholder="请输入风控核查依据或处罚说明（将同步记录至审计台账）"
+            placeholder="请输入风控核查依据或处罚说明（同步写入不可篡改审计台账）"
           />
         </el-form-item>
       </el-form>
@@ -204,7 +266,7 @@
           :loading="resolving"
           @click="submitResolve"
         >
-          确认执行
+          确认执行处置
         </el-button>
       </template>
     </el-dialog>
@@ -212,8 +274,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import {
   getRiskRadarOverview,
   listRiskAlerts,
@@ -222,11 +285,44 @@ import {
   type RiskRadarOverviewData,
   type RiskAuditAlertItem
 } from '@/api/riskRadar'
+import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
+import XyfStatTile from '@/components/ui/XyfStatTile.vue'
 
 const loading = ref(false)
 const scanning = ref(false)
 const resolving = ref(false)
 const scanDays = ref(7)
+
+const ruleCards = [
+  {
+    code: 'BIDIRECTIONAL_WASH_TRADE',
+    short: 'WASH_PAIR',
+    level: 'L3 高危模型',
+    title: '买卖角色互换双向对倒',
+    desc: '同一对账号短期内互为买卖双方交叉下单套取完单量与好评'
+  },
+  {
+    code: 'HIGH_FREQ_SAME_PAIR',
+    short: 'FREQ_PAIR',
+    level: 'L2 高频模型',
+    title: '同买卖对高频重复刷单',
+    desc: '7日内固定交易对连续多次重复拍下同类服务累计信誉'
+  },
+  {
+    code: 'ULTRA_FAST_COMPLETION',
+    short: 'FAST_ACK',
+    level: 'L2 时序模型',
+    title: '180秒极速秒拍秒确',
+    desc: '从托管支付到确认验收低于3分钟，背离真实校园服务履约周期'
+  },
+  {
+    code: 'LOW_PRICE_SCORE_BRUSHING',
+    short: 'MICRO_AMT',
+    level: 'L1 价格偏离',
+    title: '超低价微额疑似刷分',
+    desc: '成交金额显著偏离同分类分位基准，疑似低成本刷取信用分'
+  }
+]
 
 const overview = reactive<RiskRadarOverviewData>({
   totalAlerts: 0,
@@ -260,6 +356,20 @@ const resolveForm = reactive({
   offlineService: true,
   handleRemark: ''
 })
+
+const hasActiveFilter = computed(() =>
+  Boolean(query.ruleCode || query.severity || query.handleStatus !== undefined || query.keyword.trim())
+)
+
+function toggleRuleFilter(code: string) {
+  query.ruleCode = query.ruleCode === code ? undefined : code
+  handleSearch()
+}
+
+function setHandleStatus(st?: number) {
+  query.handleStatus = st
+  handleSearch()
+}
 
 const fetchOverview = async () => {
   try {
@@ -355,41 +465,6 @@ onMounted(() => {
   gap: 18px;
 }
 
-.radar-banner {
-  padding: 20px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-
-  .radar-kicker {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--xyf-primary);
-  }
-
-  h2 {
-    margin: 4px 0 6px;
-    font-size: 20px;
-    font-weight: 700;
-  }
-
-  p {
-    margin: 0;
-    font-size: 13px;
-    color: var(--xyf-ink-2);
-    max-width: 680px;
-  }
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-}
-
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -400,94 +475,177 @@ onMounted(() => {
   }
 }
 
-.kpi-card {
+.rule-matrix {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.rule-card {
   padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--xyf-border);
+  background: #ffffff;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  transition: all var(--xyf-transition);
 
-  .kpi-label {
-    font-size: 12.5px;
+  &:hover {
+    border-color: #18181b;
+    transform: translateY(-2px);
+  }
+
+  &.is-active {
+    background: #18181b;
+    border-color: #18181b;
+    color: #ffffff;
+
+    .rule-tag {
+      background: rgba(255, 255, 255, 0.14);
+      color: #e5c79e;
+    }
+
+    .rule-code,
+    p {
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    strong {
+      color: #ffffff;
+    }
+  }
+
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .rule-tag {
+    font-size: 11px;
+    font-weight: 650;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--xyf-surface-muted);
     color: var(--xyf-ink-2);
   }
 
-  .kpi-value {
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--xyf-ink);
-
-    &.is-warning {
-      color: #d97706;
-    }
-    &.is-danger {
-      color: #dc2626;
-    }
-    &.is-success {
-      color: #059669;
-    }
+  .rule-code {
+    font-size: 10.5px;
+    color: var(--xyf-ink-3);
   }
 
-  .kpi-sub {
-    font-size: 11.5px;
+  strong {
+    font-size: 14px;
+    color: var(--xyf-ink);
+  }
+
+  p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
     color: var(--xyf-ink-3);
   }
 }
 
-.filter-bar {
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+.table-card {
+  padding: 18px 20px;
 }
 
-.table-card {
-  padding: 16px 18px;
+.filter-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+
+  .filter-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
 }
 
 .cell-primary {
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 650;
   color: var(--xyf-ink);
 }
 
 .cell-sub {
   font-size: 12px;
   color: var(--xyf-ink-3);
+  margin-top: 3px;
 }
 
-.pair-line {
+.score-meter {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+  flex-direction: column;
+  gap: 5px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12.5px;
+  }
+
+  .score-track {
+    height: 5px;
+    border-radius: 999px;
+    background: #ececef;
+    overflow: hidden;
+
+    .score-fill {
+      height: 100%;
+      background: #18181b;
+      border-radius: 999px;
+
+      &.is-high {
+        background: #dc2626;
+      }
+    }
+  }
 }
 
-.role-pill {
+.pair-graph {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 700;
+  gap: 6px;
+  flex-wrap: wrap;
 
-  &.is-buyer {
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
-  &.is-seller {
-    background: #fef3c7;
-    color: #b45309;
-  }
-}
+  .party-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--xyf-surface-soft);
+    border: 1px solid var(--xyf-border);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--xyf-ink);
 
-.credit-chip {
-  font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #475569;
+    small {
+      color: var(--xyf-ink-3);
+      font-weight: 700;
+    }
+  }
+
+  .pair-arrow {
+    color: var(--xyf-ink-3);
+    font-weight: 700;
+  }
 }
 
 .pagination-bar {
@@ -497,15 +655,23 @@ onMounted(() => {
 }
 
 .dialog-alert-summary {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--xyf-surface-soft);
+  border: 1px solid var(--xyf-border);
   margin-bottom: 16px;
-  font-size: 13px;
+
+  strong {
+    display: block;
+    font-size: 13.5px;
+    color: var(--xyf-ink);
+    margin-bottom: 4px;
+  }
 
   p {
-    margin: 4px 0;
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--xyf-ink-2);
   }
 }
 </style>
