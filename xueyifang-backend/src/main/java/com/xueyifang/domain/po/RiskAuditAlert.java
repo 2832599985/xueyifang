@@ -1,6 +1,7 @@
 package com.xueyifang.domain.po;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.annotations.ApiModel;
@@ -64,9 +65,11 @@ public class RiskAuditAlert implements Serializable {
     @ApiModelProperty("涉事订单金额")
     private BigDecimal orderAmount;
 
+    @TableField("pair_order_count_7d")
     @ApiModelProperty("近7日同买卖对累计交易笔数")
     private Integer pairOrderCount7d;
 
+    @TableField("reverse_order_count_7d")
     @ApiModelProperty("近7日买卖角色互换反向对倒笔数")
     private Integer reverseOrderCount7d;
 

@@ -1,5 +1,9 @@
 package com.xueyifang.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableFieldInfo;
+import com.baomidou.mybatisplus.core.metadata.TableInfo;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.xueyifang.constant.OrderConstant;
 import com.xueyifang.domain.dto.RiskAlertResolveRequest;
 import com.xueyifang.domain.po.CreditScoreLog;
@@ -15,6 +19,7 @@ import com.xueyifang.mapper.RiskAuditAlertMapper;
 import com.xueyifang.mapper.ServiceMapper;
 import com.xueyifang.mapper.ServiceOrderMapper;
 import com.xueyifang.mapper.UserMapper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -147,5 +152,26 @@ class RiskRadarServiceImplTest {
         verify(creditScoreLogMapper, times(2)).insert(any(CreditScoreLog.class));
         verify(notificationMapper, times(2)).insert(any(Notification.class));
         verify(riskAuditAlertMapper, times(1)).updateById(any(RiskAuditAlert.class));
+    }
+
+    @Test
+    void riskAuditAlert_mybatisColumnMappingsMatchSchema() {
+        MybatisConfiguration configuration = new MybatisConfiguration();
+        configuration.setMapUnderscoreToCamelCase(true);
+        TableInfo tableInfo = TableInfoHelper.initTableInfo(new MapperBuilderAssistant(configuration, ""), RiskAuditAlert.class);
+
+        String pairColumn = tableInfo.getFieldList().stream()
+                .filter(f -> "pairOrderCount7d".equals(f.getProperty()))
+                .map(TableFieldInfo::getColumn)
+                .findFirst()
+                .orElse(null);
+        String reverseColumn = tableInfo.getFieldList().stream()
+                .filter(f -> "reverseOrderCount7d".equals(f.getProperty()))
+                .map(TableFieldInfo::getColumn)
+                .findFirst()
+                .orElse(null);
+
+        assertEquals("pair_order_count_7d", pairColumn);
+        assertEquals("reverse_order_count_7d", reverseColumn);
     }
 }
