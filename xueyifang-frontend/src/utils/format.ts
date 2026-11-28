@@ -48,6 +48,30 @@ export function formatDate(value: DateInput, fallback = '-'): string {
   })
 }
 
+export function formatSessionTimeRange(
+  start: DateInput,
+  end?: DateInput,
+  fallback = '时间待定'
+): string {
+  const s = toDate(start)
+  if (!s) return fallback
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const sDate = `${s.getMonth() + 1}月${s.getDate()}日`
+  const sTime = `${pad(s.getHours())}:${pad(s.getMinutes())}`
+  const e = toDate(end)
+  if (!e) return `${sDate} ${sTime}`
+  const eTime = `${pad(e.getHours())}:${pad(e.getMinutes())}`
+  const sameDay =
+    s.getFullYear() === e.getFullYear() &&
+    s.getMonth() === e.getMonth() &&
+    s.getDate() === e.getDate()
+  if (sameDay) {
+    return `${sDate} ${sTime}–${eTime}`
+  }
+  const eDate = `${e.getMonth() + 1}月${e.getDate()}日`
+  return `${sDate} ${sTime} – ${eDate} ${eTime}`
+}
+
 export function formatPrice(value: number | string | null | undefined, fallback = '¥0.00'): string {
   if (value === null || value === undefined || value === '') return fallback
   const num = typeof value === 'string' ? Number(value) : value

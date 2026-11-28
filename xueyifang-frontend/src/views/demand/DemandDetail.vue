@@ -1,19 +1,41 @@
 <template>
   <div class="demand-detail-page xyf-page">
     <div class="xyf-container">
+      <!-- Slim Top Bar: Back + Unboxed Serial + Inline Lifecycle -->
       <nav class="detail-topbar">
-        <el-button text class="detail-topbar__back" @click="router.push('/demands')">
-          <el-icon><ArrowLeft /></el-icon>
-          <span>返回悬赏大厅</span>
-        </el-button>
-        <span v-if="demand" class="demand-serial xyf-mono">{{ demand.demandNo }}</span>
+        <div class="detail-topbar__left">
+          <button type="button" class="back-link" @click="router.push('/demands')">
+            <el-icon><ArrowLeft /></el-icon>
+            <span>悬赏大厅</span>
+          </button>
+          <template v-if="demand">
+            <span class="sep" aria-hidden="true">/</span>
+            <span class="serial-text xyf-mono">{{ demand.demandNo }}</span>
+          </template>
+        </div>
+
+        <ol v-if="demand" class="inline-stepper" aria-label="悬赏进度">
+          <li
+            v-for="(step, idx) in lifecycleSteps"
+            :key="step.title"
+            class="inline-stepper__item"
+            :class="{
+              'is-done': lifecycleIndex > idx,
+              'is-current': lifecycleIndex === idx
+            }"
+          >
+            <span class="inline-stepper__num xyf-tabular">0{{ idx + 1 }}</span>
+            <span>{{ step.title }}</span>
+            <span v-if="idx < lifecycleSteps.length - 1" class="inline-stepper__arrow" aria-hidden="true">→</span>
+          </li>
+        </ol>
       </nav>
 
-      <div v-if="loading" class="xyf-surface-card" style="padding: 32px">
+      <div v-if="loading" class="loading-wrap">
         <el-skeleton :rows="8" animated />
       </div>
 
-      <div v-else-if="!demand" class="xyf-surface-card" style="padding: 48px">
+      <div v-else-if="!demand" class="empty-wrap">
         <XyfEmptyState title="未找到该悬赏需求" description="该悬赏可能已被发布者撤回或关闭">
           <template #action>
             <el-button type="primary" @click="router.push('/demands')">返回悬赏大厅</el-button>
@@ -22,38 +44,15 @@
       </div>
 
       <template v-else>
-        <!-- 4-Step Bounty Escrow Lifecycle Stepper -->
-        <section class="xyf-surface-card lifecycle-bar">
-          <div
-            v-for="(step, idx) in lifecycleSteps"
-            :key="step.title"
-            class="lc-step"
-            :class="{
-              'is-done': lifecycleIndex > idx,
-              'is-current': lifecycleIndex === idx
-            }"
-          >
-            <span class="lc-step__num xyf-tabular">0{{ idx + 1 }}</span>
-            <div class="lc-step__text">
-              <strong>{{ step.title }}</strong>
-              <span>{{ step.sub }}</span>
-            </div>
-          </div>
-        </section>
-
         <!-- Matched Escrow Order Banner -->
-        <section v-if="demand.demandStatus === 1 && demand.matchedOrderId" class="matched-escrow-bar">
-          <div class="matched-escrow-bar__info">
-            <span class="matched-badge">已成单</span>
-            <div>
-              <strong>已选标并生成担保订单</strong>
-              <p>双方可在订单详情中完成支付与验收。</p>
-            </div>
+        <section v-if="demand.demandStatus === 1 && demand.matchedOrderId" class="matched-bar">
+          <div class="matched-bar__info">
+            <strong>已选标并生成担保订单</strong>
+            <span>双方可在订单详情中完成支付与验收。</span>
           </div>
           <el-button
             v-if="isPublisher || isWinningBidder"
             type="primary"
-            size="large"
             @click="router.push(`/orders/${demand.matchedOrderId}`)"
           >
             查看订单
@@ -62,39 +61,41 @@
         </section>
 
         <div class="detail-grid">
-          <!-- Left Main Column: Spec Sheet + Proposal Comparison Arena -->
-          <div class="detail-main">
-            <section class="xyf-surface-card spec-sheet">
-              <div class="spec-sheet__top">
-                <div class="tag-cluster">
-                  <span class="urgency-pill" :class="`is-u${demand.urgencyLevel}`">
-                    {{ demand.urgencyLevel === 3 ? '十万火急' : demand.urgencyLevel === 2 ? '加急优先' : '常规悬赏' }}
-                  </span>
-                  <span class="neutral-pill">{{ demand.campusName || '主校区' }}</span>
-                  <span v-if="demand.tagName" class="neutral-pill">{{ demand.tagName }}</span>
-                </div>
-
-                <span class="status-seal" :class="{ 'is-open': demand.demandStatus === 0 }">
-                  {{ statusLabel(demand.demandStatus) }}
-                </span>
+          <!-- Left Editorial Column (open document flow, hairline dividers, zero nested boxes) -->
+          <main class="detail-main">
+            <header class="doc-header">
+              <div class="doc-kicker">
+                <XyfUrgencyTag :level="demand.urgencyLevel" size="md" />
+                <XyfStatusBadge
+                  :tone="demand.demandStatus === 0 ? 'success' : demand.demandStatus === 1 ? 'dark' : 'neutral'"
+                  :icon="demand.demandStatus === 0 ? 'live' : demand.demandStatus === 1 ? 'check' : 'lock'"
+                  :tooltip="statusLabel(demand.demandStatus)"
+                  :icon-only="true"
+                  size="sm"
+                />
+                <span>{{ demand.campusName || '主校区' }}</span>
+                <template v-if="demand.tagName">
+                  <span class="sep" aria-hidden="true">·</span>
+                  <span>{{ demand.tagName }}</span>
+                </template>
               </div>
 
-              <h1 class="spec-title">{{ demand.title }}</h1>
+              <h1 class="doc-title">{{ demand.title }}</h1>
 
-              <!-- Publisher Trust Bar -->
-              <div class="publisher-strip">
-                <div class="publisher-strip__left">
-                  <XyfAvatar :src="demand.publisherAvatar" :name="demand.publisherName || '校内同学'" :size="40" />
-                  <div>
-                    <div class="pub-name-line">
+              <!-- Compact Inline Publisher Line -->
+              <div class="author-row">
+                <div class="author-row__left">
+                  <XyfAvatar :src="demand.publisherAvatar" :name="demand.publisherName || '校内同学'" :size="36" />
+                  <div class="author-row__info">
+                    <div class="author-row__name">
                       <strong>{{ demand.publisherName || '校内实名同学' }}</strong>
-                      <span class="verify-pill">
-                        {{ demand.publisherEduVerified === 1 ? '高校 .edu.cn 已核验' : '实名学籍' }}
-                      </span>
-                      <span class="verify-pill xyf-tabular">履约信用 {{ demand.publisherCreditScore ?? 100 }}</span>
+                      <XyfVerifiedMark
+                        :verified="demand.publisherEduVerified === 1"
+                        :credit-score="demand.publisherCreditScore ?? 100"
+                      />
                     </div>
-                    <div class="pub-time xyf-tabular">
-                      发布于 {{ formatDateTime(demand.createTime) }}
+                    <div class="author-row__time xyf-tabular">
+                      发布于 {{ formatDateTimeMinute(demand.createTime) }}
                     </div>
                   </div>
                 </div>
@@ -106,52 +107,61 @@
                   @click="router.push(`/chat/${demand.publisherId}`)"
                 >
                   <el-icon><ChatDotRound /></el-icon>
-                  私信需求方
+                  私信
                 </el-button>
               </div>
+            </header>
 
-              <!-- 4-Tile Key Spec Bento -->
-              <div class="spec-bento xyf-tabular">
-                <div class="spec-tile">
-                  <span>悬赏预算区间</span>
-                  <strong>¥{{ Number(demand.budgetMin).toFixed(0) }} – ¥{{ Number(demand.budgetMax).toFixed(0) }}</strong>
+            <!-- Clean Hairline Key Specs Strip (animated SVG anchored values) -->
+            <section class="key-specs xyf-tabular" aria-label="关键信息">
+              <div class="key-spec">
+                <span>交付方式</span>
+                <strong class="spec-val">
+                  <XyfDeliveryIcon
+                    :trade-type="demand.tradeType"
+                    size="sm"
+                    :text="demand.tradeType === 1 ? '校内当面核销' : '线上凭证担保'"
+                  />
+                </strong>
+              </div>
+              <div class="key-spec">
+                <span>期望截止</span>
+                <strong class="spec-val">
+                  <el-icon><Clock /></el-icon>
+                  <span>{{ demand.deadlineTime ? formatDateTimeMinute(demand.deadlineTime) : '协商确定' }}</span>
+                </strong>
+              </div>
+              <div class="key-spec">
+                <span>已收报价</span>
+                <strong class="spec-val">
+                  <el-icon><Document /></el-icon>
+                  <span>{{ demand.bids?.length || 0 }} 份方案</span>
+                </strong>
+              </div>
+            </section>
+
+            <!-- Acceptance Criteria -->
+            <section class="doc-section">
+              <h2 class="section-label">需求详情与验收标准</h2>
+              <p class="prose-text">{{ demand.description }}</p>
+            </section>
+
+            <!-- Campus Geofence Map (when offline) -->
+            <section v-if="demand.tradeType === 1 && demand.meetupLat && demand.meetupLng" class="doc-section">
+              <div class="map-header">
+                <div>
+                  <h2 class="section-label section-label--icon">
+                    <el-icon><Location /></el-icon>
+                    <span>交接地点 · {{ demand.meetupPoiName }}</span>
+                  </h2>
+                  <p v-if="demand.meetupAddress" class="map-sub">{{ demand.meetupAddress }}</p>
                 </div>
-                <div class="spec-tile">
-                  <span>交付与验收模式</span>
-                  <strong>{{ demand.tradeType === 1 ? '校内当面核销' : '线上凭证担保' }}</strong>
-                </div>
-                <div class="spec-tile">
-                  <span>当前收到报价</span>
-                  <strong>{{ demand.bids?.length || 0 }} 份方案</strong>
-                </div>
-                <div class="spec-tile">
-                  <span>期望截止时间</span>
-                  <strong>{{ demand.deadlineTime ? formatDateTime(demand.deadlineTime).slice(0, 16) : '协商确定' }}</strong>
-                </div>
+                <span class="map-radius xyf-tabular">核销半径 {{ demand.meetupRadiusMeters || 80 }}m</span>
               </div>
 
-              <!-- Acceptance Criteria -->
-              <div class="criteria-box">
-                <div class="xyf-section-heading">
-                  <h3>需求详情与验收标准</h3>
-                </div>
-                <p class="criteria-text">{{ demand.description }}</p>
-              </div>
-
-              <!-- Split Campus Map Card when Offline -->
-              <div v-if="demand.tradeType === 1 && demand.meetupLat && demand.meetupLng" class="geofence-box">
-                <div class="geofence-box__head">
-                  <div>
-                    <h4>交接地点：{{ demand.meetupPoiName }}</h4>
-                    <p v-if="demand.meetupAddress">{{ demand.meetupAddress }}</p>
-                  </div>
-                  <span class="radius-chip xyf-tabular">
-                    核销有效半径 {{ demand.meetupRadiusMeters || 80 }}m
-                  </span>
-                </div>
-
+              <div class="map-frame">
                 <RealCampusMap
-                  :height="230"
+                  :height="220"
                   :interactive="false"
                   :latitude="Number(demand.meetupLat)"
                   :longitude="Number(demand.meetupLng)"
@@ -163,12 +173,12 @@
               </div>
             </section>
 
-            <!-- Creator Proposals & Comparison Arena -->
-            <section class="xyf-surface-card arena-card">
-              <div class="arena-head">
-                <div class="xyf-section-heading" style="margin: 0">
-                  <h2>创作者竞标方案对比台（{{ demand.bids?.length || 0 }}）</h2>
-                </div>
+            <!-- Creator Proposals (clean hairline-separated list) -->
+            <section class="doc-section doc-section--proposals">
+              <div class="proposals-head">
+                <h2 class="section-label" style="margin: 0">
+                  创作者报价方案（{{ demand.bids?.length || 0 }}）
+                </h2>
 
                 <div v-if="(demand.bids?.length || 0) > 1" class="xyf-segmented">
                   <button
@@ -177,7 +187,7 @@
                     :class="{ 'is-active': bidSort === 'default' }"
                     @click="bidSort = 'default'"
                   >
-                    综合排序
+                    综合
                   </button>
                   <button
                     type="button"
@@ -198,10 +208,10 @@
                 </div>
               </div>
 
-              <div v-if="!sortedBids.length" class="empty-arena">
+              <div v-if="!sortedBids.length" class="empty-proposals">
                 <XyfEmptyState
-                  title="暂未收到创作者报价方案"
-                  description="认证创作者可在右侧竞标工作台填写报价金额、交付耗时与履约方案抢先接单。"
+                  title="暂未收到创作者报价"
+                  description="认证创作者可在右侧填写报价金额与履约方案参与竞标。"
                 />
               </div>
 
@@ -209,47 +219,51 @@
                 <article
                   v-for="bid in sortedBids"
                   :key="bid.id"
-                  class="proposal-card"
+                  class="proposal-item"
                   :class="{ 'is-winner': bid.bidStatus === 1 }"
                 >
-                  <div v-if="bid.bidStatus === 1" class="winner-ribbon">
-                    ✦ 需求方已采纳中标方案 · 已转为平台担保订单
+                  <div v-if="bid.bidStatus === 1" class="winner-note">
+                    <XyfStatusBadge tone="success" icon="check" label="已采纳中标 · 已转担保订单" size="xs" />
                   </div>
 
-                  <div class="proposal-card__top">
-                    <div class="bidder-profile" @click="router.push(`/creators/${bid.bidderId}`)">
-                      <XyfAvatar :src="bid.bidderAvatar" :name="bid.bidderName || '创作者'" :size="44" />
-                      <div>
-                        <div class="bidder-name-row">
+                  <div class="proposal-item__head">
+                    <button
+                      type="button"
+                      class="bidder-link"
+                      @click="router.push(`/creators/${bid.bidderId}`)"
+                    >
+                      <XyfAvatar :src="bid.bidderAvatar" :name="bid.bidderName || '创作者'" :size="38" />
+                      <div class="bidder-link__info">
+                        <div class="bidder-link__name">
                           <strong>{{ bid.bidderName || `认证创作者 #${bid.bidderId}` }}</strong>
-                          <span class="trust-chip">
-                            {{ bid.bidderEduVerified === 1 ? 'edu.cn 已核验' : '认证创作者' }}
-                          </span>
-                          <span class="trust-chip xyf-tabular">信用 {{ bid.bidderCreditScore ?? 100 }}</span>
+                          <XyfVerifiedMark
+                            :verified="bid.bidderEduVerified === 1"
+                            :credit-score="bid.bidderCreditScore ?? 100"
+                          />
                         </div>
-                        <div class="bidder-sub">
-                          {{ bid.bidderProfessional || '校内认证创作者' }} · 点击调阅公开数字信用档案
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="quote-block xyf-tabular">
-                      <div class="quote-block__price-row">
-                        <span class="budget-delta" :class="budgetDeltaClass(bid.bidPrice)">
-                          {{ budgetDeltaText(bid.bidPrice) }}
+                        <span class="xyf-tabular">
+                          {{ bid.bidderProfessional || '校内认证创作者' }}
                         </span>
-                        <strong>¥{{ Number(bid.bidPrice).toFixed(2) }}</strong>
                       </div>
-                      <span class="quote-block__eta">承诺 {{ bid.estimatedHours }} 小时内完成交付</span>
+                    </button>
+
+                    <div class="quote-summary xyf-tabular">
+                      <strong>¥{{ Number(bid.bidPrice).toFixed(2) }}</strong>
+                      <div class="quote-summary__sub">
+                        <span :class="budgetDeltaClass(bid.bidPrice)">{{ budgetDeltaText(bid.bidPrice) }}</span>
+                        <span class="sep" aria-hidden="true">·</span>
+                        <span class="eta-inline">
+                          <el-icon><Clock /></el-icon>
+                          <span>{{ bid.estimatedHours }}h</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div class="proposal-plan">
-                    {{ bid.bidPlan }}
-                  </div>
+                  <p class="proposal-item__plan">{{ bid.bidPlan }}</p>
 
-                  <div class="proposal-card__foot">
-                    <span class="proposal-time xyf-tabular">报价于 {{ formatDateTime(bid.createTime) }}</span>
+                  <div class="proposal-item__foot">
+                    <span class="proposal-time xyf-tabular">{{ formatDateTimeMinute(bid.createTime) }}</span>
 
                     <div class="proposal-actions">
                       <el-button
@@ -268,24 +282,22 @@
                         :loading="acceptingId === bid.id"
                         @click="handleAcceptBid(bid)"
                       >
-                        采纳此方案并生成担保单
+                        采纳此方案
                       </el-button>
                     </div>
                   </div>
                 </article>
               </div>
             </section>
-          </div>
+          </main>
 
-          <!-- Right Sticky Bidding & Escrow Studio -->
+          <!-- Right Single Sticky Action Card -->
           <aside class="detail-aside">
-            <section class="xyf-surface-card bid-studio">
-              <div class="studio-price-head xyf-tabular">
-                <span class="studio-kicker">需求方参考预算</span>
-                <div class="studio-range">
-                  ¥{{ Number(demand.budgetMin).toFixed(0) }}
-                  <span>–</span>
-                  ¥{{ Number(demand.budgetMax).toFixed(0) }}
+            <section class="action-card">
+              <div class="action-card__price xyf-tabular">
+                <span class="action-card__label">参考预算</span>
+                <div class="action-card__range">
+                  ¥{{ Number(demand.budgetMin).toFixed(0) }}<span>–</span>¥{{ Number(demand.budgetMax).toFixed(0) }}
                 </div>
               </div>
 
@@ -295,21 +307,20 @@
                 class="budget-meter xyf-tabular"
               >
                 <div class="budget-meter__track">
-                  <div class="budget-meter__zone" />
                   <div class="budget-meter__pin" :style="{ left: `${bidPinPercent}%` }" />
                 </div>
                 <div class="budget-meter__labels">
-                  <span>下限 ¥{{ demand.budgetMin }}</span>
+                  <span>¥{{ demand.budgetMin }}</span>
                   <span class="is-mid">当前报价 ¥{{ bidForm.bidPrice }}</span>
-                  <span>上限 ¥{{ demand.budgetMax }}</span>
+                  <span>¥{{ demand.budgetMax }}</span>
                 </div>
               </div>
 
               <!-- Publisher Self Controls -->
               <template v-if="isPublisher">
-                <div class="publisher-console">
+                <div class="console-block">
                   <p>
-                    您是本条悬赏的发布方。建议对比各创作者的「历史完单信用、承诺耗时与具体履约方案」，选标后款项将进入平台担保冻结池。
+                    您是本条悬赏的发布方，可在左侧对比报价方案并选标，确认后款项进入平台担保托管。
                   </p>
                   <el-button
                     v-if="demand.demandStatus === 0"
@@ -318,15 +329,15 @@
                     style="width: 100%"
                     @click="handleCancelDemand"
                   >
-                    撤回并关闭本条悬赏
+                    撤回并关闭悬赏
                   </el-button>
                 </div>
               </template>
 
               <!-- Creator Bid Submission Form -->
               <template v-else-if="demand.demandStatus === 0">
-                <div v-if="!userStore.userInfo" class="gate-box">
-                  <p>登录校园账号后，认证创作者可在线提交定制报价方案。</p>
+                <div v-if="!userStore.userInfo" class="console-block">
+                  <p>登录后，认证创作者可在线提交报价与履约方案。</p>
                   <el-button
                     type="primary"
                     size="large"
@@ -337,34 +348,32 @@
                   </el-button>
                 </div>
 
-                <div v-else-if="userStore.isAdmin" class="gate-box">
-                  <p>当前为管理员巡检视角，如需违规下架请前往后台「反向悬赏治理」。</p>
+                <div v-else-if="userStore.isAdmin" class="console-block">
+                  <p>当前为管理员巡检视角，如需处理请前往后台悬赏管理。</p>
                   <el-button plain style="width: 100%" @click="router.push('/admin/demands')">
-                    前往后台悬赏巡检
+                    前往后台管理
                   </el-button>
                 </div>
 
-                <div v-else-if="!userStore.hasPublishPermission" class="gate-box">
-                  <p>参与悬赏竞标接单需先完成「创作者发布权限认证」。</p>
+                <div v-else-if="!userStore.hasPublishPermission" class="console-block">
+                  <p>参与悬赏竞标需先完成创作者发布权限认证。</p>
                   <el-button
                     plain
                     size="large"
                     style="width: 100%"
                     @click="router.push('/user/center?tab=permission')"
                   >
-                    前往申请创作者认证
+                    申请创作者认证
                   </el-button>
                 </div>
 
-                <div v-else-if="hasAlreadyBid" class="submitted-banner">
-                  <strong>✓ 您已提交竞标报价</strong>
-                  <p>需求方采纳方案后将立即通过站内通知提醒您，并自动在「收到的销售单」生成担保订单。</p>
+                <div v-else-if="hasAlreadyBid" class="submitted-note">
+                  <strong>已提交竞标报价</strong>
+                  <p>需求方选标后将自动生成担保订单并通知您。</p>
                 </div>
 
                 <el-form v-else label-position="top" class="bid-form">
-                  <h3 class="bid-form__title">提交创作者竞标方案</h3>
-
-                  <el-form-item label="我的报价金额（元）" required>
+                  <el-form-item label="我的报价（元）" required>
                     <el-input-number
                       v-model="bidForm.bidPrice"
                       :min="1"
@@ -375,7 +384,7 @@
                     />
                   </el-form-item>
 
-                  <el-form-item label="承诺完成耗时（小时）" required>
+                  <el-form-item label="承诺耗时（小时）" required>
                     <div class="eta-presets">
                       <button
                         v-for="h in [2, 6, 12, 24, 48]"
@@ -396,14 +405,14 @@
                     />
                   </el-form-item>
 
-                  <el-form-item label="履约计划与个人优势说明" required>
+                  <el-form-item label="履约方案说明" required>
                     <el-input
                       v-model="bidForm.bidPlan"
                       type="textarea"
                       :rows="4"
                       maxlength="500"
                       show-word-limit
-                      placeholder="简述您的相关课程成绩/项目经验、可碰面时段及具体交付保障（至少6字）..."
+                      placeholder="简述相关经验、可配合时间与交付保障（至少6字）"
                     />
                   </el-form-item>
 
@@ -414,16 +423,14 @@
                     style="width: 100%"
                     @click="handleSubmitBid"
                   >
-                    立即提交竞标方案
+                    提交竞标方案
                   </el-button>
                 </el-form>
               </template>
 
-              <ul class="escrow-guarantees">
-                <li>选标后买方支付款项进入平台担保冻结池</li>
-                <li>支持拆解多阶段里程碑或现场 10s 动态码核销</li>
-                <li>平台争议仲裁与预约爽约自动退赔双重护航</li>
-              </ul>
+              <p class="escrow-footnote">
+                选标后款项由平台担保托管，支持里程碑分期或现场动态码核销，验收无误后放款。
+              </p>
             </section>
           </aside>
         </div>
@@ -436,7 +443,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, ArrowRight, ChatDotRound } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, ChatDotRound, Clock, Location, Document } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   getDemandDetail,
@@ -445,11 +452,15 @@ import {
   cancelDemand
 } from '@/api/demand'
 import { notifyFallbackError } from '@/api/request'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTimeMinute } from '@/utils/format'
 import type { DemandItem, DemandBidItem } from '@/types/demand'
 import RealCampusMap from '@/components/business/RealCampusMap.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
+import XyfUrgencyTag from '@/components/ui/XyfUrgencyTag.vue'
+import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
+import XyfVerifiedMark from '@/components/ui/XyfVerifiedMark.vue'
+import XyfDeliveryIcon from '@/components/ui/XyfDeliveryIcon.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -463,10 +474,10 @@ const acceptingId = ref<number | null>(null)
 const bidSort = ref<'default' | 'price_asc' | 'hours_asc'>('default')
 
 const lifecycleSteps = [
-  { title: '发布悬赏', sub: '填写需求与预算' },
-  { title: '行家报价', sub: '查看方案与工期' },
-  { title: '选标下单', sub: '确认人选并支付担保' },
-  { title: '验收结算', sub: '确认交付后放款' }
+  { title: '发布悬赏' },
+  { title: '行家报价' },
+  { title: '选标下单' },
+  { title: '验收结算' }
 ]
 
 const bidForm = reactive({
@@ -502,7 +513,6 @@ const lifecycleIndex = computed(() => {
 
 const sortedBids = computed(() => {
   const list = [...(demand.value?.bids || [])]
-  // Winning bid always stays on top
   return list.sort((a, b) => {
     if (a.bidStatus === 1 && b.bidStatus !== 1) return -1
     if (b.bidStatus === 1 && a.bidStatus !== 1) return 1
@@ -526,7 +536,7 @@ function budgetDeltaText(price: number) {
   const min = Number(demand.value.budgetMin)
   const max = Number(demand.value.budgetMax)
   if (p < min) return `低于下限 ¥${(min - p).toFixed(0)}`
-  if (p <= max) return '契合预算区间'
+  if (p <= max) return '契合预算'
   return `超出上限 ¥${(p - max).toFixed(0)}`
 }
 
@@ -539,9 +549,9 @@ function budgetDeltaClass(price: number) {
 
 function statusLabel(st: number) {
   if (st === 0) return '招募竞标中'
-  if (st === 1) return '已选标转担保单'
-  if (st === 2) return '发布者已撤回'
-  return '管理员已关闭'
+  if (st === 1) return '已选标成单'
+  if (st === 2) return '已撤回'
+  return '已关闭'
 }
 
 async function loadDetail() {
@@ -636,235 +646,165 @@ onMounted(loadDetail)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
-
-  &__back {
-    padding: 4px 8px 4px 0;
-    color: var(--xyf-ink-2);
-    font-size: 13px;
-
-    &:hover {
-      color: var(--xyf-ink);
-      background: transparent;
-    }
-  }
-}
-
-.demand-serial {
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border);
-  font-size: 12px;
-  color: var(--xyf-ink-2);
-}
-
-/* 4-Step Lifecycle Bar */
-.lifecycle-bar {
-  padding: 18px 24px;
-  margin-bottom: 18px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--xyf-border);
 
-  @media (max-width: 820px) {
-    grid-template-columns: repeat(2, 1fr);
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--xyf-ink-3);
   }
 }
 
-.lc-step {
-  display: flex;
+.back-link {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  opacity: 0.52;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--xyf-ink-2);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
 
-  &__num {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    border: 1px solid var(--xyf-border-strong);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-
-  &__text {
-    display: flex;
-    flex-direction: column;
-
-    strong {
-      font-size: 13.5px;
-      color: var(--xyf-ink);
-    }
-
-    span {
-      font-size: 11.5px;
-      color: var(--xyf-ink-3);
-    }
-  }
-
-  &.is-done,
-  &.is-current {
-    opacity: 1;
-  }
-
-  &.is-done .lc-step__num {
-    background: var(--xyf-surface-muted);
-    border-color: var(--xyf-ink);
+  &:hover {
     color: var(--xyf-ink);
   }
+}
 
-  &.is-current .lc-step__num {
-    background: #18181b;
-    border-color: #18181b;
-    color: #ffffff;
+.serial-text {
+  font-size: 12.5px;
+  color: var(--xyf-ink-3);
+}
+
+.sep {
+  color: var(--xyf-ink-4);
+}
+
+/* Slim Unboxed Inline Stepper */
+.inline-stepper {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12.5px;
+    color: var(--xyf-ink-4);
+
+    &.is-done {
+      color: var(--xyf-ink-2);
+    }
+
+    &.is-current {
+      color: var(--xyf-ink);
+      font-weight: 600;
+    }
+  }
+
+  &__num {
+    font-size: 11.5px;
+  }
+
+  &__arrow {
+    margin-left: 3px;
+    color: var(--xyf-border-strong);
   }
 }
 
-/* Matched Escrow Banner */
-.matched-escrow-bar {
-  margin-bottom: 20px;
-  padding: 20px 26px;
-  border-radius: 16px;
+.loading-wrap,
+.empty-wrap {
+  padding: 40px 0;
+}
+
+.matched-bar {
+  margin-bottom: 28px;
+  padding: 16px 22px;
+  border-radius: 12px;
   background: #18181b;
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
   flex-wrap: wrap;
 
   &__info {
     display: flex;
-    align-items: center;
-    gap: 16px;
+    align-items: baseline;
+    gap: 12px;
     flex-wrap: wrap;
 
     strong {
-      display: block;
-      font-size: 16px;
+      font-size: 15px;
     }
 
-    p {
-      margin: 4px 0 0;
+    span {
       font-size: 13px;
-      color: rgba(255, 255, 255, 0.7);
+      color: rgba(255, 255, 255, 0.72);
     }
-  }
-
-  .matched-badge {
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: rgba(200, 169, 126, 0.2);
-    border: 1px solid rgba(200, 169, 126, 0.45);
-    color: #e5c79e;
-    font-size: 12px;
-    font-weight: 600;
   }
 }
 
+/* Open Editorial 2-Column Layout */
 .detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.85fr);
-  gap: 24px;
+  grid-template-columns: minmax(0, 1.65fr) 360px;
+  gap: 48px;
   align-items: start;
 
-  @media (max-width: 960px) {
+  @media (max-width: 980px) {
     grid-template-columns: 1fr;
+    gap: 32px;
   }
 }
 
 .detail-main {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  min-width: 0;
 }
 
-.spec-sheet,
-.arena-card,
-.bid-studio {
-  padding: 26px 28px;
+.doc-header {
+  padding-bottom: 24px;
 }
 
-.spec-sheet__top {
+.doc-kicker {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.tag-cluster {
-  display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--xyf-ink-3);
+  margin-bottom: 10px;
 }
 
-.urgency-pill,
-.neutral-pill,
-.status-seal {
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.urgency-pill {
-  background: var(--xyf-surface-muted);
-  color: var(--xyf-ink-2);
-
-  &.is-u3 {
-    background: #fef2f2;
-    color: #b91c1c;
-    border: 1px solid #f7cece;
-  }
-  &.is-u2 {
-    background: var(--xyf-champagne-soft);
-    color: #9a5b13;
-    border: 1px solid var(--xyf-champagne-border);
-  }
-}
-
-.neutral-pill {
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border);
-  color: var(--xyf-ink-2);
-}
-
-.status-seal {
-  background: var(--xyf-surface-muted);
-  color: var(--xyf-ink-2);
-
-  &.is-open {
-    background: #18181b;
-    color: #ffffff;
-  }
-}
-
-.spec-title {
-  margin: 0 0 18px;
-  font-size: 24px;
+.doc-title {
+  margin: 0 0 20px;
+  font-size: 26px;
   font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.02em;
   color: var(--xyf-ink);
+  text-wrap: balance;
 }
 
-.publisher-strip {
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border-subtle);
+.author-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
 
   &__left {
     display: flex;
@@ -872,7 +812,7 @@ onMounted(loadDetail)
     gap: 12px;
   }
 
-  .pub-name-line {
+  &__name {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -880,108 +820,129 @@ onMounted(loadDetail)
 
     strong {
       font-size: 14px;
+      font-weight: 600;
       color: var(--xyf-ink);
     }
   }
 
-  .verify-pill {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: #ffffff;
-    border: 1px solid var(--xyf-border);
-    color: var(--xyf-ink-2);
-  }
-
-  .pub-time {
-    margin-top: 3px;
+  &__time {
+    margin-top: 2px;
     font-size: 12px;
-    color: var(--xyf-ink-3);
+    color: var(--xyf-ink-4);
   }
 }
 
-.spec-bento {
+/* Hairline Key Specs (Zero Cards) */
+.key-specs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 22px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 20px 0;
+  border-top: 1px solid var(--xyf-border);
+  border-bottom: 1px solid var(--xyf-border);
 
-  @media (max-width: 640px) {
-    grid-template-columns: repeat(2, 1fr);
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
-.spec-tile {
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
+.key-spec {
   display: flex;
   flex-direction: column;
   gap: 4px;
 
-  span {
-    font-size: 11.5px;
+  > span {
+    font-size: 12px;
     color: var(--xyf-ink-3);
   }
 
-  strong {
+  .spec-val {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 14.5px;
-    font-weight: 700;
-    color: var(--xyf-ink);
-  }
-}
-
-.criteria-box {
-  .criteria-text {
-    margin: 0;
-    white-space: pre-wrap;
-    font-size: 14.5px;
-    line-height: 1.75;
-    color: var(--xyf-ink-2);
-  }
-}
-
-.geofence-box {
-  margin-top: 22px;
-  padding-top: 20px;
-  border-top: 1px solid var(--xyf-border-subtle);
-
-  &__head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-
-    h4 {
-      margin: 4px 0 2px;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--xyf-ink);
-    }
-
-    p {
-      margin: 0;
-      font-size: 12.5px;
-      color: var(--xyf-ink-3);
-    }
-  }
-
-  .radius-chip {
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: #18181b;
-    color: #ffffff;
-    font-size: 12px;
     font-weight: 600;
+    color: var(--xyf-ink);
+
+    .el-icon {
+      font-size: 14px;
+      color: var(--xyf-ink-3);
+      flex-shrink: 0;
+    }
   }
 }
 
-/* Proposal Arena */
-.arena-head {
+.doc-section {
+  padding: 28px 0;
+  border-bottom: 1px solid var(--xyf-border);
+
+  &--proposals {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.section-label {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--xyf-ink);
+
+  &--icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    .el-icon {
+      font-size: 15px;
+      color: var(--xyf-ink-2);
+    }
+  }
+}
+
+.prose-text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--xyf-ink-2);
+  max-width: 72ch;
+}
+
+.map-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+
+  .section-label {
+    margin-bottom: 4px;
+  }
+}
+
+.map-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--xyf-ink-3);
+}
+
+.map-radius {
+  font-size: 12.5px;
+  color: var(--xyf-ink-3);
+}
+
+.map-frame {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--xyf-border);
+}
+
+/* Proposals List */
+.proposals-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -990,52 +951,45 @@ onMounted(loadDetail)
   margin-bottom: 18px;
 }
 
+.empty-proposals {
+  padding: 24px 0;
+}
+
 .proposal-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 
-.proposal-card {
-  border-radius: 14px;
-  border: 1px solid var(--xyf-border);
-  padding: 18px 20px;
-  background: #ffffff;
-  transition: border-color var(--xyf-transition), box-shadow var(--xyf-transition);
-
-  &:hover {
-    border-color: var(--xyf-border-strong);
-    box-shadow: var(--xyf-shadow-xs);
-  }
+.proposal-item {
+  padding: 20px 0;
+  border-top: 1px solid var(--xyf-border);
 
   &.is-winner {
-    border-color: #18181b;
-    background: linear-gradient(180deg, #faf6ef 0%, #ffffff 42%);
+    padding: 20px;
+    margin: 0 -20px;
+    border-radius: 12px;
+    background: var(--xyf-champagne-soft);
+    border-top: none;
   }
 
-  .winner-ribbon {
-    display: inline-block;
-    margin-bottom: 12px;
-    padding: 3px 10px;
-    border-radius: 999px;
-    background: #18181b;
-    color: #e5c79e;
-    font-size: 11.5px;
-    font-weight: 600;
-  }
-
-  &__top {
+  &__head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 14px;
+    gap: 16px;
     flex-wrap: wrap;
+  }
+
+  &__plan {
+    margin: 14px 0 0;
+    white-space: pre-wrap;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--xyf-ink-2);
   }
 
   &__foot {
     margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid var(--xyf-border-subtle);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1044,97 +998,97 @@ onMounted(loadDetail)
   }
 }
 
-.bidder-profile {
+.winner-note {
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--xyf-warning);
+}
+
+.bidder-link {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font-family: inherit;
   cursor: pointer;
 
-  .bidder-name-row {
+  &:hover strong {
+    text-decoration: underline;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    > span {
+      font-size: 12.5px;
+      color: var(--xyf-ink-3);
+    }
+  }
+
+  &__name {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     flex-wrap: wrap;
 
     strong {
-      font-size: 15px;
+      font-size: 14.5px;
+      font-weight: 600;
       color: var(--xyf-ink);
     }
   }
-
-  .trust-chip {
-    padding: 1px 7px;
-    border-radius: 999px;
-    background: var(--xyf-surface-soft);
-    border: 1px solid var(--xyf-border);
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--xyf-ink-2);
-  }
-
-  .bidder-sub {
-    margin-top: 3px;
-    font-size: 12px;
-    color: var(--xyf-ink-3);
-  }
 }
 
-.quote-block {
+.quote-summary {
   text-align: right;
 
-  &__price-row {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-
-    strong {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--xyf-ink);
-    }
-  }
-
-  .budget-delta {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 999px;
-
-    &.is-in-budget {
-      background: #f2fbf5;
-      color: #15803d;
-      border: 1px solid #ccebd7;
-    }
-    &.is-over-budget {
-      background: var(--xyf-champagne-soft);
-      color: #9a5b13;
-      border: 1px solid var(--xyf-champagne-border);
-    }
-  }
-
-  &__eta {
+  strong {
     display: block;
-    margin-top: 2px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--xyf-ink);
+    line-height: 1.15;
+  }
+
+  &__sub {
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 12px;
     color: var(--xyf-ink-3);
-  }
-}
 
-.proposal-plan {
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--xyf-surface-soft);
-  font-size: 13.5px;
-  line-height: 1.65;
-  color: var(--xyf-ink-2);
-  white-space: pre-wrap;
+    .is-in-budget {
+      color: var(--xyf-success);
+      font-weight: 600;
+    }
+
+    .is-over-budget {
+      color: var(--xyf-warning);
+      font-weight: 600;
+    }
+
+    .eta-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+
+      .el-icon {
+        font-size: 12px;
+      }
+    }
+  }
 }
 
 .proposal-time {
   font-size: 12px;
-  color: var(--xyf-ink-3);
+  color: var(--xyf-ink-4);
 }
 
 .proposal-actions {
@@ -1143,96 +1097,85 @@ onMounted(loadDetail)
   gap: 8px;
 }
 
-/* Right Sticky Bid Studio */
+/* Right Single Sticky Decision Card */
 .detail-aside {
   position: sticky;
-  top: 86px;
+  top: 88px;
 
-  @media (max-width: 960px) {
+  @media (max-width: 980px) {
     position: static;
   }
 }
 
-.studio-price-head {
-  padding-bottom: 16px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--xyf-border);
+.action-card {
+  background: #ffffff;
+  border: 1px solid var(--xyf-border);
+  border-radius: 14px;
+  padding: 24px;
 
-  .studio-kicker {
+  &__price {
+    padding-bottom: 18px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--xyf-border-subtle);
+  }
+
+  &__label {
     display: block;
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--xyf-ink-3);
   }
 
-  .studio-range {
-    margin-top: 4px;
+  &__range {
+    margin-top: 6px;
     font-size: 30px;
     font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--xyf-ink);
+    line-height: 1.1;
 
     span {
-      color: var(--xyf-ink-3);
+      color: var(--xyf-ink-4);
       font-weight: 400;
-      margin: 0 2px;
+      margin: 0 4px;
     }
   }
 }
 
 .budget-meter {
   margin-bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border-subtle);
 
   &__track {
     position: relative;
-    height: 6px;
+    height: 4px;
     border-radius: 999px;
-    background: #e4e4e7;
-    margin: 6px 0 10px;
-  }
-
-  &__zone {
-    position: absolute;
-    inset: 0;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #d4d4d8 0%, #18181b 50%, #c8a97e 100%);
-    opacity: 0.45;
+    background: var(--xyf-surface-muted);
+    margin: 8px 0 10px;
   }
 
   &__pin {
     position: absolute;
     top: 50%;
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background: #18181b;
-    border: 2.5px solid #ffffff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
     transform: translate(-50%, -50%);
-    transition: left 0.18s ease;
+    transition: left 0.16s ease;
   }
 
   &__labels {
     display: flex;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: 11.5px;
     color: var(--xyf-ink-3);
 
     .is-mid {
-      font-weight: 700;
+      font-weight: 600;
       color: var(--xyf-ink);
     }
   }
-}
-
-.bid-form__title {
-  margin: 0 0 14px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--xyf-ink);
 }
 
 .eta-presets {
@@ -1244,7 +1187,7 @@ onMounted(loadDetail)
 
 .eta-chip {
   height: 30px;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid var(--xyf-border);
   background: #ffffff;
   color: var(--xyf-ink-2);
@@ -1252,7 +1195,7 @@ onMounted(loadDetail)
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: all var(--xyf-transition);
+  transition: all 0.16s ease;
 
   &.is-active {
     background: #18181b;
@@ -1261,25 +1204,23 @@ onMounted(loadDetail)
   }
 }
 
-.publisher-console,
-.gate-box {
+.console-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 
   p {
     margin: 0;
-    font-size: 13px;
+    font-size: 13.5px;
     line-height: 1.6;
     color: var(--xyf-ink-2);
   }
 }
 
-.submitted-banner {
+.submitted-note {
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-ink);
 
   strong {
     display: block;
@@ -1296,14 +1237,12 @@ onMounted(loadDetail)
   }
 }
 
-.escrow-guarantees {
-  margin: 20px 0 0;
-  padding: 16px 0 0 16px;
+.escrow-footnote {
+  margin: 18px 0 0;
+  padding-top: 16px;
   border-top: 1px solid var(--xyf-border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
   font-size: 12px;
+  line-height: 1.6;
   color: var(--xyf-ink-3);
 }
 </style>

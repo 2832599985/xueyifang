@@ -1,13 +1,16 @@
 <template>
   <div class="group-hall-page xyf-page">
     <div class="xyf-container">
-      <!-- Editorial Header + Integrated Workspace Switcher -->
-      <header class="group-header">
-        <div class="group-header__left">
+      <!-- Minimalist Page Header -->
+      <header class="page-head">
+        <div class="page-head__title-wrap">
           <h1>拼班团课</h1>
+          <span v-if="activeWorkspace === 'market' && !loading" class="page-head__count xyf-tabular">
+            {{ sessions.length }} 门课程
+          </span>
         </div>
 
-        <div class="group-header__right">
+        <div class="page-head__actions">
           <div v-if="userStore.userInfo && !userStore.isAdmin" class="xyf-segmented" role="tablist">
             <button
               type="button"
@@ -16,7 +19,6 @@
               @click="switchWorkspace('market')"
             >
               <span>全部课程</span>
-              <span class="xyf-segmented__count">{{ sessions.length }}</span>
             </button>
             <button
               type="button"
@@ -42,7 +44,6 @@
           <el-button
             v-if="userStore.hasPublishPermission"
             type="primary"
-            size="large"
             @click="openCreateDialog"
           >
             <el-icon><Plus /></el-icon>
@@ -53,210 +54,219 @@
 
       <!-- VIEW 1: Public Group Sessions -->
       <template v-if="activeWorkspace === 'market'">
-        <section class="filter-studio">
-          <div class="filter-studio__top">
-            <div class="xyf-tabs">
-              <button
-                type="button"
-                class="xyf-tab"
-                :class="{ 'is-active': !filters.tagId }"
-                @click="selectTag(undefined)"
-              >
-                全部课程分类
-              </button>
-              <button
-                v-for="t in dictStore.serviceTags || []"
-                :key="t.tagId"
-                type="button"
-                class="xyf-tab"
-                :class="{ 'is-active': filters.tagId === t.tagId }"
-                @click="selectTag(t.tagId)"
-              >
-                {{ t.tagName }}
-              </button>
-            </div>
-
-            <div class="campus-pills">
-              <button
-                type="button"
-                class="campus-pill"
-                :class="{ 'is-active': !filters.campusId }"
-                @click="selectCampus(undefined)"
-              >
-                全部校区
-              </button>
-              <button
-                v-for="c in campuses"
-                :key="c.id"
-                type="button"
-                class="campus-pill"
-                :class="{ 'is-active': filters.campusId === c.id }"
-                @click="selectCampus(c.id)"
-              >
-                {{ c.campusName }}
-              </button>
-            </div>
+        <section class="filter-bar">
+          <!-- Row 1: Full-width Category Tabs (never clipped) -->
+          <div class="xyf-tabs filter-bar__tabs">
+            <button
+              type="button"
+              class="xyf-tab"
+              :class="{ 'is-active': !filters.tagId }"
+              @click="selectTag(undefined)"
+            >
+              全部分类
+            </button>
+            <button
+              v-for="t in dictStore.serviceTags || []"
+              :key="t.tagId"
+              type="button"
+              class="xyf-tab"
+              :class="{ 'is-active': filters.tagId === t.tagId }"
+              @click="selectTag(t.tagId)"
+            >
+              {{ t.tagName }}
+            </button>
           </div>
 
-          <div class="filter-studio__bottom">
-            <div class="xyf-segmented">
-              <button
-                type="button"
-                class="xyf-segmented__btn"
-                :class="{ 'is-active': !filters.tradeType }"
-                @click="selectTradeType(undefined)"
+          <!-- Row 2: Compact Secondary Filters + Search -->
+          <div class="filter-bar__controls">
+            <div class="filter-bar__left">
+              <div class="xyf-segmented" role="tablist" aria-label="授课形式">
+                <button
+                  type="button"
+                  class="xyf-segmented__btn"
+                  :class="{ 'is-active': !filters.tradeType }"
+                  @click="selectTradeType(undefined)"
+                >
+                  全部形式
+                </button>
+                <button
+                  type="button"
+                  class="xyf-segmented__btn"
+                  :class="{ 'is-active': filters.tradeType === 1 }"
+                  @click="selectTradeType(1)"
+                >
+                  <el-icon><Location /></el-icon>
+                  <span>线下小班</span>
+                </button>
+                <button
+                  type="button"
+                  class="xyf-segmented__btn"
+                  :class="{ 'is-active': filters.tradeType === 2 }"
+                  @click="selectTradeType(2)"
+                >
+                  <el-icon><Monitor /></el-icon>
+                  <span>线上课堂</span>
+                </button>
+              </div>
+
+              <el-select
+                v-model="filters.campusId"
+                placeholder="全部校区"
+                clearable
+                class="campus-select"
+                @change="reload"
               >
-                全部授课形式
-              </button>
-              <button
-                type="button"
-                class="xyf-segmented__btn"
-                :class="{ 'is-active': filters.tradeType === 1 }"
-                @click="selectTradeType(1)"
-              >
-                校内线下小班
-              </button>
-              <button
-                type="button"
-                class="xyf-segmented__btn"
-                :class="{ 'is-active': filters.tradeType === 2 }"
-                @click="selectTradeType(2)"
-              >
-                线上共享课堂
-              </button>
+                <el-option
+                  v-for="c in campuses"
+                  :key="c.id"
+                  :label="c.campusName"
+                  :value="c.id"
+                />
+              </el-select>
             </div>
 
-            <div class="search-inline">
+            <div class="filter-bar__right">
               <el-input
                 v-model="filters.keyword"
-                placeholder="搜索团课主题（如 线代冲刺 / 算法 / 建模）..."
+                placeholder="搜索团课主题"
                 clearable
                 :prefix-icon="Search"
+                class="search-input"
                 @keyup.enter="reload"
                 @clear="reload"
               />
-              <button v-if="hasActiveFilters" type="button" class="reset-link" @click="resetFilters">
+              <button v-if="hasActiveFilters" type="button" class="reset-btn" @click="resetFilters">
                 重置
               </button>
             </div>
           </div>
         </section>
 
+        <!-- Loading Skeleton -->
         <div v-if="loading" class="session-grid">
-          <div v-for="n in 4" :key="n" class="xyf-surface-card" style="padding: 24px">
-            <el-skeleton :rows="5" animated />
+          <div v-for="n in 6" :key="n" class="course-card course-card--skeleton">
+            <el-skeleton :rows="4" animated />
           </div>
         </div>
 
-        <div v-else-if="sessions.length === 0" class="xyf-surface-card empty-wrap">
+        <!-- Empty State -->
+        <div v-else-if="sessions.length === 0" class="empty-panel">
           <XyfEmptyState
-            title="当前暂无招募中的拼班团课"
-            description="认证创作者可发起期末总复习或实战小班课，学员平摊课时费、讲师单场收益翻倍。"
+            title="当前暂无符合条件的拼班团课"
+            description="尝试调整筛选条件，或等待创作者发布新的校内专题小班课。"
           >
             <template #action>
               <el-button v-if="hasActiveFilters" plain @click="resetFilters">清空筛选</el-button>
               <el-button v-if="userStore.hasPublishPermission" type="primary" @click="openCreateDialog">
-                发起首节团课
+                发起拼班
               </el-button>
             </template>
           </XyfEmptyState>
         </div>
 
+        <!-- Clean Editorial 3-Column Course Grid -->
         <div v-else class="session-grid">
           <article
             v-for="item in sessions"
             :key="item.id"
             class="course-card"
+            tabindex="0"
+            role="link"
+            :aria-label="item.title"
             @click="router.push(`/groups/${item.id}`)"
+            @keydown.enter="router.push(`/groups/${item.id}`)"
           >
-            <!-- Top Row: Calendar Block + Title & Status -->
-            <div class="course-card__head">
-              <div class="cal-badge xyf-tabular">
-                <span class="cal-badge__month">{{ formatMonth(item.sessionStart) }}</span>
-                <strong class="cal-badge__day">{{ formatDay(item.sessionStart) }}</strong>
+            <!-- 1. Pure Animated Delivery SVG + Category/Campus + Animated Status Emblem -->
+            <div class="course-card__meta">
+              <div class="meta-line ellipsis">
+                <XyfDeliveryIcon :trade-type="item.tradeType" size="xs" />
+                <span v-if="item.tagName">{{ item.tagName }}</span>
+                <span v-if="item.tagName" class="sep" aria-hidden="true">·</span>
+                <span class="ellipsis">{{ item.campusName || '主校区' }}</span>
               </div>
-
-              <div class="course-head-main">
-                <div class="course-tags">
-                  <span class="c-pill">{{ item.tradeType === 1 ? '线下小班' : '线上课堂' }}</span>
-                  <span v-if="item.tagName" class="c-pill">{{ item.tagName }}</span>
-                  <span class="c-pill">{{ item.campusName || '主校区' }}</span>
-                </div>
-                <h3 class="course-title ellipsis-2">{{ item.title }}</h3>
-              </div>
-
-              <span class="session-state" :class="`is-st-${item.sessionStatus}`">
-                {{ statusText(item.sessionStatus) }}
-              </span>
+              <XyfStatusBadge
+                :tone="statusTone(item.sessionStatus)"
+                :icon="statusIcon(item.sessionStatus)"
+                :tooltip="shortStatusText(item.sessionStatus)"
+                :icon-only="true"
+                size="sm"
+              />
             </div>
 
-            <p class="course-desc ellipsis-2">{{ item.description }}</p>
+            <!-- 2. Primary Focal Anchor: Title -->
+            <h2 class="course-card__title ellipsis-2">{{ item.title }}</h2>
 
-            <!-- Time & Geofence Strip -->
-            <div class="schedule-bar xyf-tabular">
-              <span>时段：{{ formatTimeRange(item.sessionStart, item.sessionEnd) }}</span>
-              <span v-if="item.tradeType === 1 && item.meetupPoiName" class="ellipsis">
-                📍 {{ item.meetupPoiName }}（{{ item.meetupRadiusMeters || 80 }}m）
+            <!-- 3. Key Logistics: Clean Time & Venue -->
+            <div class="course-card__logistics xyf-tabular">
+              <span class="meta-icon-txt">
+                <el-icon><Calendar /></el-icon>
+                <span>{{ formatSessionTimeRange(item.sessionStart, item.sessionEnd) }}</span>
               </span>
+              <template v-if="item.tradeType === 1 && item.meetupPoiName">
+                <span class="sep" aria-hidden="true">·</span>
+                <span class="ellipsis">{{ item.meetupPoiName }}</span>
+              </template>
             </div>
 
-            <!-- Visual Seat Matrix & Tiered Rebate Ladder -->
-            <div class="seat-module">
-              <div class="seat-module__meta xyf-tabular">
-                <span>
-                  席位进度 <strong>{{ item.joinedCount }} / {{ item.maxParticipants }}</strong> 人
-                  <small>（{{ item.minParticipants }}人成班）</small>
-                </span>
-                <span v-if="item.tierRebateApplied === 1" class="tier-unlocked">
-                  ✦ 已解锁全员阶梯价
-                </span>
-                <span v-else class="tier-target">
-                  满 {{ item.tierTargetCount }} 人降至 ¥{{ Number(item.tierDiscountPrice).toFixed(0) }}/人
-                </span>
-              </div>
-
-              <!-- Visual Seat Capsules (up to 12 dots, fallback bar if > 12) -->
-              <div v-if="item.maxParticipants <= 14" class="seat-dots">
-                <span
-                  v-for="seatIdx in item.maxParticipants"
-                  :key="seatIdx"
-                  class="seat-dot"
-                  :class="{
-                    'is-filled': seatIdx <= item.joinedCount,
-                    'is-tier-mark': seatIdx === item.tierTargetCount
-                  }"
-                  :title="seatIdx === item.tierTargetCount ? `第 ${seatIdx} 人触发阶梯降价` : `席位 #${seatIdx}`"
-                />
-              </div>
-              <div v-else class="seat-progress-track">
+            <!-- 4. Minimal Seat Progress & Animated Twinkling Tier Spark -->
+            <div class="course-card__progress">
+              <div class="progress-track">
                 <div
-                  class="seat-progress-fill"
-                  :style="{ width: `${Math.min(100, Math.round((item.joinedCount / item.maxParticipants) * 100))}%` }"
+                  class="progress-fill"
+                  :class="{ 'is-tier-hit': item.tierRebateApplied === 1 }"
+                  :style="{ width: `${seatPercent(item)}%` }"
                 />
+              </div>
+              <div class="progress-caption xyf-tabular">
+                <span class="meta-icon-txt">
+                  <el-icon><User /></el-icon>
+                  <span>{{ item.joinedCount }}/{{ item.maxParticipants }}</span>
+                </span>
+                <span v-if="item.tierRebateApplied === 1" class="tier-note is-hit">
+                  <XyfStatusBadge
+                    tone="success"
+                    icon="spark"
+                    :tooltip="`已解锁全员阶梯价 ¥${Number(item.tierDiscountPrice).toFixed(0)}`"
+                    :icon-only="true"
+                    size="xs"
+                  />
+                  <span>¥{{ Number(item.tierDiscountPrice).toFixed(0) }}</span>
+                </span>
+                <span
+                  v-else-if="Number(item.basePrice) > Number(item.tierDiscountPrice)"
+                  class="tier-note"
+                >
+                  <XyfStatusBadge
+                    tone="warning"
+                    icon="spark"
+                    :tooltip="`满 ${item.tierTargetCount} 人自动享阶梯价 ¥${Number(item.tierDiscountPrice).toFixed(0)}`"
+                    :icon-only="true"
+                    size="xs"
+                  />
+                  <span>{{ item.tierTargetCount }}人→¥{{ Number(item.tierDiscountPrice).toFixed(0) }}</span>
+                </span>
               </div>
             </div>
 
-            <!-- Footer: Instructor + Tiered Price Callout -->
+            <!-- 5. Clean Hairline Footer: Instructor + Verified Shield + Price Anchor -->
             <div class="course-card__foot">
-              <div class="instructor-mini">
-                <XyfAvatar :src="item.creatorAvatar" :name="item.creatorName || '讲师'" :size="28" />
-                <div class="instructor-mini__info">
-                  <strong>{{ item.creatorName || '认证讲师' }}</strong>
-                  <span>{{ item.creatorEduVerified === 1 ? 'edu.cn 已核验' : '认证创作者' }}</span>
-                </div>
+              <div class="instructor-inline">
+                <XyfAvatar :src="item.creatorAvatar" :name="item.creatorName || '讲师'" :size="24" />
+                <span class="instructor-inline__name ellipsis">{{ item.creatorName || '认证讲师' }}</span>
+                <XyfVerifiedMark :verified="item.creatorEduVerified === 1" />
               </div>
 
-              <div class="price-ladder xyf-tabular">
+              <div class="price-anchor xyf-tabular">
                 <span
-                  v-if="Number(item.basePrice) > Number(item.tierDiscountPrice)"
-                  class="save-pill"
+                  v-if="item.tierRebateApplied === 1 && Number(item.basePrice) > Number(item.currentUnitPrice || item.basePrice)"
+                  class="price-anchor__orig"
                 >
-                  成团立省 ¥{{ (Number(item.basePrice) - Number(item.tierDiscountPrice)).toFixed(0) }}
+                  ¥{{ Number(item.basePrice).toFixed(0) }}
                 </span>
-                <div class="cur-price">
+                <strong class="price-anchor__val">
                   <span class="yen">¥</span>{{ Number(item.currentUnitPrice || item.basePrice).toFixed(0) }}
-                  <small>/人</small>
-                </div>
+                </strong>
+                <span class="price-anchor__unit">/人</span>
               </div>
             </div>
           </article>
@@ -267,14 +277,14 @@
       <section v-else class="workspace-panel">
         <div
           v-if="(activeWorkspace === 'joined' ? myJoined : myCreated).length === 0"
-          class="xyf-surface-card empty-wrap"
+          class="empty-panel"
         >
           <XyfEmptyState
             :title="activeWorkspace === 'joined' ? '暂无报名参团记录' : '暂无开办团课记录'"
             :description="
               activeWorkspace === 'joined'
-                ? '挑选感兴趣的期末串讲或专题小班课，人数达标自动享受阶梯退差价。'
-                : '发起多人共享档期课程，一次授课服务多位同学，放大专业技能价值。'
+                ? '挑选感兴趣的专题小班课，人数达标自动享受阶梯退差价。'
+                : '发起多人共享档期课程，一次授课服务多位同学。'
             "
           >
             <template #action>
@@ -290,29 +300,39 @@
           </XyfEmptyState>
         </div>
 
-        <div v-else class="my-session-grid">
-          <div
+        <div v-else class="my-session-list">
+          <article
             v-for="s in activeWorkspace === 'joined' ? myJoined : myCreated"
             :key="s.id"
-            class="xyf-surface-card my-session-card"
+            class="my-session-row"
+            tabindex="0"
+            role="link"
             @click="router.push(`/groups/${s.id}`)"
+            @keydown.enter="router.push(`/groups/${s.id}`)"
           >
-            <div class="my-session-card__top">
-              <span class="xyf-mono">{{ s.sessionNo }}</span>
-              <el-tag size="small" :type="s.sessionStatus === 1 ? 'success' : 'info'">
-                {{ statusText(s.sessionStatus) }}
-              </el-tag>
+            <div class="my-session-row__main">
+              <div class="meta-line xyf-tabular">
+                <XyfStatusBadge
+                  :tone="statusTone(s.sessionStatus)"
+                  :icon="statusIcon(s.sessionStatus)"
+                  :tooltip="shortStatusText(s.sessionStatus)"
+                  :icon-only="true"
+                  size="xs"
+                />
+                <span class="xyf-mono">{{ s.sessionNo }}</span>
+              </div>
+              <h3>{{ s.title }}</h3>
+              <div class="my-session-row__sub xyf-tabular">
+                <span>{{ formatSessionTimeRange(s.sessionStart, s.sessionEnd) }}</span>
+                <span class="sep" aria-hidden="true">·</span>
+                <span>已报 {{ s.joinedCount }}/{{ s.maxParticipants }} 人</span>
+              </div>
             </div>
-            <h3>{{ s.title }}</h3>
-            <div class="my-session-card__meta xyf-tabular">
-              <span>开课：{{ formatDateTime(s.sessionStart).slice(0, 16) }}</span>
-              <span>已报 {{ s.joinedCount }}/{{ s.maxParticipants }} 人</span>
+            <div class="my-session-row__right xyf-tabular">
+              <strong>¥{{ Number(s.currentUnitPrice || s.basePrice).toFixed(0) }}<span>/人</span></strong>
+              <span class="row-link">查看详情 →</span>
             </div>
-            <div class="my-session-card__foot xyf-tabular">
-              <span>当前执行单价 <strong>¥{{ Number(s.currentUnitPrice || s.basePrice).toFixed(2) }}</strong></span>
-              <span>查看教室详情 →</span>
-            </div>
-          </div>
+          </article>
         </div>
       </section>
     </div>
@@ -324,7 +344,6 @@
       width="720px"
       :close-on-click-modal="false"
     >
-      <!-- Live Tiered Economics Simulator Banner -->
       <div class="econ-simulator xyf-tabular">
         <div class="econ-cell">
           <span>成班保底总营收 ({{ form.minParticipants }}人)</span>
@@ -455,7 +474,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus, Search } from '@element-plus/icons-vue'
+import { Plus, Search, Location, Monitor, Calendar, User } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useDictStore } from '@/stores/dict'
 import { listCampuses } from '@/api/campus'
@@ -467,11 +486,14 @@ import {
   type GroupSessionItem
 } from '@/api/groupSession'
 import { notifyFallbackError } from '@/api/request'
-import { formatDateTime } from '@/utils/format'
+import { formatSessionTimeRange } from '@/utils/format'
 import type { CampusInfo } from '@/types/dict'
 import CampusMapPicker, { type MapLocationValue } from '@/components/business/CampusMapPicker.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
+import XyfStatusBadge, { type StatusBadgeTone, type StatusBadgeIcon } from '@/components/ui/XyfStatusBadge.vue'
+import XyfVerifiedMark from '@/components/ui/XyfVerifiedMark.vue'
+import XyfDeliveryIcon from '@/components/ui/XyfDeliveryIcon.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -537,7 +559,12 @@ const perStudentRebate = computed(() =>
   Math.max(0, Number(form.basePrice || 0) - Number(form.tierDiscountPrice || 0)).toFixed(0)
 )
 
-function statusText(st: number) {
+function seatPercent(item: GroupSessionItem) {
+  if (!item.maxParticipants) return 0
+  return Math.min(100, Math.round((item.joinedCount / item.maxParticipants) * 100))
+}
+
+function shortStatusText(st: number) {
   if (st === 0) return '招募拼班中'
   if (st === 1) return '已成班待开课'
   if (st === 2) return '已满员锁定'
@@ -545,32 +572,22 @@ function statusText(st: number) {
   return '已取消'
 }
 
-function formatMonth(dt?: string) {
-  if (!dt) return '近期'
-  const d = new Date(dt)
-  return Number.isNaN(d.getTime()) ? '近期' : `${d.getMonth() + 1}月`
+function statusTone(st: number): StatusBadgeTone {
+  if (st === 0) return 'dark'
+  if (st === 1) return 'success'
+  if (st === 2) return 'warning'
+  return 'neutral'
 }
 
-function formatDay(dt?: string) {
-  if (!dt) return '--'
-  const d = new Date(dt)
-  return Number.isNaN(d.getTime()) ? '--' : String(d.getDate()).padStart(2, '0')
-}
-
-function formatTimeRange(start?: string, end?: string) {
-  if (!start) return '待定'
-  const s = formatDateTime(start).slice(5, 16)
-  const e = end ? formatDateTime(end).slice(11, 16) : ''
-  return e ? `${s} – ${e}` : s
+function statusIcon(st: number): StatusBadgeIcon {
+  if (st === 0) return 'live'
+  if (st === 1) return 'check'
+  if (st === 2) return 'lock'
+  return 'clock'
 }
 
 function selectTag(id?: number) {
   filters.tagId = id
-  reload()
-}
-
-function selectCampus(id?: number) {
-  filters.campusId = id
   reload()
 }
 
@@ -728,211 +745,195 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.group-header {
+.page-head {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 20px;
   flex-wrap: wrap;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 
-  &__left {
-    max-width: 640px;
+  &__title-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
 
     h1 {
-      margin: 6px 0 8px;
-      font-size: 32px;
+      margin: 0;
+      font-size: 28px;
       font-weight: 700;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.025em;
       color: var(--xyf-ink);
     }
+  }
 
-    p {
-      margin: 0;
-      font-size: 14.5px;
-      color: var(--xyf-ink-2);
-      line-height: 1.55;
-    }
+  &__count {
+    font-size: 13px;
+    color: var(--xyf-ink-3);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+/* Crisp Two-Row Filter Bar (zero clipped tabs) */
+.filter-bar {
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &__tabs {
+    width: 100%;
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   &__right {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 10px;
   }
 }
 
-.mechanism-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 15px 24px;
-  border-radius: 14px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border);
-  margin-bottom: 24px;
+.campus-select {
+  width: 168px;
+}
 
-  .mech-step {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.search-input {
+  width: 240px;
 
-    .mech-num {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: #18181b;
-      color: #ffffff;
-      font-size: 11.5px;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    strong {
-      display: block;
-      font-size: 13.5px;
-      color: var(--xyf-ink);
-    }
-
-    span {
-      font-size: 12px;
-      color: var(--xyf-ink-3);
-    }
-  }
-
-  .mech-arrow {
-    color: var(--xyf-border-strong);
-    font-weight: 600;
-
-    @media (max-width: 820px) {
-      display: none;
-    }
+  @media (max-width: 640px) {
+    width: 100%;
   }
 }
 
-.filter-studio {
-  margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-
-  &__top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--xyf-border);
-
-    .xyf-tabs {
-      border-bottom: none;
-      flex: 1;
-      min-width: 240px;
-    }
-  }
-
-  &__bottom {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-}
-
-.campus-pills {
-  display: flex;
-  gap: 6px;
-  padding-bottom: 8px;
-  flex-wrap: wrap;
-}
-
-.campus-pill {
-  height: 28px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
-  color: var(--xyf-ink-2);
-  font-size: 12px;
-  font-weight: 500;
-  font-family: inherit;
+.reset-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: var(--xyf-ink-3);
   cursor: pointer;
-  transition: all var(--xyf-transition);
+  white-space: nowrap;
 
-  &.is-active {
-    background: #18181b;
-    border-color: #18181b;
-    color: #ffffff;
+  &:hover {
+    color: var(--xyf-ink);
   }
 }
 
-.search-inline {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 280px;
-  flex: 1;
-  max-width: 360px;
-
-  .reset-link {
-    border: none;
-    background: transparent;
-    color: var(--xyf-ink-2);
-    font-size: 13px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-}
-
-/* Schedule-Driven Course Cards */
+/* Clean 3-Column Editorial Grid */
 .session-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
 
-  @media (max-width: 480px) {
+  @media (max-width: 1080px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 680px) {
     grid-template-columns: 1fr;
   }
 }
 
-.empty-wrap {
-  padding: 52px 24px;
+.empty-panel {
+  padding: 64px 24px;
+  border-top: 1px solid var(--xyf-border);
 }
 
 .course-card {
   background: #ffffff;
   border: 1px solid var(--xyf-border);
-  border-radius: 18px;
-  padding: 22px 24px 18px;
+  border-radius: 14px;
+  padding: 22px 24px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   cursor: pointer;
-  transition: transform var(--xyf-transition), box-shadow var(--xyf-transition), border-color var(--xyf-transition);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 
-  &:hover {
-    transform: translateY(-3px);
-    border-color: #18181b;
-    box-shadow: var(--xyf-shadow-md);
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    transform: translateY(-2px);
+    border-color: var(--xyf-ink);
+    box-shadow: var(--xyf-shadow-sm);
   }
 
-  &__head {
+  &--skeleton {
+    cursor: default;
+    &:hover {
+      transform: none;
+      border-color: var(--xyf-border);
+      box-shadow: none;
+    }
+  }
+
+  &__meta {
     display: flex;
-    align-items: flex-start;
-    gap: 14px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12.5px;
+    color: var(--xyf-ink-3);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 17.5px;
+    font-weight: 700;
+    line-height: 1.42;
+    letter-spacing: -0.015em;
+    color: var(--xyf-ink);
+    text-wrap: balance;
+    min-height: 50px;
+  }
+
+  &__logistics {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--xyf-ink-2);
+    min-width: 0;
+
+    > span:first-child {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+  }
+
+  &__progress {
+    margin-top: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   &__foot {
     margin-top: auto;
-    padding-top: 14px;
-    border-top: 1px dashed var(--xyf-border-strong);
+    padding-top: 16px;
+    border-top: 1px solid var(--xyf-border-subtle);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -940,262 +941,187 @@ onMounted(async () => {
   }
 }
 
-.cal-badge {
-  width: 52px;
-  height: 54px;
-  border-radius: 12px;
-  background: #18181b;
-  color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  line-height: 1.1;
-
-  &__month {
-    font-size: 10.5px;
-    color: rgba(255, 255, 255, 0.65);
-  }
-
-  &__day {
-    font-size: 18px;
-    font-weight: 700;
-    margin-top: 2px;
-  }
-}
-
-.course-head-main {
-  flex: 1;
-  min-width: 0;
-
-  .course-tags {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-bottom: 5px;
-  }
-
-  .c-pill {
-    font-size: 11px;
-    font-weight: 500;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--xyf-surface-soft);
-    border: 1px solid var(--xyf-border-subtle);
-    color: var(--xyf-ink-2);
-  }
-
-  .course-title {
-    margin: 0;
-    font-size: 16.5px;
-    font-weight: 700;
-    line-height: 1.38;
-    color: var(--xyf-ink);
-  }
-}
-
-.session-state {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: var(--xyf-surface-muted);
-  color: var(--xyf-ink-2);
-  white-space: nowrap;
-
-  &.is-st-0,
-  &.is-st-1 {
-    background: #18181b;
-    color: #ffffff;
-  }
-}
-
-.course-desc {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--xyf-ink-2);
-}
-
-.schedule-bar {
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: var(--xyf-surface-soft);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--xyf-ink-2);
-}
-
-.seat-module {
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--xyf-border-subtle);
-  background: #fafafa;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-
-  &__meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--xyf-ink-2);
-
-    small {
-      color: var(--xyf-ink-3);
-    }
-  }
-
-  .tier-unlocked {
-    color: #9a5b13;
-    font-weight: 700;
-  }
-
-  .tier-target {
-    color: var(--xyf-ink);
-    font-weight: 600;
-  }
-}
-
-.seat-dots {
+.meta-line {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
-.seat-dot {
-  flex: 1;
-  height: 8px;
-  border-radius: 999px;
-  background: #e4e4e7;
-  transition: background var(--xyf-transition);
+.meta-icon-txt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 
-  &.is-filled {
-    background: #18181b;
-  }
-
-  &.is-tier-mark {
-    box-shadow: 0 0 0 2px #c8a97e;
+  .el-icon {
+    font-size: 13px;
+    color: var(--xyf-ink-3);
+    flex-shrink: 0;
   }
 }
 
-.seat-progress-track {
-  height: 7px;
+.sep {
+  color: var(--xyf-ink-4);
+  flex-shrink: 0;
+}
+
+.progress-track {
+  height: 3px;
   border-radius: 999px;
-  background: #e4e4e7;
+  background: var(--xyf-surface-muted);
   overflow: hidden;
+}
 
-  .seat-progress-fill {
-    height: 100%;
-    background: #18181b;
-    border-radius: 999px;
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--xyf-ink);
+  transition: width 0.24s ease;
+
+  &.is-tier-hit {
+    background: var(--xyf-success);
   }
 }
 
-.instructor-mini {
+.progress-caption {
   display: flex;
   align-items: center;
-  gap: 9px;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--xyf-ink-3);
 
-  &__info {
-    display: flex;
-    flex-direction: column;
-
-    strong {
-      font-size: 13px;
-      color: var(--xyf-ink);
-    }
-
-    span {
-      font-size: 11px;
-      color: var(--xyf-ink-3);
-    }
-  }
-}
-
-.price-ladder {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  .save-pill {
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--xyf-champagne-soft);
-    border: 1px solid var(--xyf-champagne-border);
-    color: #9a5b13;
-    font-size: 11px;
+  .tier-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     font-weight: 600;
+    color: var(--xyf-warning);
+
+    &.is-hit {
+      color: var(--xyf-success);
+    }
+
+    .spark-svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+    }
+  }
+}
+
+.instructor-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  &__name {
+    font-size: 13px;
+    color: var(--xyf-ink-2);
+    font-weight: 500;
+  }
+}
+
+.price-anchor {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  flex-shrink: 0;
+
+  &__orig {
+    font-size: 12.5px;
+    color: var(--xyf-ink-4);
+    text-decoration: line-through;
+    margin-right: 4px;
   }
 
-  .cur-price {
+  &__val {
     font-size: 21px;
     font-weight: 700;
+    letter-spacing: -0.02em;
     color: var(--xyf-ink);
+    line-height: 1;
 
     .yen {
       font-size: 13px;
+      font-weight: 600;
       margin-right: 1px;
     }
+  }
 
-    small {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--xyf-ink-3);
+  &__unit {
+    font-size: 12px;
+    color: var(--xyf-ink-3);
+  }
+}
+
+/* My Sessions Workspace (Clean Editorial List) */
+.my-session-list {
+  border-top: 1px solid var(--xyf-border);
+}
+
+.my-session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 12px;
+  border-bottom: 1px solid var(--xyf-border);
+  cursor: pointer;
+  transition: background 0.16s ease;
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    background: var(--xyf-bg-subtle);
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+
+    h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--xyf-ink);
     }
   }
-}
 
-/* My Sessions Workspace */
-.my-session-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
-}
-
-.my-session-card {
-  padding: 20px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    border-color: #18181b;
-    transform: translateY(-2px);
-  }
-
-  &__top,
-  &__meta,
-  &__foot {
+  &__sub {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    font-size: 12.5px;
+    gap: 6px;
+    font-size: 13px;
     color: var(--xyf-ink-3);
   }
 
-  h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--xyf-ink);
-  }
+  &__right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
 
-  &__foot {
-    margin-top: auto;
-    padding-top: 10px;
-    border-top: 1px solid var(--xyf-border-subtle);
-    color: var(--xyf-ink-2);
     strong {
+      font-size: 19px;
+      font-weight: 700;
       color: var(--xyf-ink);
+
+      span {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--xyf-ink-3);
+      }
+    }
+
+    .row-link {
+      font-size: 12.5px;
+      color: var(--xyf-ink-3);
     }
   }
 }

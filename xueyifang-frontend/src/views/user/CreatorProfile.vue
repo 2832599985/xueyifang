@@ -25,14 +25,17 @@
               <path d="M0 135 C 280 75, 680 165, 980 95 C 1090 70, 1150 95, 1200 82" stroke="rgba(229,199,158,0.22)" stroke-width="1.2" fill="none" />
             </svg>
             <div class="studio-cover__badges">
-              <span v-if="profile.eduVerified === 1" class="cover-pill is-gold">
-                ✓ 高校 .edu.cn 实名核验
-              </span>
               <span v-if="Number(profile.sellerDeposit || 0) > 0" class="cover-pill is-gold">
-                ✦ 在池履约保证金 ¥{{ Number(profile.sellerDeposit).toFixed(0) }}
+                <svg class="cover-svg" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 1.6L13 3.6v4c0 3.2-2.1 5.7-5 6.8-2.9-1.1-5-3.6-5-6.8v-4L8 1.6Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
+                </svg>
+                <span>履约保证金 ¥{{ Number(profile.sellerDeposit).toFixed(0) }}</span>
               </span>
               <span v-if="profile.publishPermission === 1" class="cover-pill">
-                认证技能创作者
+                <svg class="cover-svg" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M3.5 8.5L6.5 11.5L12.5 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span>认证创作者</span>
               </span>
             </div>
           </div>
@@ -46,6 +49,7 @@
               <div class="studio-meta">
                 <div class="studio-name-row">
                   <h1>{{ profile.displayName }}</h1>
+                  <XyfVerifiedMark :verified="profile.eduVerified === 1" />
                   <span class="tier-pill">{{ profile.creditTier }}</span>
                 </div>
 
@@ -247,6 +251,7 @@ import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfStatTile from '@/components/ui/XyfStatTile.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
+import XyfVerifiedMark from '@/components/ui/XyfVerifiedMark.vue'
 import ServiceCard from '@/components/business/ServiceCard.vue'
 
 const route = useRoute()
@@ -332,13 +337,22 @@ onMounted(fetchProfile)
   }
 
   .cover-pill {
-    padding: 4px 11px;
-    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 6px;
     font-size: 11.5px;
     font-weight: 600;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.16);
     color: #ffffff;
+
+    .cover-svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+    }
 
     &.is-gold {
       background: rgba(200, 169, 126, 0.18);

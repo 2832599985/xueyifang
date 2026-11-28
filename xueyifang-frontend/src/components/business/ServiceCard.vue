@@ -41,9 +41,7 @@
           <span class="service-card__unit">/ 次</span>
         </div>
 
-        <span class="service-card__mode">
-          {{ service.tradeType === 1 ? '线下会面' : '线上担保' }}
-        </span>
+        <XyfDeliveryIcon :trade-type="service.tradeType" size="xs" />
       </div>
     </div>
   </article>
@@ -56,6 +54,7 @@ import { buildImageUrl } from '@/api/service'
 import type { ServiceListItem } from '@/types/service'
 import XyfImage from '@/components/ui/XyfImage.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
+import XyfDeliveryIcon from '@/components/ui/XyfDeliveryIcon.vue'
 
 interface Props {
   service: ServiceListItem
@@ -202,8 +201,16 @@ const formattedPrice = computed(() => {
   }
 
   &__mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     font-size: 12px;
     color: var(--xyf-ink-3);
+
+    .el-icon {
+      font-size: 12px;
+      flex-shrink: 0;
+    }
   }
 }
 </style>

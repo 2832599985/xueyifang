@@ -111,7 +111,10 @@
                   :size="item.rank === 1 ? 74 : 62"
                 />
               </div>
-              <h3>{{ item.displayName }}</h3>
+              <div class="podium-name-row">
+                <h3>{{ item.displayName }}</h3>
+                <XyfVerifiedMark :verified="item.eduVerified === 1" />
+              </div>
               <p class="podium-campus ellipsis">
                 {{ item.campusName }} · {{ item.professionalName }}
               </p>
@@ -191,8 +194,8 @@
                 <div class="user-meta">
                   <div class="user-meta__name">
                     <strong>{{ row.displayName }}</strong>
+                    <XyfVerifiedMark :verified="row.eduVerified === 1" />
                     <span class="tier-chip">{{ row.creatorLevelTitle }}</span>
-                    <span v-if="row.eduVerified === 1" class="edu-seal">edu.cn 已核验</span>
                   </div>
                   <div class="user-meta__sub ellipsis">
                     {{ row.campusName }} · {{ row.professionalName }}
@@ -254,6 +257,7 @@ import type { CampusInfo } from '@/types/dict'
 import { getCreatorLeaderboard, type CreatorLeaderboardItem } from '@/api/leaderboard'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
+import XyfVerifiedMark from '@/components/ui/XyfVerifiedMark.vue'
 
 const router = useRouter()
 const dictStore = useDictStore()
@@ -544,8 +548,16 @@ onMounted(async () => {
   text-align: center;
   gap: 6px;
 
+  .podium-name-row {
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
   h3 {
-    margin: 4px 0 0;
+    margin: 0;
     font-size: 18px;
     font-weight: 700;
     color: var(--xyf-ink);
@@ -715,20 +727,13 @@ onMounted(async () => {
       }
     }
 
-    .tier-chip,
-    .edu-seal {
+    .tier-chip {
       font-size: 11px;
       font-weight: 600;
       padding: 1px 7px;
-      border-radius: 999px;
+      border-radius: 5px;
       background: var(--xyf-surface-muted);
       color: var(--xyf-ink-2);
-    }
-
-    .edu-seal {
-      background: var(--xyf-champagne-soft);
-      border: 1px solid var(--xyf-champagne-border);
-      color: #9a5b13;
     }
 
     &__sub {

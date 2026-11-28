@@ -293,14 +293,14 @@
               >
                 <div class="bounty-mini-ticket__left">
                   <div class="bounty-mini-meta">
-                    <span class="u-dot" :class="`is-u${d.urgencyLevel}`" />
-                    <span class="u-txt">
-                      {{ d.urgencyLevel === 3 ? '十万火急' : d.urgencyLevel === 2 ? '加急' : '常规' }}
-                    </span>
-                    <span class="sep">·</span>
+                    <XyfUrgencyTag :level="d.urgencyLevel" size="xs" />
                     <span>{{ d.campusName || '主校区' }}</span>
-                    <span v-if="d.meetupPoiName" class="sep">·</span>
-                    <span v-if="d.meetupPoiName" class="ellipsis">{{ d.meetupPoiName }}</span>
+                    <span class="sep">·</span>
+                    <XyfDeliveryIcon
+                      :trade-type="d.tradeType"
+                      size="xs"
+                      :text="d.tradeType === 1 ? (d.meetupPoiName || '') : ''"
+                    />
                   </div>
                   <h4 class="ellipsis">{{ d.title }}</h4>
                 </div>
@@ -344,9 +344,21 @@
                   <div class="session-mini-body">
                     <h4 class="ellipsis">{{ s.title }}</h4>
                     <div class="session-mini-sub xyf-tabular">
-                      <span>已报 {{ s.joinedCount }}/{{ s.maxParticipants }} 人</span>
+                      <span class="mini-icon-txt">
+                        <el-icon><User /></el-icon>
+                        <span>{{ s.joinedCount }}/{{ s.maxParticipants }}</span>
+                      </span>
                       <span>·</span>
-                      <span class="tier-highlight">满{{ s.tierTargetCount }}人降至 ¥{{ Number(s.tierDiscountPrice).toFixed(0) }}</span>
+                      <span class="tier-highlight">
+                        <XyfStatusBadge
+                          tone="warning"
+                          icon="spark"
+                          :tooltip="`满 ${s.tierTargetCount} 人享阶梯价 ¥${Number(s.tierDiscountPrice).toFixed(0)}`"
+                          :icon-only="true"
+                          size="xs"
+                        />
+                        <span>{{ s.tierTargetCount }}人→¥{{ Number(s.tierDiscountPrice).toFixed(0) }}</span>
+                      </span>
                     </div>
                   </div>
                   <div class="session-mini-price xyf-tabular">
@@ -468,7 +480,8 @@ import {
   Close,
   ArrowLeft,
   ArrowRight,
-  StarFilled
+  StarFilled,
+  User
 } from '@element-plus/icons-vue'
 import { useDictStore } from '@/stores/dict'
 import { useUserStore } from '@/stores/user'
@@ -482,6 +495,9 @@ import CampusAmbientCanvas from '@/components/home/CampusAmbientCanvas.vue'
 import XyfImage from '@/components/ui/XyfImage.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
+import XyfUrgencyTag from '@/components/ui/XyfUrgencyTag.vue'
+import XyfDeliveryIcon from '@/components/ui/XyfDeliveryIcon.vue'
+import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
 
 const router = useRouter()
 const dictStore = useDictStore()
@@ -1614,25 +1630,18 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--xyf-ink-3);
   min-width: 0;
+}
 
-  .u-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
+.mini-icon-txt {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+
+  .el-icon {
+    font-size: 12.5px;
+    color: var(--xyf-ink-3);
     flex-shrink: 0;
-    background: #71717a;
-
-    &.is-u3 {
-      background: #dc2626;
-    }
-    &.is-u2 {
-      background: #d97706;
-    }
-  }
-
-  .u-txt {
-    font-weight: 600;
-    color: var(--xyf-ink-2);
   }
 }
 
@@ -1703,8 +1712,17 @@ onUnmounted(() => {
   }
 
   .tier-highlight {
-    color: #9a5b13;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: #b45309;
     font-weight: 600;
+
+    .spark-svg {
+      width: 11.5px;
+      height: 11.5px;
+      flex-shrink: 0;
+    }
   }
 }
 

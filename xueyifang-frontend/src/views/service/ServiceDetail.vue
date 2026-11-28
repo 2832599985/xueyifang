@@ -128,13 +128,15 @@
             <!-- Editorial Title & Creator Trust Strip -->
             <section class="editorial-head">
               <div class="head-badges">
-                <XyfStatusBadge tone="info" :label="getTradeTypeText(service.tradeType)" />
-                <XyfStatusBadge v-if="service.tagName" tone="neutral" :label="service.tagName" />
                 <XyfStatusBadge
                   :tone="service.status === ServiceStatus.ONLINE ? 'success' : 'warning'"
-                  :label="getServiceStatusText(service.status)"
-                  :dot="service.status === ServiceStatus.ONLINE"
+                  :icon="service.status === ServiceStatus.ONLINE ? 'live' : 'clock'"
+                  :tooltip="getServiceStatusText(service.status)"
+                  :icon-only="true"
+                  size="sm"
                 />
+                <XyfDeliveryIcon :trade-type="service.tradeType" size="sm" />
+                <span v-if="service.tagName" class="head-tag-txt">{{ service.tagName }}</span>
               </div>
 
               <h1 class="service-h1">{{ service.serviceTitle }}</h1>
@@ -149,13 +151,10 @@
                   <div class="creator-trust-strip__info">
                     <div class="creator-name-line">
                       <strong>{{ service.sellerName || `校园创作者 #${service.sellerId}` }}</strong>
-                      <span
-                        class="verify-chip"
-                        :class="{ 'is-verified': service.sellerEduVerified === 1 }"
-                      >
-                        {{ service.sellerEduVerified === 1 ? 'edu.cn 已核验' : '学籍已登记' }}
-                      </span>
-                      <span class="credit-chip xyf-tabular">信用 {{ service.sellerCreditScore ?? 100 }}</span>
+                      <XyfVerifiedMark
+                        :verified="service.sellerEduVerified === 1"
+                        :credit-score="service.sellerCreditScore ?? 100"
+                      />
                     </div>
                     <div class="creator-sub">
                       <span v-if="service.sellerGrade">{{ service.sellerGrade }}</span>
@@ -385,6 +384,8 @@ import {
 import XyfImage from '@/components/ui/XyfImage.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
+import XyfVerifiedMark from '@/components/ui/XyfVerifiedMark.vue'
+import XyfDeliveryIcon from '@/components/ui/XyfDeliveryIcon.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import TradeLocationBadge from '@/components/business/TradeLocationBadge.vue'
 import RealCampusMap from '@/components/business/RealCampusMap.vue'
@@ -672,6 +673,12 @@ watch(
   gap: 8px;
 }
 
+.head-tag-txt {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--xyf-ink-3);
+}
+
 .service-h1 {
   margin: 0;
   font-size: 26px;
@@ -721,23 +728,6 @@ watch(
       font-weight: 600;
       color: var(--xyf-ink);
     }
-  }
-
-  .verify-chip,
-  .credit-chip {
-    font-size: 12px;
-    font-weight: 500;
-    padding: 1px 8px;
-    border-radius: var(--xyf-radius-xs);
-    background: #ffffff;
-    border: 1px solid var(--xyf-border);
-    color: var(--xyf-ink-2);
-  }
-
-  .verify-chip.is-verified {
-    background: var(--xyf-champagne-soft);
-    border-color: var(--xyf-champagne-border);
-    color: #9a5b13;
   }
 
   .creator-sub {

@@ -1,19 +1,25 @@
 <template>
   <div class="group-detail-page xyf-page">
     <div class="xyf-container">
+      <!-- Slim Unboxed Top Breadcrumb -->
       <nav class="detail-topbar">
-        <el-button text class="detail-topbar__back" @click="router.push('/groups')">
-          <el-icon><ArrowLeft /></el-icon>
-          <span>返回团课大厅</span>
-        </el-button>
-        <span v-if="session" class="session-serial xyf-mono">{{ session.sessionNo }}</span>
+        <div class="detail-topbar__left">
+          <button type="button" class="back-link" @click="router.push('/groups')">
+            <el-icon><ArrowLeft /></el-icon>
+            <span>拼班团课</span>
+          </button>
+          <template v-if="session">
+            <span class="sep" aria-hidden="true">/</span>
+            <span class="serial-text xyf-mono">{{ session.sessionNo }}</span>
+          </template>
+        </div>
       </nav>
 
-      <div v-if="loading" class="xyf-surface-card" style="padding: 32px">
+      <div v-if="loading" class="loading-wrap">
         <el-skeleton :rows="7" animated />
       </div>
 
-      <div v-else-if="!session" class="xyf-surface-card" style="padding: 48px">
+      <div v-else-if="!session" class="empty-wrap">
         <XyfEmptyState title="未找到该拼班团课" description="课程可能已被取消或下架">
           <template #action>
             <el-button type="primary" @click="router.push('/groups')">返回团课大厅</el-button>
@@ -22,129 +28,113 @@
       </div>
 
       <template v-else>
-        <!-- Visual 3-Stage Tiered Pricing & Formation Milestone Ladder -->
-        <section class="xyf-surface-card ladder-banner xyf-tabular">
-          <div class="ladder-banner__head">
-            <div>
-              <h2>成团进度</h2>
-            </div>
-            <span class="rebate-pill" :class="{ 'is-hit': session.tierRebateApplied === 1 }">
-              {{
-                session.tierRebateApplied === 1
-                  ? `✦ 已达成 ${session.tierTargetCount} 人阶梯线 · 全员执行 ¥${Number(session.tierDiscountPrice).toFixed(2)}`
-                  : `再邀 ${Math.max(0, session.tierTargetCount - session.joinedCount)} 人即可触发全员退差价至 ¥${Number(session.tierDiscountPrice).toFixed(2)}`
-              }}
-            </span>
-          </div>
-
-          <div class="ladder-track-wrap">
-            <div class="ladder-track">
-              <div class="ladder-track__fill" :style="{ width: `${enrollmentPercent}%` }" />
-            </div>
-
-            <div class="ladder-nodes">
-              <div class="l-node" :class="{ 'is-reached': session.joinedCount >= 1 }">
-                <span class="l-dot" />
-                <strong>开放报名 (1人)</strong>
-                <span>基础拼班价 ¥{{ Number(session.basePrice).toFixed(0) }}/人</span>
-              </div>
-
-              <div class="l-node" :class="{ 'is-reached': session.joinedCount >= session.minParticipants }">
-                <span class="l-dot" />
-                <strong>正式成班 ({{ session.minParticipants }}人)</strong>
-                <span>锁定授课档期与教室</span>
-              </div>
-
-              <div class="l-node is-gold" :class="{ 'is-reached': session.joinedCount >= session.tierTargetCount }">
-                <span class="l-dot" />
-                <strong>阶梯降价 ({{ session.tierTargetCount }}人)</strong>
-                <span>全员 ¥{{ Number(session.tierDiscountPrice).toFixed(0) }} · 自动退差价</span>
-              </div>
-
-              <div class="l-node" :class="{ 'is-reached': session.joinedCount >= session.maxParticipants }">
-                <span class="l-dot" />
-                <strong>满班封顶 ({{ session.maxParticipants }}人)</strong>
-                <span>小班精品容量上限</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
         <div class="detail-grid">
-          <!-- Left Column: Syllabus + Classroom Seat Matrix -->
-          <div class="detail-main">
-            <section class="xyf-surface-card syllabus-card">
-              <div class="top-badges">
-                <span class="s-pill">{{ session.campusName || '主校区' }}</span>
-                <span class="s-pill">{{ session.tradeType === 1 ? '校园线下小班' : '线上共享课堂' }}</span>
-                <span v-if="session.tagName" class="s-pill">{{ session.tagName }}</span>
-                <span class="s-pill is-dark">{{ statusLabel(session.sessionStatus) }}</span>
+          <!-- Left Editorial Column: Leads immediately with Title & Course Essence -->
+          <main class="detail-main">
+            <header class="doc-header">
+              <div class="doc-kicker">
+                <XyfStatusBadge
+                  :tone="statusTone(session.sessionStatus)"
+                  :icon="statusIcon(session.sessionStatus)"
+                  :tooltip="statusLabel(session.sessionStatus)"
+                  :icon-only="true"
+                  size="sm"
+                />
+                <XyfDeliveryIcon :trade-type="session.tradeType" size="sm" />
+                <span v-if="session.tagName">{{ session.tagName }}</span>
+                <span v-if="session.tagName" class="sep" aria-hidden="true">·</span>
+                <span>{{ session.campusName || '主校区' }}</span>
               </div>
 
-              <h1 class="course-h1">{{ session.title }}</h1>
+              <h1 class="doc-title">{{ session.title }}</h1>
 
-              <!-- Instructor Studio Bar -->
-              <div class="instructor-bar" @click="router.push(`/creators/${session.creatorId}`)">
-                <div class="instructor-bar__left">
-                  <XyfAvatar :src="session.creatorAvatar" :name="session.creatorName || '讲师'" :size="48" />
-                  <div>
-                    <div class="inst-name">
+              <!-- Compact Inline Instructor Row -->
+              <div class="author-row">
+                <button
+                  type="button"
+                  class="author-row__btn"
+                  @click="router.push(`/creators/${session.creatorId}`)"
+                >
+                  <XyfAvatar :src="session.creatorAvatar" :name="session.creatorName || '讲师'" :size="38" />
+                  <div class="author-row__info">
+                    <div class="author-row__name">
                       <strong>{{ session.creatorName || '认证讲师' }}</strong>
-                      <span class="inst-chip">
-                        {{ session.creatorEduVerified === 1 ? '高校 .edu.cn 已核验' : '认证创作者' }}
-                      </span>
-                      <span class="inst-chip xyf-tabular">信用 {{ session.creatorCreditScore ?? 100 }}</span>
+                      <XyfVerifiedMark
+                        :verified="session.creatorEduVerified === 1"
+                        :credit-score="session.creatorCreditScore ?? 100"
+                      />
                     </div>
-                    <div class="inst-sub">
-                      {{ session.creatorProfessional || '校内认证技能讲师' }} · 点击访问讲师作品集主页
+                    <div class="author-row__sub">
+                      {{ session.creatorProfessional || '校内认证技能讲师' }} · 查看主页
                     </div>
                   </div>
-                </div>
+                </button>
 
                 <el-button
                   v-if="userStore.userInfo && !isCreator && !userStore.isAdmin"
                   size="small"
                   plain
-                  @click.stop="router.push(`/chat/${session.creatorId}`)"
+                  @click="router.push(`/chat/${session.creatorId}`)"
                 >
                   咨询讲师
                 </el-button>
               </div>
+            </header>
 
-              <!-- Schedule & Landmark Bento -->
-              <div class="schedule-bento xyf-tabular">
-                <div class="sch-box">
-                  <span>开课开始时间</span>
-                  <strong>{{ formatDateTime(session.sessionStart) }}</strong>
+            <!-- Clean Hairline Key Logistics Strip -->
+            <section class="key-specs xyf-tabular" aria-label="课程安排">
+              <div class="key-spec">
+                <span>上课时间</span>
+                <strong class="spec-val">
+                  <el-icon><Calendar /></el-icon>
+                  <span>{{ formatSessionTimeRange(session.sessionStart, session.sessionEnd) }}</span>
+                </strong>
+              </div>
+              <div class="key-spec">
+                <span>{{ session.tradeType === 1 ? '授课地点' : '授课形式' }}</span>
+                <strong class="spec-val">
+                  <XyfDeliveryIcon
+                    :trade-type="session.tradeType"
+                    size="sm"
+                    :text="
+                      session.tradeType === 1
+                        ? `${session.meetupPoiName || '校内指定教室'}（${session.meetupRadiusMeters || 80}m）`
+                        : '线上实时共享课堂'
+                    "
+                  />
+                </strong>
+              </div>
+              <div class="key-spec">
+                <span>班额进度</span>
+                <strong class="spec-val">
+                  <el-icon><User /></el-icon>
+                  <span>{{ session.joinedCount }} / {{ session.maxParticipants }} 人（{{ session.minParticipants }}人成班）</span>
+                </strong>
+              </div>
+            </section>
+
+            <!-- Syllabus Prose -->
+            <section class="doc-section">
+              <h2 class="section-label">课程大纲与配套资料</h2>
+              <p class="prose-text">{{ session.description }}</p>
+            </section>
+
+            <!-- Campus Geofence Map (when offline) -->
+            <section v-if="session.tradeType === 1 && session.meetupLat && session.meetupLng" class="doc-section">
+              <div class="map-header">
+                <div>
+                  <h2 class="section-label section-label--icon">
+                    <el-icon><Location /></el-icon>
+                    <span>授课地点 · {{ session.meetupPoiName }}</span>
+                  </h2>
+                  <p v-if="session.meetupAddress" class="map-sub">{{ session.meetupAddress }}</p>
                 </div>
-                <div class="sch-box">
-                  <span>预计结束时间</span>
-                  <strong>{{ formatDateTime(session.sessionEnd) }}</strong>
-                </div>
-                <div class="sch-box" v-if="session.tradeType === 1">
-                  <span>线下签到围栏</span>
-                  <strong>{{ session.meetupPoiName || '校内指定教室' }}（{{ session.meetupRadiusMeters || 80 }}m）</strong>
-                </div>
-                <div class="sch-box" v-else>
-                  <span>授课交付形式</span>
-                  <strong>线上实时共享课堂 · 独立凭证核销</strong>
-                </div>
+                <span class="map-radius xyf-tabular">签到围栏 {{ session.meetupRadiusMeters || 80 }}m</span>
               </div>
 
-              <div class="desc-section">
-                <div class="xyf-section-heading">
-                  <h3>课程大纲与配套资料</h3>
-                </div>
-                <p>{{ session.description }}</p>
-              </div>
-
-              <div v-if="session.tradeType === 1 && session.meetupLat && session.meetupLng" class="map-box">
-                <div class="xyf-section-heading">
-                  <h3>线下小班授课位置与电子围栏</h3>
-                </div>
-                <p v-if="session.meetupAddress" class="map-addr">{{ session.meetupAddress }}</p>
+              <div class="map-frame">
                 <RealCampusMap
-                  :height="230"
+                  :height="220"
                   :interactive="false"
                   :latitude="Number(session.meetupLat)"
                   :longitude="Number(session.meetupLng)"
@@ -156,115 +146,123 @@
               </div>
             </section>
 
-            <!-- Interactive Classroom Seat Matrix -->
-            <section class="xyf-surface-card roster-card">
+            <!-- Clean Human Student Roster (replaces noisy SEAT #01 dashed box matrix) -->
+            <section class="doc-section doc-section--roster">
               <div class="roster-head">
-                <div class="xyf-section-heading" style="margin: 0">
-                  <h2>班级席位矩阵（已入座 {{ session.joinedCount }} / {{ session.maxParticipants }}）</h2>
-                </div>
-                <span class="seat-remain xyf-tabular">
-                  剩余 {{ Math.max(0, session.maxParticipants - session.joinedCount) }} 个开放席位
+                <h2 class="section-label" style="margin: 0">
+                  已报名同学（{{ session.joinedCount }} / {{ session.maxParticipants }}）
+                </h2>
+                <span class="roster-remain xyf-tabular">
+                  剩余 {{ remainingSeats }} 席
                 </span>
               </div>
 
-              <div class="classroom-seats">
-                <!-- Enrolled Student Seats -->
+              <div v-if="session.participants?.length" class="roster-list">
                 <div
-                  v-for="(p, idx) in session.participants || []"
+                  v-for="p in session.participants"
                   :key="p.id"
-                  class="seat-card is-occupied"
+                  class="roster-row"
                 >
-                  <div class="seat-card__top">
-                    <span class="seat-no xyf-mono">SEAT #{{ String(idx + 1).padStart(2, '0') }}</span>
-                    <span v-if="Number(p.rebateAmount) > 0" class="rebate-chip xyf-tabular">
+                  <div class="roster-row__left">
+                    <XyfAvatar :src="p.buyerAvatar" :name="p.buyerName" :size="32" />
+                    <span class="roster-row__name">{{ p.buyerName }}</span>
+                    <span v-if="Number(p.rebateAmount) > 0" class="rebate-note xyf-tabular">
                       已退差价 ¥{{ Number(p.rebateAmount).toFixed(0) }}
                     </span>
                   </div>
 
-                  <div class="seat-student">
-                    <XyfAvatar :src="p.buyerAvatar" :name="p.buyerName" :size="36" />
-                    <div class="seat-student__info">
-                      <strong>{{ p.buyerName }}</strong>
-                      <span class="xyf-tabular">执行价 ¥{{ Number(p.effectivePrice).toFixed(2) }}</span>
-                    </div>
+                  <div class="roster-row__right xyf-tabular">
+                    <span class="roster-price">¥{{ Number(p.effectivePrice).toFixed(0) }}</span>
+                    <button
+                      v-if="userStore.userInfo?.id === p.buyerId"
+                      type="button"
+                      class="inline-order-link"
+                      @click="router.push(`/orders/${p.orderId}`)"
+                    >
+                      我的订单 →
+                    </button>
                   </div>
-
-                  <el-button
-                    v-if="userStore.userInfo?.id === p.buyerId"
-                    size="small"
-                    plain
-                    style="width: 100%; margin-top: 4px"
-                    @click="router.push(`/orders/${p.orderId}`)"
-                  >
-                    查看我的担保单 →
-                  </el-button>
                 </div>
+              </div>
 
-                <!-- Open Seats (Visual Scarcity Slots, capped at 12 visual empty slots) -->
+              <p v-else class="roster-empty">
+                当前尚无同学报名，成为首位报名学员即可开启拼班。
+              </p>
+
+              <div v-if="remainingSeats > 0" class="roster-footer xyf-tabular">
+                <span>
+                  {{
+                    session.tierRebateApplied === 1
+                      ? `还有 ${remainingSeats} 个开放席位，参团直接享阶梯价 ¥${Number(session.tierDiscountPrice).toFixed(0)}/人`
+                      : `还有 ${remainingSeats} 个开放席位，再邀 ${tierGap} 人即可触发全员退差价至 ¥${Number(session.tierDiscountPrice).toFixed(0)}/人`
+                  }}
+                </span>
                 <button
-                  v-for="openIdx in openSeatSlots"
-                  :key="`open-${openIdx}`"
+                  v-if="canEnroll"
                   type="button"
-                  class="seat-card is-open"
-                  :disabled="!canEnroll"
-                  @click="canEnroll && handleJoin()"
+                  class="inline-join-link"
+                  @click="handleJoin"
                 >
-                  <span class="seat-no xyf-mono">
-                    SEAT #{{ String((session.participants?.length || 0) + openIdx).padStart(2, '0') }}
-                  </span>
-                  <div class="open-placeholder">
-                    <span class="plus-circle">+</span>
-                    <span>
-                      {{
-                        (session.participants?.length || 0) + openIdx === session.tierTargetCount
-                          ? '阶梯降价解锁席位'
-                          : '开放席位 · 虚位以待'
-                      }}
-                    </span>
-                  </div>
+                  立即占位 →
                 </button>
               </div>
             </section>
-          </div>
+          </main>
 
-          <!-- Right Sticky Tiered Enrollment Checkout Dock -->
+          <!-- Right Single Sticky Enrollment Card (Price + Compact Tier Progress + CTA) -->
           <aside class="detail-aside">
-            <section class="xyf-surface-card enroll-dock">
-              <div class="price-stage xyf-tabular">
-                <span class="price-stage__lbl">当前参团执行单价</span>
-                <div class="price-stage__val">
-                  <span class="yen">¥</span>{{ Number(session.currentUnitPrice || session.basePrice).toFixed(2) }}
-                  <small>/ 人</small>
+            <section class="action-card">
+              <div class="action-card__price xyf-tabular">
+                <span class="action-card__label">当前参团单价</span>
+                <div class="action-card__amount">
+                  <span class="yen">¥</span>{{ Number(session.currentUnitPrice || session.basePrice).toFixed(0) }}<small>/人</small>
                 </div>
                 <div
                   v-if="Number(session.basePrice) > Number(session.tierDiscountPrice)"
-                  class="price-stage__compare"
+                  class="action-card__tier"
                 >
-                  <span>基础单价 ¥{{ Number(session.basePrice).toFixed(2) }}</span>
-                  <span>·</span>
-                  <strong>满 {{ session.tierTargetCount }} 人全员 ¥{{ Number(session.tierDiscountPrice).toFixed(2) }}</strong>
+                  基础价 ¥{{ Number(session.basePrice).toFixed(0) }} ·
+                  <strong>满 {{ session.tierTargetCount }} 人全员 ¥{{ Number(session.tierDiscountPrice).toFixed(0) }}</strong>
                 </div>
               </div>
 
-              <div class="dock-metrics xyf-tabular">
-                <div class="d-row">
-                  <span>最低成班人数</span>
-                  <strong>{{ session.minParticipants }} 人</strong>
+              <!-- Integrated Compact Tiered Progress (directly adjacent to buy CTA) -->
+              <div class="tier-progress xyf-tabular">
+                <div class="tier-progress__top">
+                  <span>已报名 {{ session.joinedCount }} / {{ session.maxParticipants }} 人</span>
+                  <span v-if="session.tierRebateApplied === 1" class="tier-flag is-hit">
+                    <XyfStatusBadge tone="success" icon="spark" tooltip="已解锁全员阶梯价" :icon-only="true" size="xs" />
+                    <span>已解锁阶梯价</span>
+                  </span>
+                  <span v-else class="tier-flag is-next">
+                    <XyfStatusBadge tone="warning" icon="spark" :tooltip="`再邀 ${tierGap} 人即享阶梯价`" :icon-only="true" size="xs" />
+                    <span>还差 {{ tierGap }} 人降价</span>
+                  </span>
                 </div>
-                <div class="d-row">
-                  <span>当前剩余名额</span>
-                  <strong>{{ Math.max(0, session.maxParticipants - session.joinedCount) }} 席</strong>
+                <div class="tier-track">
+                  <div
+                    class="tier-track__fill"
+                    :class="{ 'is-hit': session.tierRebateApplied === 1 }"
+                    :style="{ width: `${enrollmentPercent}%` }"
+                  />
                 </div>
-                <div class="d-row">
-                  <span>差价退还机制</span>
-                  <strong>原路自动退回钱包余额</strong>
+                <div class="tier-milestones">
+                  <span :class="{ 'is-reached': session.joinedCount >= session.minParticipants }">
+                    {{ session.minParticipants }}人成班
+                  </span>
+                  <span :class="{ 'is-reached': session.joinedCount >= session.tierTargetCount }">
+                    {{ session.tierTargetCount }}人降至 ¥{{ Number(session.tierDiscountPrice).toFixed(0) }}
+                  </span>
+                  <span :class="{ 'is-reached': session.joinedCount >= session.maxParticipants }">
+                    {{ session.maxParticipants }}人满班
+                  </span>
                 </div>
               </div>
 
               <template v-if="myJoinedRecord">
-                <div class="enrolled-notice">
-                  <strong>✓ 您已锁定本节团课席位</strong>
-                  <p>请前往关联担保订单完成托管支付，开课时向讲师出示 10s 动态核销码签到。</p>
+                <div class="status-note">
+                  <strong>已锁定本节团课席位</strong>
+                  <p>前往订单完成托管支付，开课时出示动态码核销签到。</p>
                 </div>
                 <el-button
                   type="primary"
@@ -272,14 +270,14 @@
                   style="width: 100%"
                   @click="router.push(`/orders/${myJoinedRecord.orderId}`)"
                 >
-                  查看我的参团担保单
+                  查看我的参团订单
                 </el-button>
               </template>
 
               <template v-else-if="isCreator">
-                <div class="enrolled-notice">
-                  <strong>您是本节拼班团课的主讲导师</strong>
-                  <p>每位学员参团后均会在您的「收到的销售单」生成独立担保订单，开课时逐一扫码或动态码核销。</p>
+                <div class="status-note">
+                  <strong>您是本节团课主讲导师</strong>
+                  <p>学员报名后将自动生成独立担保订单，开课时逐一核销。</p>
                 </div>
                 <el-button
                   v-if="session.joinedCount === 0 && session.sessionStatus === 0"
@@ -306,10 +304,14 @@
                       ? '本班席位已满'
                       : session.sessionStatus >= 2
                         ? '已停止报名'
-                        : '立即锁定席位并生成担保单'
+                        : '立即锁定席位'
                   }}
                 </el-button>
               </template>
+
+              <p class="escrow-footnote">
+                达 {{ session.tierTargetCount }} 人阶梯线后，差价将自动原路退回钱包余额；未满 {{ session.minParticipants }} 人不开班自动全额退款。
+              </p>
             </section>
           </aside>
         </div>
@@ -322,7 +324,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, Calendar, Location, User } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   getGroupSessionDetail,
@@ -331,10 +333,13 @@ import {
   type GroupSessionItem
 } from '@/api/groupSession'
 import { notifyFallbackError } from '@/api/request'
-import { formatDateTime } from '@/utils/format'
+import { formatSessionTimeRange } from '@/utils/format'
 import RealCampusMap from '@/components/business/RealCampusMap.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
+import XyfStatusBadge, { type StatusBadgeTone, type StatusBadgeIcon } from '@/components/ui/XyfStatusBadge.vue'
+import XyfVerifiedMark from '@/components/ui/XyfVerifiedMark.vue'
+import XyfDeliveryIcon from '@/components/ui/XyfDeliveryIcon.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -363,10 +368,14 @@ const enrollmentPercent = computed(() => {
   return Math.min(100, Math.round((session.value.joinedCount / session.value.maxParticipants) * 100))
 })
 
-const openSeatSlots = computed(() => {
+const remainingSeats = computed(() => {
   if (!session.value) return 0
-  const remain = Math.max(0, session.value.maxParticipants - (session.value.participants?.length || 0))
-  return Math.min(12, remain)
+  return Math.max(0, session.value.maxParticipants - session.value.joinedCount)
+})
+
+const tierGap = computed(() => {
+  if (!session.value) return 0
+  return Math.max(0, session.value.tierTargetCount - session.value.joinedCount)
 })
 
 function statusLabel(st: number) {
@@ -375,6 +384,20 @@ function statusLabel(st: number) {
   if (st === 2) return '已满员锁定'
   if (st === 3) return '已完结'
   return '已取消'
+}
+
+function statusTone(st: number): StatusBadgeTone {
+  if (st === 0) return 'dark'
+  if (st === 1) return 'success'
+  if (st === 2) return 'warning'
+  return 'neutral'
+}
+
+function statusIcon(st: number): StatusBadgeIcon {
+  if (st === 0) return 'live'
+  if (st === 1) return 'check'
+  if (st === 2) return 'lock'
+  return 'clock'
 }
 
 async function loadDetail() {
@@ -443,484 +466,483 @@ onMounted(loadDetail)
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 18px;
-
-  &__back {
-    padding: 4px 8px 4px 0;
-    color: var(--xyf-ink-2);
-    font-size: 13px;
-
-    &:hover {
-      color: var(--xyf-ink);
-      background: transparent;
-    }
-  }
-}
-
-.session-serial {
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border);
-  font-size: 12px;
-  color: var(--xyf-ink-2);
-}
-
-/* Tiered Pricing Milestone Ladder */
-.ladder-banner {
-  padding: 22px 26px;
-  margin-bottom: 22px;
-
-  &__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
-
-    h2 {
-      margin: 4px 0 0;
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--xyf-ink);
-    }
-  }
-
-  .rebate-pill {
-    padding: 5px 12px;
-    border-radius: 999px;
-    background: var(--xyf-surface-soft);
-    border: 1px solid var(--xyf-border);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--xyf-ink-2);
-
-    &.is-hit {
-      background: #18181b;
-      border-color: #18181b;
-      color: #e5c79e;
-    }
-  }
-}
-
-.ladder-track-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.ladder-track {
-  height: 8px;
-  border-radius: 999px;
-  background: #f1f1f4;
-  overflow: hidden;
-
-  &__fill {
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #18181b 0%, #c8a97e 100%);
-    transition: width 0.35s ease;
-  }
-}
-
-.ladder-nodes {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.l-node {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  opacity: 0.55;
-
-  .l-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 2px solid var(--xyf-border-strong);
-    background: #ffffff;
-    margin-bottom: 4px;
-  }
-
-  strong {
-    font-size: 13px;
-    color: var(--xyf-ink);
-  }
-
-  span {
-    font-size: 11.5px;
-    color: var(--xyf-ink-3);
-  }
-
-  &.is-reached {
-    opacity: 1;
-
-    .l-dot {
-      background: #18181b;
-      border-color: #18181b;
-    }
-  }
-
-  &.is-gold.is-reached .l-dot {
-    background: #d97706;
-    border-color: #d97706;
-  }
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.85fr);
-  gap: 24px;
-  align-items: start;
-
-  @media (max-width: 960px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.detail-main {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.syllabus-card,
-.roster-card,
-.enroll-dock {
-  padding: 26px 28px;
-}
-
-.top-badges {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-
-  .s-pill {
-    padding: 3px 10px;
-    border-radius: 999px;
-    background: var(--xyf-surface-soft);
-    border: 1px solid var(--xyf-border);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--xyf-ink-2);
-
-    &.is-dark {
-      background: #18181b;
-      border-color: #18181b;
-      color: #ffffff;
-    }
-  }
-}
-
-.course-h1 {
-  margin: 0 0 18px;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.35;
-  letter-spacing: -0.02em;
-  color: var(--xyf-ink);
-}
-
-.instructor-bar {
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border-subtle);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  cursor: pointer;
-  margin-bottom: 20px;
+  padding-bottom: 18px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--xyf-border);
 
   &__left {
     display: flex;
     align-items: center;
-    gap: 12px;
-  }
-
-  .inst-name {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-
-    strong {
-      font-size: 14.5px;
-      color: var(--xyf-ink);
-    }
-  }
-
-  .inst-chip {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: #ffffff;
-    border: 1px solid var(--xyf-border);
-    color: var(--xyf-ink-2);
-  }
-
-  .inst-sub {
-    margin-top: 3px;
-    font-size: 12px;
-    color: var(--xyf-ink-3);
-  }
-}
-
-.schedule-bento {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 22px;
-
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.sch-box {
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--xyf-border);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-
-  span {
-    font-size: 11.5px;
-    color: var(--xyf-ink-3);
-  }
-
-  strong {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: var(--xyf-ink);
-  }
-}
-
-.desc-section p {
-  margin: 0;
-  white-space: pre-wrap;
-  font-size: 14.5px;
-  line-height: 1.75;
-  color: var(--xyf-ink-2);
-}
-
-.map-box {
-  margin-top: 22px;
-  padding-top: 20px;
-  border-top: 1px solid var(--xyf-border-subtle);
-
-  .map-addr {
-    margin: -6px 0 12px;
+    gap: 8px;
     font-size: 13px;
     color: var(--xyf-ink-3);
   }
 }
 
-/* Classroom Seat Matrix */
-.roster-head {
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--xyf-ink-2);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--xyf-ink);
+  }
+}
+
+.serial-text {
+  font-size: 12.5px;
+  color: var(--xyf-ink-3);
+}
+
+.sep {
+  color: var(--xyf-ink-4);
+}
+
+.loading-wrap,
+.empty-wrap {
+  padding: 40px 0;
+}
+
+/* Open Editorial 2-Column Layout */
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) 360px;
+  gap: 48px;
+  align-items: start;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+
+.detail-main {
+  min-width: 0;
+}
+
+.doc-header {
+  padding-bottom: 24px;
+}
+
+.doc-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--xyf-ink-3);
+  margin-bottom: 10px;
+}
+
+.meta-icon-txt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  .el-icon {
+    font-size: 13px;
+    color: var(--xyf-ink-3);
+  }
+}
+
+.doc-title {
+  margin: 0 0 20px;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: var(--xyf-ink);
+  text-wrap: balance;
+}
+
+.author-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  flex-wrap: wrap;
 
-  .seat-remain {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--xyf-ink-2);
-  }
-}
-
-.classroom-seats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 12px;
-}
-
-.seat-card {
-  border-radius: 14px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  text-align: left;
-  font-family: inherit;
-
-  .seat-no {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--xyf-ink-3);
-  }
-
-  &.is-occupied {
-    background: #ffffff;
-    border: 1px solid var(--xyf-border);
-
-    .seat-card__top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .rebate-chip {
-      padding: 1px 7px;
-      border-radius: 999px;
-      background: var(--xyf-champagne-soft);
-      border: 1px solid var(--xyf-champagne-border);
-      color: #9a5b13;
-      font-size: 10.5px;
-      font-weight: 600;
-    }
-
-    .seat-student {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-
-      &__info {
-        display: flex;
-        flex-direction: column;
-
-        strong {
-          font-size: 13.5px;
-          color: var(--xyf-ink);
-        }
-
-        span {
-          font-size: 12px;
-          color: var(--xyf-ink-3);
-        }
-      }
-    }
-  }
-
-  &.is-open {
-    background: #fafafa;
-    border: 1px dashed var(--xyf-border-strong);
+  &__btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    font-family: inherit;
     cursor: pointer;
-    transition: all var(--xyf-transition);
 
-    &:hover:not(:disabled) {
-      border-color: #18181b;
-      background: #ffffff;
+    &:hover strong {
+      text-decoration: underline;
     }
+  }
 
-    &:disabled {
-      cursor: default;
-      opacity: 0.7;
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    strong {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--xyf-ink);
     }
+  }
 
-    .open-placeholder {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      padding: 6px 0;
-      font-size: 12.5px;
-      color: var(--xyf-ink-3);
-
-      .plus-circle {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: 1px solid var(--xyf-border-strong);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 15px;
-        color: var(--xyf-ink-2);
-      }
-    }
+  &__sub {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--xyf-ink-4);
   }
 }
 
-/* Sticky Enrollment Dock */
-.detail-aside {
-  position: sticky;
-  top: 86px;
-
-  @media (max-width: 960px) {
-    position: static;
-  }
-}
-
-.price-stage {
-  padding-bottom: 16px;
-  margin-bottom: 16px;
+/* Hairline Key Logistics Strip */
+.key-specs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 20px 0;
+  border-top: 1px solid var(--xyf-border);
   border-bottom: 1px solid var(--xyf-border);
 
-  &__lbl {
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.key-spec {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  > span {
     font-size: 12px;
     color: var(--xyf-ink-3);
   }
 
-  &__val {
-    margin-top: 4px;
+  .spec-val {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--xyf-ink);
+    line-height: 1.4;
+
+    .el-icon {
+      font-size: 14px;
+      color: var(--xyf-ink-3);
+      flex-shrink: 0;
+    }
+  }
+}
+
+.doc-section {
+  padding: 28px 0;
+  border-bottom: 1px solid var(--xyf-border);
+
+  &--roster {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.section-label {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--xyf-ink);
+
+  &--icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    .el-icon {
+      font-size: 15px;
+      color: var(--xyf-ink-2);
+    }
+  }
+}
+
+.prose-text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--xyf-ink-2);
+  max-width: 72ch;
+}
+
+.map-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+
+  .section-label {
+    margin-bottom: 4px;
+  }
+}
+
+.map-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--xyf-ink-3);
+}
+
+.map-radius {
+  font-size: 12.5px;
+  color: var(--xyf-ink-3);
+}
+
+.map-frame {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--xyf-border);
+}
+
+/* Clean Human Roster */
+.roster-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+
+  .roster-remain {
+    font-size: 13px;
+    color: var(--xyf-ink-3);
+  }
+}
+
+.roster-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.roster-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--xyf-border-subtle);
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--xyf-ink);
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+}
+
+.rebate-note {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--xyf-success);
+}
+
+.roster-price {
+  font-size: 13.5px;
+  color: var(--xyf-ink-2);
+}
+
+.inline-order-link,
+.inline-join-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--xyf-ink);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.roster-empty {
+  margin: 0;
+  padding: 16px 0;
+  font-size: 13.5px;
+  color: var(--xyf-ink-3);
+}
+
+.roster-footer {
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--xyf-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--xyf-ink-3);
+}
+
+/* Right Single Sticky Action Card */
+.detail-aside {
+  position: sticky;
+  top: 88px;
+
+  @media (max-width: 980px) {
+    position: static;
+  }
+}
+
+.action-card {
+  background: #ffffff;
+  border: 1px solid var(--xyf-border);
+  border-radius: 14px;
+  padding: 24px;
+
+  &__price {
+    padding-bottom: 18px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--xyf-border-subtle);
+  }
+
+  &__label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--xyf-ink-3);
+  }
+
+  &__amount {
+    margin-top: 6px;
     font-size: 32px;
     font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--xyf-ink);
+    line-height: 1.1;
 
     .yen {
       font-size: 18px;
+      font-weight: 600;
       margin-right: 2px;
     }
 
     small {
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 400;
       color: var(--xyf-ink-3);
     }
   }
 
-  &__compare {
-    margin-top: 6px;
+  &__tier {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--xyf-ink-3);
+
+    strong {
+      color: var(--xyf-warning);
+      font-weight: 600;
+    }
+  }
+}
+
+/* Compact Integrated Tier Progress */
+.tier-progress {
+  margin-bottom: 20px;
+
+  &__top {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    justify-content: space-between;
     font-size: 12.5px;
     color: var(--xyf-ink-2);
+    margin-bottom: 8px;
 
-    strong {
-      color: #9a5b13;
+    .tier-flag {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-weight: 600;
+
+      .spark-svg {
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+      }
+
+      &.is-hit {
+        color: var(--xyf-success);
+      }
+
+      &.is-next {
+        color: var(--xyf-warning);
+      }
     }
   }
 }
 
-.dock-metrics {
+.tier-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--xyf-surface-muted);
+  overflow: hidden;
+
+  &__fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--xyf-ink);
+    transition: width 0.25s ease;
+
+    &.is-hit {
+      background: var(--xyf-success);
+    }
+  }
+}
+
+.tier-milestones {
+  margin-top: 8px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 18px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--xyf-ink-4);
 
-  .d-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
+  .is-reached {
     color: var(--xyf-ink-2);
-
-    strong {
-      color: var(--xyf-ink);
-    }
+    font-weight: 600;
   }
 }
 
-.enrolled-notice {
+.status-note {
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-ink);
   margin-bottom: 14px;
 
   strong {
@@ -936,5 +958,14 @@ onMounted(loadDetail)
     line-height: 1.55;
     color: var(--xyf-ink-2);
   }
+}
+
+.escrow-footnote {
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--xyf-border-subtle);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--xyf-ink-3);
 }
 </style>

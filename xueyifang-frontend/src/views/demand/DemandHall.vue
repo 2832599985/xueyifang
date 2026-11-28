@@ -1,13 +1,16 @@
 <template>
   <div class="demand-hall-page xyf-page">
     <div class="xyf-container">
-      <!-- Editorial Market Header + Integrated Workspace Switcher -->
-      <header class="bounty-header">
-        <div class="bounty-header__left">
+      <!-- Minimalist Page Header -->
+      <header class="page-head">
+        <div class="page-head__title-wrap">
           <h1>悬赏大厅</h1>
+          <span v-if="activeWorkspace === 'market' && !loading" class="page-head__count xyf-tabular">
+            {{ total }} 条需求
+          </span>
         </div>
 
-        <div class="bounty-header__right">
+        <div class="page-head__actions">
           <div v-if="userStore.userInfo && !userStore.isAdmin" class="xyf-segmented" role="tablist">
             <button
               type="button"
@@ -16,7 +19,6 @@
               @click="switchWorkspace('market')"
             >
               <span>全部悬赏</span>
-              <span class="xyf-segmented__count">{{ total }}</span>
             </button>
             <button
               type="button"
@@ -38,7 +40,7 @@
             </button>
           </div>
 
-          <el-button type="primary" size="large" @click="openPublishDialog">
+          <el-button type="primary" @click="openPublishDialog">
             <el-icon><Plus /></el-icon>
             <span>发布悬赏</span>
           </el-button>
@@ -47,64 +49,39 @@
 
       <!-- VIEW 1: Public Bounty Marketplace -->
       <template v-if="activeWorkspace === 'market'">
-        <!-- Borderless Two-Tier Editorial Filter Studio -->
-        <section class="filter-studio">
-          <!-- Tier 1: Category Underline Tabs + Campus Switcher -->
-          <div class="filter-studio__top">
-            <div class="xyf-tabs">
-              <button
-                type="button"
-                class="xyf-tab"
-                :class="{ 'is-active': !filters.tagId }"
-                @click="selectTag(undefined)"
-              >
-                全部领域
-              </button>
-              <button
-                v-for="t in dictStore.serviceTags || []"
-                :key="t.tagId"
-                type="button"
-                class="xyf-tab"
-                :class="{ 'is-active': filters.tagId === t.tagId }"
-                @click="selectTag(t.tagId)"
-              >
-                {{ t.tagName }}
-              </button>
-            </div>
-
-            <div class="campus-pills">
-              <button
-                type="button"
-                class="campus-pill"
-                :class="{ 'is-active': !filters.campusId }"
-                @click="selectCampus(undefined)"
-              >
-                全部校区
-              </button>
-              <button
-                v-for="c in campuses"
-                :key="c.id"
-                type="button"
-                class="campus-pill"
-                :class="{ 'is-active': filters.campusId === c.id }"
-                @click="selectCampus(c.id)"
-              >
-                {{ c.campusName }}
-              </button>
-            </div>
+        <!-- Crisp Two-Row Filter Bar (zero clipped tabs) -->
+        <section class="filter-bar">
+          <div class="xyf-tabs filter-bar__tabs">
+            <button
+              type="button"
+              class="xyf-tab"
+              :class="{ 'is-active': !filters.tagId }"
+              @click="selectTag(undefined)"
+            >
+              全部领域
+            </button>
+            <button
+              v-for="t in dictStore.serviceTags || []"
+              :key="t.tagId"
+              type="button"
+              class="xyf-tab"
+              :class="{ 'is-active': filters.tagId === t.tagId }"
+              @click="selectTag(t.tagId)"
+            >
+              {{ t.tagName }}
+            </button>
           </div>
 
-          <!-- Tier 2: Urgency Pills + Mode Pills + Search Box -->
-          <div class="filter-studio__bottom">
-            <div class="pill-cluster">
-              <div class="xyf-segmented">
+          <div class="filter-bar__controls">
+            <div class="filter-bar__left">
+              <div class="xyf-segmented" role="tablist" aria-label="优先级">
                 <button
                   type="button"
                   class="xyf-segmented__btn"
                   :class="{ 'is-active': !filters.urgencyLevel }"
                   @click="selectUrgency(undefined)"
                 >
-                  全部优先级
+                  全部
                 </button>
                 <button
                   type="button"
@@ -112,7 +89,10 @@
                   :class="{ 'is-active': filters.urgencyLevel === 3 }"
                   @click="selectUrgency(3)"
                 >
-                  十万火急
+                  <svg class="seg-icon is-danger" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M9.3 1.8L3.4 9.1h4.1l-.8 5.1 5.9-7.3H8.5l.8-5.1Z" fill="currentColor" />
+                  </svg>
+                  <span>十万火急</span>
                 </button>
                 <button
                   type="button"
@@ -120,7 +100,10 @@
                   :class="{ 'is-active': filters.urgencyLevel === 2 }"
                   @click="selectUrgency(2)"
                 >
-                  加急优先
+                  <svg class="seg-icon is-warn" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8.7 2.2c.3 2.1-1.3 3.2-1.8 4.4-.4.9.1 1.7.7 2 .4-.6.8-1.1 1.3-1.4 1.3 1 2.2 2.4 2.2 3.9a3.8 3.8 0 0 1-7.6 0c0-2.6 1.7-4.5 3.1-6.1.8-.9 1.5-1.8 2.1-2.8Z" fill="currentColor" />
+                  </svg>
+                  <span>加急</span>
                 </button>
                 <button
                   type="button"
@@ -128,53 +111,48 @@
                   :class="{ 'is-active': filters.urgencyLevel === 1 }"
                   @click="selectUrgency(1)"
                 >
-                  常规需求
+                  常规
                 </button>
               </div>
 
-              <div class="xyf-segmented">
-                <button
-                  type="button"
-                  class="xyf-segmented__btn"
-                  :class="{ 'is-active': !filters.tradeType }"
-                  @click="selectTradeType(undefined)"
-                >
-                  全部交付
-                </button>
-                <button
-                  type="button"
-                  class="xyf-segmented__btn"
-                  :class="{ 'is-active': filters.tradeType === 1 }"
-                  @click="selectTradeType(1)"
-                >
-                  校内当面
-                </button>
-                <button
-                  type="button"
-                  class="xyf-segmented__btn"
-                  :class="{ 'is-active': filters.tradeType === 2 }"
-                  @click="selectTradeType(2)"
-                >
-                  线上远程
-                </button>
-              </div>
+              <el-select
+                v-model="filters.campusId"
+                placeholder="全部校区"
+                clearable
+                class="compact-select"
+                @change="reload"
+              >
+                <el-option
+                  v-for="c in campuses"
+                  :key="c.id"
+                  :label="c.campusName"
+                  :value="c.id"
+                />
+              </el-select>
+
+              <el-select
+                v-model="filters.tradeType"
+                placeholder="全部交付"
+                clearable
+                class="compact-select compact-select--sm"
+                @change="reload"
+              >
+                <el-option label="校内当面" :value="1" />
+                <el-option label="线上远程" :value="2" />
+              </el-select>
             </div>
 
-            <div class="search-inline">
+            <div class="filter-bar__right">
               <el-input
                 v-model="filters.keyword"
-                placeholder="搜索关键词（如 高数积分 / STM32 / 跟拍）..."
+                placeholder="搜索悬赏关键词"
                 clearable
                 :prefix-icon="Search"
+                class="search-input"
                 @keyup.enter="reload"
                 @clear="reload"
               />
-              <button
-                v-if="hasActiveFilters"
-                type="button"
-                class="reset-link"
-                @click="resetFilters"
-              >
+              <button v-if="hasActiveFilters" type="button" class="reset-btn" @click="resetFilters">
                 重置
               </button>
             </div>
@@ -182,91 +160,87 @@
         </section>
 
         <!-- Loading Skeleton -->
-        <div v-if="loading" class="ticket-grid">
-          <div v-for="n in 6" :key="n" class="xyf-surface-card skeleton-ticket">
-            <el-skeleton :rows="4" animated />
+        <div v-if="loading" class="bounty-feed">
+          <div v-for="n in 4" :key="n" class="bounty-row bounty-row--skeleton">
+            <el-skeleton :rows="2" animated />
           </div>
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="demands.length === 0" class="xyf-surface-card empty-wrap">
+        <div v-else-if="demands.length === 0" class="empty-panel">
           <XyfEmptyState
             title="当前筛选下暂无招募悬赏"
-            description="你可以清空筛选条件，或直接发布一条定制悬赏让本校认证创作者主动报价。"
+            description="你可以清空筛选条件，或直接发布一条悬赏让校内认证创作者主动报价。"
           >
             <template #action>
               <el-button v-if="hasActiveFilters" plain @click="resetFilters">清空筛选</el-button>
-              <el-button type="primary" @click="openPublishDialog">立即发布悬赏</el-button>
+              <el-button type="primary" @click="openPublishDialog">发布悬赏</el-button>
             </template>
           </XyfEmptyState>
         </div>
 
-        <!-- Commercial Escrow Bounty Ticket Grid -->
-        <div v-else class="ticket-grid">
+        <!-- Clean Single-Column Editorial Bounty Feed (aligned tabular budget column, zero orphan cards) -->
+        <div v-else class="bounty-feed">
           <article
             v-for="item in demands"
             :key="item.id"
-            class="bounty-ticket"
-            :class="{ 'is-urgent': item.urgencyLevel === 3 }"
+            class="bounty-row"
+            tabindex="0"
+            role="link"
+            :aria-label="item.title"
             @click="router.push(`/demands/${item.id}`)"
+            @keydown.enter="router.push(`/demands/${item.id}`)"
           >
-            <!-- Top Meta Row -->
-            <div class="bounty-ticket__head">
-              <div class="bounty-tags">
-                <span class="urgency-chip" :class="`is-u${item.urgencyLevel}`">
-                  <span class="urgency-chip__dot" />
-                  {{ urgencyLabel(item.urgencyLevel) }}
-                </span>
-                <span v-if="item.tagName" class="meta-chip">{{ item.tagName }}</span>
-                <span class="meta-chip">{{ item.campusName || '主校区' }}</span>
-              </div>
-
-              <span class="state-pill" :class="{ 'is-open': item.demandStatus === 0 }">
-                {{ item.demandStatus === 0 ? '招募竞标中' : '已选标成单' }}
-              </span>
-            </div>
-
-            <!-- Main Content -->
-            <h3 class="bounty-ticket__title ellipsis-2">{{ item.title }}</h3>
-            <p class="bounty-ticket__desc ellipsis-2">{{ item.description }}</p>
-
-            <!-- Fulfillment & Geofence Strip -->
-            <div class="fulfill-strip">
-              <div class="fulfill-strip__item">
-                <el-icon><Location v-if="item.tradeType === 1" /><Monitor v-else /></el-icon>
-                <span v-if="item.tradeType === 1" class="ellipsis">
-                  {{ item.meetupPoiName || '校内指定地标' }} · {{ item.meetupRadiusMeters || 80 }}m 围栏核销
-                </span>
-                <span v-else>线上交付凭证验收 · 担保结算</span>
-              </div>
-              <span v-if="item.deadlineTime" class="deadline-chip xyf-tabular">
-                截止 {{ formatShortDeadline(item.deadlineTime) }}
-              </span>
-            </div>
-
-            <!-- Perforated Ticket Stub Footer -->
-            <div class="bounty-ticket__stub">
-              <div class="publisher-mini">
-                <XyfAvatar
-                  :src="item.publisherAvatar"
-                  :name="item.publisherName || '校内同学'"
-                  :size="28"
-                />
-                <div class="publisher-mini__info">
-                  <span class="publisher-mini__name ellipsis">{{ item.publisherName || '校内实名同学' }}</span>
-                  <span class="publisher-mini__trust xyf-tabular">
-                    {{ item.publisherEduVerified === 1 ? 'edu.cn 已核验' : '实名学号' }} · 信用 {{ item.publisherCreditScore ?? 100 }}
+            <div class="bounty-row__body">
+              <!-- Line 1: Animated SVG Urgency Emblem + Clean Metadata -->
+              <div class="bounty-row__kicker xyf-tabular">
+                <XyfUrgencyTag :level="item.urgencyLevel" size="sm" />
+                <span v-if="item.tagName">{{ item.tagName }}</span>
+                <span v-if="item.tagName" class="sep" aria-hidden="true">·</span>
+                <span>{{ item.campusName || '主校区' }}</span>
+                <template v-if="item.deadlineTime">
+                  <span class="sep" aria-hidden="true">·</span>
+                  <span class="meta-icon-txt" title="期望截止时间">
+                    <el-icon><Clock /></el-icon>
+                    <span>{{ formatShortDeadline(item.deadlineTime) }}</span>
                   </span>
-                </div>
+                </template>
               </div>
 
-              <div class="budget-callout xyf-tabular">
-                <div class="budget-callout__amount">
-                  <span class="yen">¥</span>{{ Number(item.budgetMin).toFixed(0) }}<span class="dash">–</span>{{ Number(item.budgetMax).toFixed(0) }}
+              <!-- Line 2: Dominant Focal Title -->
+              <h2 class="bounty-row__title">{{ item.title }}</h2>
+
+              <!-- Line 3: Concise Single-Line Summary -->
+              <p class="bounty-row__desc ellipsis">{{ item.description }}</p>
+
+              <!-- Line 4: Publisher (Animated Shield) & Animated Delivery SVG -->
+              <div class="bounty-row__foot">
+                <div class="publisher-inline">
+                  <XyfAvatar
+                    :src="item.publisherAvatar"
+                    :name="item.publisherName || '校内同学'"
+                    :size="20"
+                  />
+                  <span>{{ item.publisherName || '校内实名同学' }}</span>
+                  <XyfVerifiedMark :verified="item.publisherEduVerified === 1" />
                 </div>
-                <span class="budget-callout__bids">
-                  {{ item.bidCount || 0 }} 位创作者报价 →
-                </span>
+                <span class="sep" aria-hidden="true">·</span>
+                <XyfDeliveryIcon
+                  :trade-type="item.tradeType"
+                  size="xs"
+                  :text="item.tradeType === 1 ? (item.meetupPoiName || '') : ''"
+                />
+              </div>
+            </div>
+
+            <!-- Right Aligned Decision Column: Budget + Bid Count -->
+            <div class="bounty-row__aside xyf-tabular">
+              <div class="budget-val">
+                <span class="yen">¥</span>{{ Number(item.budgetMin).toFixed(0) }}<span class="dash">–</span>{{ Number(item.budgetMax).toFixed(0) }}
+              </div>
+              <div class="budget-sub">
+                <span v-if="item.demandStatus === 0">{{ item.bidCount || 0 }} 人报价</span>
+                <span v-else class="is-closed">已选标</span>
               </div>
             </div>
           </article>
@@ -286,10 +260,10 @@
 
       <!-- VIEW 2: My Published Demands Workspace -->
       <section v-else-if="activeWorkspace === 'published'" class="workspace-panel">
-        <div v-if="myPublished.length === 0" class="xyf-surface-card empty-wrap">
+        <div v-if="myPublished.length === 0" class="empty-panel">
           <XyfEmptyState
             title="你还没有发布过校内悬赏"
-            description="遇到期末难点、硬件调试或设计拍摄需求时，发布悬赏即可收集多位认证创作者的定制方案。"
+            description="发布定制需求即可收集多位认证创作者的报价方案。"
           >
             <template #action>
               <el-button type="primary" @click="openPublishDialog">发布首条悬赏</el-button>
@@ -297,34 +271,45 @@
           </XyfEmptyState>
         </div>
 
-        <div v-else class="my-records-grid">
-          <div
+        <div v-else class="bounty-feed">
+          <article
             v-for="d in myPublished"
             :key="d.id"
-            class="xyf-surface-card record-card"
+            class="bounty-row"
+            tabindex="0"
+            role="link"
             @click="router.push(`/demands/${d.id}`)"
+            @keydown.enter="router.push(`/demands/${d.id}`)"
           >
-            <div class="record-card__top">
-              <span class="xyf-mono record-no">{{ d.demandNo }}</span>
-              <el-tag size="small" :type="d.demandStatus === 0 ? 'success' : d.demandStatus === 1 ? 'warning' : 'info'">
-                {{ statusText(d.demandStatus) }}
-              </el-tag>
+            <div class="bounty-row__body">
+              <div class="bounty-row__kicker xyf-tabular">
+                <XyfStatusBadge
+                  :tone="d.demandStatus === 0 ? 'dark' : d.demandStatus === 1 ? 'success' : 'neutral'"
+                  :icon="d.demandStatus === 0 ? 'live' : d.demandStatus === 1 ? 'check' : 'lock'"
+                  :tooltip="statusText(d.demandStatus)"
+                  :icon-only="true"
+                  size="xs"
+                />
+                <span class="xyf-mono">{{ d.demandNo }}</span>
+              </div>
+              <h2 class="bounty-row__title">{{ d.title }}</h2>
             </div>
-            <h3>{{ d.title }}</h3>
-            <div class="record-card__foot xyf-tabular">
-              <span>预算 ¥{{ d.budgetMin }} – ¥{{ d.budgetMax }}</span>
-              <strong>已收到 {{ d.bidCount || 0 }} 份竞标方案 →</strong>
+            <div class="bounty-row__aside xyf-tabular">
+              <div class="budget-val">
+                <span class="yen">¥</span>{{ Number(d.budgetMin).toFixed(0) }}<span class="dash">–</span>{{ Number(d.budgetMax).toFixed(0) }}
+              </div>
+              <div class="budget-sub">{{ d.bidCount || 0 }} 份报价 →</div>
             </div>
-          </div>
+          </article>
         </div>
       </section>
 
       <!-- VIEW 3: My Submitted Bids Workspace -->
       <section v-else class="workspace-panel">
-        <div v-if="myBids.length === 0" class="xyf-surface-card empty-wrap">
+        <div v-if="myBids.length === 0" class="empty-panel">
           <XyfEmptyState
             title="暂无参与的悬赏竞标记录"
-            description="前往全校招募广场挑选擅长的悬赏任务提交报价，中标后将自动为您生成平台担保销售单。"
+            description="前往悬赏大厅挑选擅长的任务提交报价，中标后将自动生成平台担保订单。"
           >
             <template #action>
               <el-button type="primary" @click="switchWorkspace('market')">浏览招募中悬赏</el-button>
@@ -332,29 +317,40 @@
           </XyfEmptyState>
         </div>
 
-        <div v-else class="my-records-grid">
-          <div
+        <div v-else class="bounty-feed">
+          <article
             v-for="b in myBids"
             :key="b.id"
-            class="xyf-surface-card record-card"
+            class="bounty-row"
+            tabindex="0"
+            role="link"
             @click="router.push(`/demands/${b.demandId}`)"
+            @keydown.enter="router.push(`/demands/${b.demandId}`)"
           >
-            <div class="record-card__top">
-              <span class="xyf-tabular">承诺 {{ b.estimatedHours }} 小时内交付</span>
-              <el-tag
-                size="small"
-                :type="b.bidStatus === 1 ? 'success' : b.bidStatus === 0 ? 'warning' : 'info'"
-              >
-                {{ b.bidStatus === 1 ? '已中标转担保单' : b.bidStatus === 0 ? '待需求方选标' : '未中标' }}
-              </el-tag>
+            <div class="bounty-row__body">
+              <div class="bounty-row__kicker xyf-tabular">
+                <XyfStatusBadge
+                  :tone="b.bidStatus === 1 ? 'success' : b.bidStatus === 0 ? 'info' : 'neutral'"
+                  :icon="b.bidStatus === 1 ? 'check' : b.bidStatus === 0 ? 'live' : 'lock'"
+                  :tooltip="b.bidStatus === 1 ? '已中标' : b.bidStatus === 0 ? '待需求方选标' : '未中标'"
+                  :icon-only="true"
+                  size="xs"
+                />
+                <span class="meta-icon-txt">
+                  <el-icon><Clock /></el-icon>
+                  <span>{{ b.estimatedHours }}h</span>
+                </span>
+              </div>
+              <h2 class="bounty-row__title">{{ b.demandTitle || `校内悬赏 #${b.demandId}` }}</h2>
+              <p class="bounty-row__desc ellipsis">{{ b.bidPlan }}</p>
             </div>
-            <h3>{{ b.demandTitle || `校内悬赏 #${b.demandId}` }}</h3>
-            <p class="record-plan ellipsis-2">{{ b.bidPlan }}</p>
-            <div class="record-card__foot xyf-tabular">
-              <span>我的报价 <strong>¥{{ Number(b.bidPrice).toFixed(2) }}</strong></span>
-              <span>查看悬赏详情 →</span>
+            <div class="bounty-row__aside xyf-tabular">
+              <div class="budget-val">
+                <span class="yen">¥</span>{{ Number(b.bidPrice).toFixed(2) }}
+              </div>
+              <div class="budget-sub">我的报价 →</div>
             </div>
-          </div>
+          </article>
         </div>
       </section>
     </div>
@@ -366,7 +362,6 @@
       width="720px"
       :close-on-click-modal="false"
     >
-      <!-- Step Indicator -->
       <div class="composer-steps">
         <button
           v-for="(s, idx) in composerSteps"
@@ -381,9 +376,8 @@
         </button>
       </div>
 
-      <!-- Quick Campus Scene Templates -->
       <div v-if="pubStep === 0" class="scene-templates">
-        <span class="scene-templates__lbl">快捷套用高频场景：</span>
+        <span class="scene-templates__lbl">快捷套用场景：</span>
         <button
           v-for="tpl in scenePresets"
           :key="tpl.name"
@@ -396,7 +390,6 @@
       </div>
 
       <el-form label-position="top" class="composer-form">
-        <!-- STEP 1: Scope & Criteria -->
         <div v-show="pubStep === 0">
           <el-form-item label="悬赏标题（清晰概括科目/技术栈与期望成果，4~120字）" required>
             <el-input
@@ -433,7 +426,6 @@
           </el-form-item>
         </div>
 
-        <!-- STEP 2: Budget & Urgency -->
         <div v-show="pubStep === 1">
           <div class="row-2">
             <el-form-item label="预算下限（元）" required>
@@ -454,7 +446,7 @@
                 :class="{ 'is-selected': pubForm.urgencyLevel === u.value }"
                 @click="pubForm.urgencyLevel = u.value"
               >
-                <strong>{{ u.title }}</strong>
+                <XyfUrgencyTag :level="u.value" :show-normal="true" :show-label="true" size="sm" />
                 <span>{{ u.desc }}</span>
               </button>
             </div>
@@ -471,7 +463,6 @@
           </el-form-item>
         </div>
 
-        <!-- STEP 3: Fulfillment Mode & Campus Map Geofence -->
         <div v-show="pubStep === 2">
           <el-form-item label="交付与验收方式" required>
             <div class="mode-selector">
@@ -509,7 +500,6 @@
             />
           </el-form-item>
 
-          <!-- Live Ticket Preview Summary -->
           <div class="composer-preview xyf-tabular">
             <div>
               <span class="composer-preview__kicker">即将发布的悬赏预览</span>
@@ -548,7 +538,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus, Search, Location, Monitor } from '@element-plus/icons-vue'
+import { Plus, Search, Clock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useDictStore } from '@/stores/dict'
 import { listCampuses } from '@/api/campus'
@@ -564,6 +554,10 @@ import type { DemandItem, DemandBidItem } from '@/types/demand'
 import CampusMapPicker, { type MapLocationValue } from '@/components/business/CampusMapPicker.vue'
 import XyfEmptyState from '@/components/ui/XyfEmptyState.vue'
 import XyfAvatar from '@/components/ui/XyfAvatar.vue'
+import XyfUrgencyTag from '@/components/ui/XyfUrgencyTag.vue'
+import XyfVerifiedMark from '@/components/ui/XyfVerifiedMark.vue'
+import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
+import XyfDeliveryIcon from '@/components/ui/XyfDeliveryIcon.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -675,12 +669,6 @@ const hasActiveFilters = computed(() =>
   )
 )
 
-function urgencyLabel(level: number) {
-  if (level === 3) return '十万火急'
-  if (level === 2) return '加急'
-  return '常规'
-}
-
 function statusText(st: number) {
   if (st === 0) return '招募竞标中'
   if (st === 1) return '已选标转单'
@@ -726,18 +714,8 @@ function selectTag(id?: number) {
   reload()
 }
 
-function selectCampus(id?: number) {
-  filters.campusId = id
-  reload()
-}
-
 function selectUrgency(level?: number) {
   filters.urgencyLevel = level
-  reload()
-}
-
-function selectTradeType(type?: number) {
-  filters.tradeType = type
   reload()
 }
 
@@ -890,477 +868,276 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.bounty-header {
+.page-head {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 20px;
   flex-wrap: wrap;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 
-  &__left {
-    max-width: 640px;
+  &__title-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
 
     h1 {
-      margin: 6px 0 8px;
-      font-size: 32px;
+      margin: 0;
+      font-size: 28px;
       font-weight: 700;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.025em;
       color: var(--xyf-ink);
     }
+  }
 
-    p {
-      margin: 0;
-      font-size: 14.5px;
-      color: var(--xyf-ink-2);
-      line-height: 1.55;
-    }
+  &__count {
+    font-size: 13px;
+    color: var(--xyf-ink-3);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+/* Crisp Two-Row Filter Bar */
+.filter-bar {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &__tabs {
+    width: 100%;
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   &__right {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 10px;
   }
 }
 
-/* Live Market Pulse Strip */
-.pulse-strip {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-  padding: 14px 22px;
-  border-radius: 14px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border);
-  margin-bottom: 24px;
+.compact-select {
+  width: 164px;
+
+  &--sm {
+    width: 126px;
+  }
 }
 
-.pulse-metric {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
+.search-input {
+  width: 228px;
 
-  &__label {
-    display: inline-flex;
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.reset-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: var(--xyf-ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--xyf-ink);
+  }
+}
+
+.empty-panel {
+  padding: 64px 24px;
+  border-top: 1px solid var(--xyf-border);
+}
+
+/* Clean Editorial Bounty Feed */
+.bounty-feed {
+  border-top: 1px solid var(--xyf-border);
+}
+
+.bounty-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 172px;
+  gap: 28px;
+  align-items: center;
+  padding: 22px 16px;
+  border-bottom: 1px solid var(--xyf-border);
+  cursor: pointer;
+  transition: background 0.16s ease;
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    background: var(--xyf-bg-subtle);
+
+    .bounty-row__title {
+      color: #000000;
+    }
+  }
+
+  &--skeleton {
+    display: block;
+    cursor: default;
+    &:hover {
+      background: transparent;
+    }
+  }
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 18px 8px;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  &__kicker {
+    display: flex;
     align-items: center;
     gap: 7px;
+    flex-wrap: wrap;
     font-size: 12.5px;
-    color: var(--xyf-ink-2);
-  }
-
-  strong {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--xyf-ink);
-  }
-}
-
-.pulse-divider {
-  width: 1px;
-  height: 18px;
-  background: var(--xyf-border-strong);
-
-  @media (max-width: 768px) {
-    display: none;
-  }
-}
-
-.pulse-guarantee {
-  margin-left: auto;
-  font-size: 12.5px;
-  color: var(--xyf-ink-3);
-
-  @media (max-width: 960px) {
-    margin-left: 0;
-  }
-}
-
-/* Editorial Filter Studio */
-.filter-studio {
-  margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-
-  &__top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--xyf-border);
-
-    .xyf-tabs {
-      border-bottom: none;
-      flex: 1;
-      min-width: 240px;
-    }
-  }
-
-  &__bottom {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-}
-
-.campus-pills {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-bottom: 8px;
-  flex-wrap: wrap;
-}
-
-.campus-pill {
-  height: 28px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--xyf-border);
-  background: #ffffff;
-  color: var(--xyf-ink-2);
-  font-size: 12px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    border-color: var(--xyf-ink);
-    color: var(--xyf-ink);
-  }
-
-  &.is-active {
-    background: var(--xyf-ink);
-    border-color: var(--xyf-ink);
-    color: #ffffff;
-  }
-}
-
-.pill-cluster {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.search-inline {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 280px;
-  flex: 1;
-  max-width: 360px;
-
-  .reset-link {
-    border: none;
-    background: transparent;
-    color: var(--xyf-ink-2);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-
-    &:hover {
-      color: var(--xyf-ink);
-      text-decoration: underline;
-    }
-  }
-}
-
-/* Escrow Bounty Ticket Grid */
-.ticket-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 18px;
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.skeleton-ticket {
-  padding: 24px;
-}
-
-.empty-wrap {
-  padding: 52px 24px;
-}
-
-.bounty-ticket {
-  position: relative;
-  background: #ffffff;
-  border: 1px solid var(--xyf-border);
-  border-radius: 18px;
-  padding: 22px 24px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  cursor: pointer;
-  transition: transform var(--xyf-transition), box-shadow var(--xyf-transition), border-color var(--xyf-transition);
-
-  &:hover {
-    transform: translateY(-3px);
-    border-color: #18181b;
-    box-shadow: var(--xyf-shadow-md);
-  }
-
-  &.is-urgent {
-    border-color: #ebd0c7;
-    background: linear-gradient(180deg, #fffcfb 0%, #ffffff 36%);
-
-    &:hover {
-      border-color: #18181b;
-    }
-  }
-
-  &__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    color: var(--xyf-ink-3);
   }
 
   &__title {
     margin: 0;
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 1.42;
+    font-size: 17.5px;
+    font-weight: 600;
+    line-height: 1.4;
     letter-spacing: -0.015em;
     color: var(--xyf-ink);
+    transition: color 0.16s ease;
   }
 
   &__desc {
     margin: 0;
     font-size: 13.5px;
-    line-height: 1.58;
+    line-height: 1.55;
     color: var(--xyf-ink-2);
-    min-height: 42px;
-  }
-
-  &__stub {
-    margin-top: auto;
-    padding-top: 14px;
-    border-top: 1px dashed var(--xyf-border-strong);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-}
-
-.bounty-tags {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.urgency-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 600;
-  background: var(--xyf-surface-muted);
-  color: var(--xyf-ink-2);
-
-  &__dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #71717a;
-  }
-
-  &.is-u3 {
-    background: #fef2f2;
-    color: #b91c1c;
-    border: 1px solid #f7cece;
-    .urgency-chip__dot {
-      background: #dc2626;
-    }
-  }
-
-  &.is-u2 {
-    background: var(--xyf-champagne-soft);
-    color: #9a5b13;
-    border: 1px solid var(--xyf-champagne-border);
-    .urgency-chip__dot {
-      background: #d97706;
-    }
-  }
-}
-
-.meta-chip {
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 500;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border-subtle);
-  color: var(--xyf-ink-2);
-}
-
-.state-pill {
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: var(--xyf-surface-muted);
-  color: var(--xyf-ink-3);
-  white-space: nowrap;
-
-  &.is-open {
-    background: #18181b;
-    color: #ffffff;
-  }
-}
-
-.fulfill-strip {
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: var(--xyf-surface-soft);
-  border: 1px solid var(--xyf-border-subtle);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--xyf-ink-2);
-
-  &__item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-  }
-
-  .deadline-chip {
-    font-size: 11.5px;
-    color: #9a5b13;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-}
-
-.publisher-mini {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-
-  &__info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  &__name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--xyf-ink);
-  }
-
-  &__trust {
-    font-size: 11px;
-    color: var(--xyf-ink-3);
-  }
-}
-
-.budget-callout {
-  text-align: right;
-  flex-shrink: 0;
-
-  &__amount {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--xyf-ink);
-    line-height: 1.1;
-
-    .yen {
-      font-size: 13px;
-      margin-right: 1px;
-    }
-
-    .dash {
-      margin: 0 2px;
-      font-weight: 500;
-      color: var(--xyf-ink-3);
-    }
-  }
-
-  &__bids {
-    display: block;
-    margin-top: 3px;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--xyf-ink-2);
-  }
-}
-
-/* Workspace Cards (My Published / My Bids) */
-.my-records-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
-}
-
-.record-card {
-  padding: 20px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  cursor: pointer;
-  transition: all var(--xyf-transition);
-
-  &:hover {
-    border-color: var(--xyf-ink);
-    transform: translateY(-2px);
-    box-shadow: var(--xyf-shadow-sm);
-  }
-
-  &__top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--xyf-ink-3);
-  }
-
-  h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--xyf-ink);
-  }
-
-  .record-plan {
-    margin: 0;
-    font-size: 13px;
-    color: var(--xyf-ink-2);
+    max-width: 72ch;
   }
 
   &__foot {
-    margin-top: auto;
-    padding-top: 12px;
-    border-top: 1px solid var(--xyf-border-subtle);
+    margin-top: 2px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    font-size: 13px;
-    color: var(--xyf-ink-2);
+    gap: 7px;
+    font-size: 12.5px;
+    color: var(--xyf-ink-3);
+    min-width: 0;
+  }
 
-    strong {
-      color: var(--xyf-ink);
+  &__aside {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+
+    @media (max-width: 720px) {
+      flex-direction: row;
+      align-items: baseline;
+      justify-content: space-between;
+      text-align: left;
     }
+  }
+}
+
+.seg-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+
+  &.is-danger {
+    color: #dc2626;
+  }
+
+  &.is-warn {
+    color: #d97706;
+  }
+}
+
+.meta-icon-txt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+
+  .el-icon {
+    font-size: 13px;
+    color: var(--xyf-ink-3);
+    flex-shrink: 0;
+  }
+}
+
+.sep {
+  color: var(--xyf-ink-4);
+  flex-shrink: 0;
+}
+
+.publisher-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--xyf-ink-2);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.budget-val {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--xyf-ink);
+  line-height: 1.15;
+
+  .yen {
+    font-size: 13px;
+    font-weight: 600;
+    margin-right: 1px;
+  }
+
+  .dash {
+    margin: 0 2px;
+    font-weight: 400;
+    color: var(--xyf-ink-4);
+  }
+}
+
+.budget-sub {
+  font-size: 12.5px;
+  color: var(--xyf-ink-3);
+
+  .is-closed {
+    color: var(--xyf-ink-4);
   }
 }
 
