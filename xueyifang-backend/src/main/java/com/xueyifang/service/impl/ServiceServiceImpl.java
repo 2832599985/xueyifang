@@ -197,7 +197,9 @@ public class ServiceServiceImpl extends ServiceImpl<ServiceMapper, Service> impl
         LambdaQueryWrapper<Service> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Service::getIsDelete, 0)
                 .eq(Service::getStatus, ServiceConstant.STATUS_ONLINE)
-                .eq(Service::getReviewStatus, ServiceConstant.REVIEW_APPROVED);
+                .eq(Service::getReviewStatus, ServiceConstant.REVIEW_APPROVED)
+                .notLikeRight(Service::getServiceTitle, "【悬赏定向单】")
+                .notLikeRight(Service::getServiceTitle, "【拼班团课】");
 
         if (StringUtils.isNotBlank(keyword)) {
             wrapper.and(w -> w.like(Service::getServiceTitle, keyword)
@@ -643,6 +645,23 @@ public class ServiceServiceImpl extends ServiceImpl<ServiceMapper, Service> impl
         }
         if (!userId.equals(service.getSellerId()) && !UserContext.isAdmin()) {
             throw new BusinessException(ErrorCode.SERVICE_NOT_OWNER);
+        }
+        // 非管理员重新上架前复核创作者发布权限与履约信用分门槛，防止权限被撤销或低信用账号绕过审核重新上架
+        if (!UserContext.isAdmin()) {
+            User seller = userService.getById(service.getSellerId());
+            if (seller == null || (seller.getIsDelete() != null && seller.getIsDelete() == 1)) {
+                throw new BusinessException(ErrorCode.USER_NOT_EXIST);
+            }
+            if (!Integer.valueOf(UserConstant.HAS_PUBLISH_PERMISSION).equals(seller.getPublishPermission())) {
+                throw new BusinessException(ErrorCode.USER_NO_PUBLISH_PERMISSION, "您的服务发布权限未开通或已被撤销，无法重新上架");
+            }
+            if (seller.getCreditScore() != null && sysConfigService != null) {
+                int minPublishCredit = sysConfigService.getIntValue(SysConfigConstant.MIN_CREDIT_SCORE_FOR_PUBLISH, 70);
+                if (seller.getCreditScore() < minPublishCredit) {
+                    throw new BusinessException(ErrorCode.USER_CREDIT_TOO_LOW,
+                            "您的履约信用分为 " + seller.getCreditScore() + "，低于服务上架门槛 " + minPublishCredit);
+                }
+            }
         }
         Integer status = service.getStatus();
         if (status == null || (status != ServiceConstant.STATUS_OFFLINE && status != ServiceConstant.STATUS_REJECTED)) {

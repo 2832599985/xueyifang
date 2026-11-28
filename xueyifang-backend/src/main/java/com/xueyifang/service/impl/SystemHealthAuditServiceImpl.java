@@ -23,14 +23,14 @@ import com.xueyifang.mapper.ServiceOrderMapper;
 import com.xueyifang.mapper.ServiceTagMapper;
 import com.xueyifang.mapper.UserMapper;
 import com.xueyifang.service.ISystemHealthAuditService;
+import com.xueyifang.utils.BleMeetupCryptoUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -43,8 +43,11 @@ import java.util.UUID;
 @Component
 public class SystemHealthAuditServiceImpl implements ISystemHealthAuditService {
 
-    private static final String CERT_HMAC_SALT = "XUEYIFANG_CAMPUS_ESCROW_SHA256_SEAL_V45";
+    private static final String DEFAULT_CERT_HMAC_SECRET = "XUEYIFANG_CAMPUS_ESCROW_HMAC_DEV_DEFAULT";
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    @Value("${xueyifang.security.cert-hmac-secret:XUEYIFANG_CAMPUS_ESCROW_HMAC_DEV_DEFAULT}")
+    private String certHmacSecret = DEFAULT_CERT_HMAC_SECRET;
 
     @Resource
     private UserMapper userMapper;
@@ -72,7 +75,10 @@ public class SystemHealthAuditServiceImpl implements ISystemHealthAuditService {
 
     @Override
     public SystemHealthAuditVO inspectSystemHealth() {
-        List<User> allUsers = userMapper.selectList(new LambdaQueryWrapper<User>().eq(User::getIsDelete, 0));
+        List<User> allUsers = userMapper.selectList(new LambdaQueryWrapper<User>()
+                .select(User::getId, User::getWalletBalance, User::getFrozenAmount, User::getPublishPermission)
+                .eq(User::getIsDelete, 0)
+                .last("LIMIT 5000"));
         if (allUsers == null) {
             allUsers = Collections.emptyList();
         }
@@ -90,8 +96,10 @@ public class SystemHealthAuditServiceImpl implements ISystemHealthAuditService {
 
         List<Service> activeServices = serviceMapper.selectList(
                 new LambdaQueryWrapper<Service>()
+                        .select(Service::getId, Service::getSellerId, Service::getStatus)
                         .eq(Service::getIsDelete, 0)
-                        .eq(Service::getStatus, 1));
+                        .eq(Service::getStatus, 1)
+                        .last("LIMIT 5000"));
         if (activeServices == null) {
             activeServices = Collections.emptyList();
         }
@@ -105,7 +113,12 @@ public class SystemHealthAuditServiceImpl implements ISystemHealthAuditService {
         }
 
         List<ServiceOrder> allOrders = serviceOrderMapper.selectList(
-                new LambdaQueryWrapper<ServiceOrder>().eq(ServiceOrder::getIsDelete, 0));
+                new LambdaQueryWrapper<ServiceOrder>()
+                        .select(ServiceOrder::getId, ServiceOrder::getOrderStatus, ServiceOrder::getPaymentStatus,
+                                ServiceOrder::getFrozenAmount, ServiceOrder::getScheduledEnd)
+                        .eq(ServiceOrder::getIsDelete, 0)
+                        .orderByDesc(ServiceOrder::getId)
+                        .last("LIMIT 5000"));
         if (allOrders == null) {
             allOrders = Collections.emptyList();
         }
@@ -276,7 +289,7 @@ public class SystemHealthAuditServiceImpl implements ISystemHealthAuditService {
                 ? order.getTotalAmount().setScale(2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
-        String seal = computeCertificateSha256(order.getId(), order.getOrderNumber(),
+        String seal = computeCertificateHmac(resolveCertSecret(), order.getId(), order.getOrderNumber(),
                 order.getSellerId(), order.getBuyerId(), totalAmt, completedAt);
 
         String certNo = "CERT-XYF-" + order.getId() + "-" + seal.substring(0, 8).toUpperCase();
@@ -298,7 +311,7 @@ public class SystemHealthAuditServiceImpl implements ISystemHealthAuditService {
                 .setSellerId(order.getSellerId())
                 .setSellerName(seller != null ? (StringUtils.hasText(seller.getRealName()) ? seller.getRealName() : seller.getNickname()) : "认证创作者")
                 .setSellerStudentIdMasked(maskStudentId(seller != null ? seller.getStudentId() : null))
-                .setSellerEduVerified(seller != null && seller.getEduVerified() != null ? seller.getEduVerified() : 1)
+                .setSellerEduVerified(seller != null && seller.getEduVerified() != null ? seller.getEduVerified() : 0)
                 .setBuyerId(order.getBuyerId())
                 .setBuyerName(buyer != null ? (StringUtils.hasText(buyer.getRealName()) ? buyer.getRealName() : buyer.getNickname()) : "校园委托方")
                 .setBuyerStudentIdMasked(maskStudentId(buyer != null ? buyer.getStudentId() : null))
@@ -315,16 +328,21 @@ public class SystemHealthAuditServiceImpl implements ISystemHealthAuditService {
     @Override
     public Map<String, Object> verifyCertificateSeal(Long orderId, String sealHash) {
         OrderDeliveryCertificateVO cert = generateOrderDeliveryCertificate(null, orderId);
-        boolean matched = StringUtils.hasText(sealHash) && cert.getSha256Seal().equalsIgnoreCase(sealHash.trim());
+        boolean matched = StringUtils.hasText(sealHash)
+                && BleMeetupCryptoUtils.constantTimeEquals(cert.getSha256Seal(), sealHash.trim().toLowerCase());
         Map<String, Object> res = new HashMap<>();
         res.put("orderId", orderId);
-        res.put("certificateNo", cert.getCertificateNo());
         res.put("authentic", matched);
         if (matched) {
+            res.put("certificateNo", cert.getCertificateNo());
             res.put("expectedSeal", cert.getSha256Seal());
         }
-        res.put("message", matched ? "数字存证 SHA-256 指纹验真通过，履约记录真实未篡改" : "数字指纹不匹配，存证校验未通过");
+        res.put("message", matched ? "数字存证 HMAC-SHA256 指纹验真通过，履约记录真实未篡改" : "数字指纹不匹配，存证校验未通过");
         return res;
+    }
+
+    private String resolveCertSecret() {
+        return StringUtils.hasText(certHmacSecret) ? certHmacSecret.trim() : DEFAULT_CERT_HMAC_SECRET;
     }
 
     private String maskStudentId(String studentId) {
@@ -334,30 +352,31 @@ public class SystemHealthAuditServiceImpl implements ISystemHealthAuditService {
         return studentId.substring(0, 3) + "****" + studentId.substring(studentId.length() - 2);
     }
 
+    public static String computeCertificateHmac(String secret,
+                                                Long orderId,
+                                                String orderNumber,
+                                                Long sellerId,
+                                                Long buyerId,
+                                                BigDecimal totalAmount,
+                                                LocalDateTime completedTime) {
+        String raw = String.format("%d|%s|%d|%d|%s|%s",
+                orderId != null ? orderId : 0L,
+                orderNumber != null ? orderNumber : "",
+                sellerId != null ? sellerId : 0L,
+                buyerId != null ? buyerId : 0L,
+                totalAmount != null ? totalAmount.setScale(2, RoundingMode.HALF_UP).toPlainString() : "0.00",
+                completedTime != null ? completedTime.format(DT_FMT) : "");
+        return BleMeetupCryptoUtils.hmacSha256Hex(
+                StringUtils.hasText(secret) ? secret : DEFAULT_CERT_HMAC_SECRET, raw);
+    }
+
     public static String computeCertificateSha256(Long orderId,
                                                   String orderNumber,
                                                   Long sellerId,
                                                   Long buyerId,
                                                   BigDecimal totalAmount,
                                                   LocalDateTime completedTime) {
-        String raw = String.format("%d|%s|%d|%d|%s|%s|%s",
-                orderId != null ? orderId : 0L,
-                orderNumber != null ? orderNumber : "",
-                sellerId != null ? sellerId : 0L,
-                buyerId != null ? buyerId : 0L,
-                totalAmount != null ? totalAmount.setScale(2, RoundingMode.HALF_UP).toPlainString() : "0.00",
-                completedTime != null ? completedTime.format(DT_FMT) : "",
-                CERT_HMAC_SALT);
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(raw.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder();
-            for (byte b : digest) {
-                hex.append(String.format("%02x", b));
-            }
-            return hex.toString();
-        } catch (Exception e) {
-            throw new IllegalStateException("SHA-256 algorithm unavailable", e);
-        }
+        return computeCertificateHmac(DEFAULT_CERT_HMAC_SECRET, orderId, orderNumber,
+                sellerId, buyerId, totalAmount, completedTime);
     }
 }

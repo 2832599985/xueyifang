@@ -68,7 +68,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide, onUnload } from '@dcloudio/uni-app'
 import { mobileApi } from '@/api'
 import { useMobileUserStore } from '@/stores/user'
 
@@ -90,13 +90,57 @@ const statusName = computed(() => {
   return '已退款关闭'
 })
 
+let credentialTimer: ReturnType<typeof setInterval> | null = null
+let refreshingCredential = false
+
+function stopCredentialTimer() {
+  if (credentialTimer !== null) {
+    clearInterval(credentialTimer)
+    credentialTimer = null
+  }
+}
+
+async function fetchOfflineCredential() {
+  if (!orderId.value || refreshingCredential) return
+  refreshingCredential = true
+  try {
+    credential.value = await mobileApi.getOfflineCredential(orderId.value)
+  } catch {
+    // keep previous state or wait for next cycle
+  } finally {
+    refreshingCredential = false
+  }
+}
+
+function startCredentialTimer() {
+  stopCredentialTimer()
+  credentialTimer = setInterval(() => {
+    if (!credential.value) return
+    const remain = Number(credential.value.codeRemainingSeconds || 0)
+    if (remain <= 1) {
+      fetchOfflineCredential()
+    } else {
+      credential.value = {
+        ...credential.value,
+        codeRemainingSeconds: remain - 1
+      }
+    }
+  }, 1000)
+}
+
 async function refreshAll() {
   if (!orderId.value) return
+  stopCredentialTimer()
   order.value = await mobileApi.getOrderDetail(orderId.value)
   if (order.value?.tradeType === 1) {
     proposals.value = await mobileApi.listMeetupProposals(orderId.value).catch(() => [])
     if (order.value.buyerId === userStore.userInfo?.id && (order.value.orderStatus === 2 || order.value.orderStatus === 3)) {
-      credential.value = await mobileApi.getOfflineCredential(orderId.value).catch(() => null)
+      await fetchOfflineCredential()
+      if (credential.value?.verifyCode) {
+        startCredentialTimer()
+      }
+    } else {
+      credential.value = null
     }
   }
 }
@@ -141,6 +185,8 @@ onLoad((q) => {
 })
 
 onShow(refreshAll)
+onHide(stopCredentialTimer)
+onUnload(stopCredentialTimer)
 </script>
 
 <style scoped lang="scss">

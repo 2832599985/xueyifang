@@ -24,6 +24,7 @@ import com.xueyifang.service.IServiceReviewService;
 import com.xueyifang.service.IServiceService;
 import com.xueyifang.service.IServiceTagService;
 import com.xueyifang.service.IUserService;
+import com.xueyifang.utils.FileUrlResolver;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.commons.lang3.StringUtils;
@@ -75,6 +76,9 @@ public class CreatorProfileController {
 
     @Resource
     private IServiceReviewService serviceReviewService;
+
+    @Resource
+    private FileUrlResolver fileUrlResolver;
 
     @GetMapping("/leaderboard")
     @ApiOperation("查询校友创作者技能风云榜与多维能力等级勋章（支持按校区、分类及四大维度排序）")
@@ -128,10 +132,19 @@ public class CreatorProfileController {
             }
         }
 
-        List<Service> allOnlineServices = serviceService.list(new LambdaQueryWrapper<Service>()
+        List<Long> creatorIds = creators.stream()
+                .map(User::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        List<Service> allOnlineServices = creatorIds.isEmpty() ? Collections.emptyList()
+                : serviceService.list(new LambdaQueryWrapper<Service>()
+                .select(Service::getId, Service::getSellerId, Service::getTagId, Service::getStatus)
+                .in(Service::getSellerId, creatorIds)
                 .eq(Service::getIsDelete, 0)
                 .eq(Service::getStatus, ServiceConstant.STATUS_ONLINE)
-                .notLike(Service::getServiceTitle, "【悬赏定向单】"));
+                .notLike(Service::getServiceTitle, "【悬赏定向单】")
+                .notLike(Service::getServiceTitle, "【拼班团课】"));
         if (allOnlineServices == null) {
             allOnlineServices = Collections.emptyList();
         }
@@ -139,7 +152,10 @@ public class CreatorProfileController {
                 .filter(s -> s.getSellerId() != null)
                 .collect(Collectors.groupingBy(Service::getSellerId));
 
-        List<ServiceOrder> completedOrders = serviceOrderService.list(new LambdaQueryWrapper<ServiceOrder>()
+        List<ServiceOrder> completedOrders = creatorIds.isEmpty() ? Collections.emptyList()
+                : serviceOrderService.list(new LambdaQueryWrapper<ServiceOrder>()
+                .select(ServiceOrder::getId, ServiceOrder::getSellerId, ServiceOrder::getTotalAmount)
+                .in(ServiceOrder::getSellerId, creatorIds)
                 .eq(ServiceOrder::getIsDelete, 0)
                 .eq(ServiceOrder::getOrderStatus, OrderConstant.ORDER_COMPLETED));
         if (completedOrders == null) {
@@ -149,7 +165,10 @@ public class CreatorProfileController {
                 .filter(o -> o.getSellerId() != null)
                 .collect(Collectors.groupingBy(ServiceOrder::getSellerId));
 
-        List<ServiceReview> allReviews = serviceReviewService.list(new LambdaQueryWrapper<ServiceReview>());
+        List<ServiceReview> allReviews = creatorIds.isEmpty() ? Collections.emptyList()
+                : serviceReviewService.list(new LambdaQueryWrapper<ServiceReview>()
+                .select(ServiceReview::getId, ServiceReview::getSellerId, ServiceReview::getRating)
+                .in(ServiceReview::getSellerId, creatorIds));
         if (allReviews == null) {
             allReviews = Collections.emptyList();
         }
@@ -217,7 +236,7 @@ public class CreatorProfileController {
             CreatorLeaderboardItemVO item = new CreatorLeaderboardItemVO()
                     .setUserId(u.getId())
                     .setDisplayName(StringUtils.defaultIfBlank(u.getNickname(), StringUtils.defaultIfBlank(u.getRealName(), "校园创作者#" + u.getId())))
-                    .setAvatar(u.getAvatar())
+                    .setAvatar(resolvePublicAvatar(u.getAvatar()))
                     .setGrade(u.getGrade())
                     .setProfessionalName(u.getProfessionalId() != null ? profNameMap.getOrDefault(u.getProfessionalId(), "交叉学科创作者") : "校园认证创作者")
                     .setCampusId(u.getCampusId())
@@ -336,14 +355,15 @@ public class CreatorProfileController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "创作者ID不能为空");
         }
         User user = userService.getById(userId);
-        if (user == null) {
+        if (user == null || Integer.valueOf(1).equals(user.getIsDelete())
+                || Integer.valueOf(2).equals(user.getAccountStatus())) {
             throw new BusinessException(ErrorCode.USER_NOT_EXIST);
         }
 
         CreatorProfileVO profile = new CreatorProfileVO();
         profile.setUserId(user.getId());
         profile.setDisplayName(StringUtils.defaultIfBlank(user.getNickname(), user.getRealName()));
-        profile.setAvatar(user.getAvatar());
+        profile.setAvatar(resolvePublicAvatar(user.getAvatar()));
         profile.setGrade(user.getGrade());
         profile.setBio(user.getBio());
         profile.setEduVerified(user.getEduVerified() != null ? user.getEduVerified() : 0);
@@ -369,15 +389,17 @@ public class CreatorProfileController {
         // 统计已完结担保订单数
         long completedOrders = serviceOrderService.count(new LambdaQueryWrapper<ServiceOrder>()
                 .eq(ServiceOrder::getSellerId, userId)
+                .eq(ServiceOrder::getIsDelete, 0)
                 .eq(ServiceOrder::getOrderStatus, OrderConstant.ORDER_COMPLETED));
         profile.setCompletedOrderCount(completedOrders);
 
-        // 查询在架公开技能（过滤悬赏定向一次性快照单，保持橱窗整洁）
+        // 查询在架公开技能（过滤悬赏定向与拼班内部快照单，保持橱窗整洁）
         List<Service> onlineServices = serviceService.list(new LambdaQueryWrapper<Service>()
                 .eq(Service::getSellerId, userId)
                 .eq(Service::getStatus, ServiceConstant.STATUS_ONLINE)
                 .eq(Service::getIsDelete, 0)
                 .notLike(Service::getServiceTitle, "【悬赏定向单】")
+                .notLike(Service::getServiceTitle, "【拼班团课】")
                 .orderByDesc(Service::getCurrentPurchaseCount)
                 .orderByDesc(Service::getCreateTime));
         profile.setActiveServiceCount((long) onlineServices.size());
@@ -419,7 +441,8 @@ public class CreatorProfileController {
         profile.setReviewCount(totalReviewCount);
 
         if (!reviews.isEmpty()) {
-            double avg = reviews.stream()
+            Double overallAvg = serviceReviewService.getSellerAverageRating(userId);
+            double avg = overallAvg != null ? overallAvg : reviews.stream()
                     .filter(r -> r.getRating() != null)
                     .mapToInt(ServiceReview::getRating)
                     .average()
@@ -461,6 +484,13 @@ public class CreatorProfileController {
         }
 
         return ResultUtils.success(profile);
+    }
+
+    private String resolvePublicAvatar(String avatar) {
+        if (StringUtils.isBlank(avatar)) {
+            return avatar;
+        }
+        return fileUrlResolver != null ? fileUrlResolver.toPublicUrl(avatar) : avatar;
     }
 
     private String resolveCreditTier(int score) {

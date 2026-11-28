@@ -61,8 +61,14 @@ public class OrderNoShowController {
         if (!userId.equals(order.getBuyerId())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "仅该订单买方可发起预约爽约自动赔付申领");
         }
-        if (order.getScheduledEnd() != null && order.getScheduledEnd().isAfter(LocalDateTime.now())) {
+        if (order.getScheduledEnd() == null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "该订单未约定履约截止时间，不适用预约爽约自动赔付");
+        }
+        if (order.getScheduledEnd().isAfter(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "当前预约时段尚未结束，请在预约结束时间逾期后再申请爽约自动赔付");
+        }
+        if (!Integer.valueOf(com.xueyifang.constant.OrderConstant.ORDER_PENDING_SHIP).equals(order.getOrderStatus())) {
+            throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "卖方已交付或订单状态变更，不支持预约爽约自动赔付，如有异议请发起纠纷仲裁");
         }
         String note = body != null ? body.get("evidenceNote") : "买方申报卖方超出预约结束时间未到场/未交付，触发自动爽约赔付";
         return ResultUtils.success(financialReconciliationService.processSellerNoShowCompensation(userId, orderId, note));

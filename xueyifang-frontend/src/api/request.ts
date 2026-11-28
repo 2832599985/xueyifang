@@ -88,7 +88,7 @@ service.interceptors.response.use(
 )
 
 export default function request<T = any>(config: AxiosRequestConfig): Promise<T> {
-  return service.request<any, T>(config)
+  return service.request<any, T>(config) as unknown as Promise<T>
 }
 
 export type { ApiResponse }

@@ -1,8 +1,11 @@
-const DEFAULT_API_BASE = 'http://localhost:8080/api'
+const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 
 export function getApiBaseUrl(): string {
-  const custom = uni.getStorageSync('XYF_API_BASE_URL')
-  return custom || DEFAULT_API_BASE
+  if (import.meta.env.DEV) {
+    const custom = uni.getStorageSync('XYF_API_BASE_URL')
+    if (custom) return custom
+  }
+  return DEFAULT_API_BASE
 }
 
 export interface ApiEnvelope<T> {

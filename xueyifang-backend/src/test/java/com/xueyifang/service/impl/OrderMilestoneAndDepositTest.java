@@ -122,12 +122,13 @@ class OrderMilestoneAndDepositTest {
                 .setId(2L).setOrderId(801L).setStageIndex(2).setTitle("终稿移交").setAmount(new BigDecimal("120.00"))
                 .setMilestoneStatus(OrderMilestoneServiceImpl.STATUS_SUBMITTED);
 
-        when(sysConfigService.getIntValue(SysConfigConstant.PLATFORM_COMMISSION_BPS, 500)).thenReturn(500); // 5%
+        when(sysConfigService.getIntValue(SysConfigConstant.PLATFORM_COMMISSION_BPS, 0)).thenReturn(500); // 5%
         when(serviceOrderMapper.selectForUpdate(801L)).thenReturn(order);
         when(userMapper.selectForUpdate(10L)).thenReturn(buyer);
         when(userMapper.selectForUpdate(20L)).thenReturn(seller);
 
         // 1. 释放第一阶段 80 元（5% 服务费 = 4.00，卖家净入账 76.00，订单仍为待收货且冻结剩余 120.00）
+        when(orderMilestoneMapper.selectById(1L)).thenReturn(stage1);
         when(orderMilestoneMapper.selectForUpdate(1L)).thenReturn(stage1);
         milestoneService.releaseMilestone(1L);
 
@@ -137,6 +138,7 @@ class OrderMilestoneAndDepositTest {
         assertEquals(OrderMilestoneServiceImpl.STATUS_RELEASED, stage1.getMilestoneStatus());
 
         // 2. 释放第二阶段 120 元（5% 服务费 = 6.00，卖家累计净入账 76 + 114 = 190.00，订单冻结归零自动完结）
+        when(orderMilestoneMapper.selectById(2L)).thenReturn(stage2);
         when(orderMilestoneMapper.selectForUpdate(2L)).thenReturn(stage2);
         milestoneService.releaseMilestone(2L);
 

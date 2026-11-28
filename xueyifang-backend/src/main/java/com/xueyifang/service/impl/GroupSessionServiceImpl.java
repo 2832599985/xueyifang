@@ -35,6 +35,7 @@ import com.xueyifang.service.IServiceTagService;
 import com.xueyifang.service.ISysConfigService;
 import com.xueyifang.service.IUserService;
 import com.xueyifang.service.IWalletTransactionService;
+import com.xueyifang.utils.FileUrlResolver;
 import com.xueyifang.utils.GeofenceUtils;
 import com.xueyifang.utils.SerialNoGenerator;
 import com.xueyifang.utils.UserContext;
@@ -100,6 +101,9 @@ public class GroupSessionServiceImpl extends ServiceImpl<GroupSessionMapper, Gro
 
     @Resource
     private ISysConfigService sysConfigService;
+
+    @Resource
+    private FileUrlResolver fileUrlResolver;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -342,13 +346,23 @@ public class GroupSessionServiceImpl extends ServiceImpl<GroupSessionMapper, Gro
                 session.getSessionNo(), newJoinedCount, session.getMaxParticipants()));
         Long orderId = serviceOrderService.createOrder(orderReq);
 
-        // 确保订单金额严格按当前阶梯价写入
+        // 确保订单金额严格按当前阶梯价写入，并补全团课履约截止时间（用于逾期爽约自动巡检）
         if (serviceOrderMapper != null) {
             ServiceOrder createdOrder = serviceOrderMapper.selectById(orderId);
-            if (createdOrder != null && createdOrder.getTotalAmount().compareTo(unitPriceForThisBuyer) != 0) {
-                createdOrder.setUnitPrice(unitPriceForThisBuyer);
-                createdOrder.setTotalAmount(unitPriceForThisBuyer);
-                serviceOrderMapper.updateById(createdOrder);
+            if (createdOrder != null) {
+                boolean changed = false;
+                if (createdOrder.getTotalAmount() == null || createdOrder.getTotalAmount().compareTo(unitPriceForThisBuyer) != 0) {
+                    createdOrder.setUnitPrice(unitPriceForThisBuyer);
+                    createdOrder.setTotalAmount(unitPriceForThisBuyer);
+                    changed = true;
+                }
+                if (session.getSessionEnd() != null && createdOrder.getScheduledEnd() == null) {
+                    createdOrder.setScheduledEnd(session.getSessionEnd());
+                    changed = true;
+                }
+                if (changed) {
+                    serviceOrderMapper.updateById(createdOrder);
+                }
             }
         }
 
@@ -408,18 +422,19 @@ public class GroupSessionServiceImpl extends ServiceImpl<GroupSessionMapper, Gro
                 if (order != null) {
                     order.setUnitPrice(tierPrice);
                     order.setTotalAmount(tierPrice);
-                    // 若早期学员已付款，立即从其冻结托管金额中解冻退回差价至可用钱包余额
+                    // 若早期学员已付款，立即从其冻结托管金额中解冻退回差价（第三方通道仅核减冻结并原路退回，禁止误入可提现余额）
                     if (order.getOrderStatus() == OrderConstant.ORDER_PENDING_SHIP
                             || order.getOrderStatus() == OrderConstant.ORDER_PENDING_RECEIPT) {
                         BigDecimal frozen = order.getFrozenAmount() != null ? order.getFrozenAmount() : BigDecimal.ZERO;
                         if (frozen.compareTo(diff) >= 0) {
                             order.setFrozenAmount(frozen.subtract(diff));
+                            boolean isEscrowGateway = Integer.valueOf(2).equals(order.getPaymentMethod());
                             if (userMapper != null) {
                                 User earlyBuyer = userMapper.selectForUpdate(p.getBuyerId());
                                 if (earlyBuyer != null) {
                                     BigDecimal balBefore = earlyBuyer.getWalletBalance() != null ? earlyBuyer.getWalletBalance() : BigDecimal.ZERO;
                                     BigDecimal frzBefore = earlyBuyer.getFrozenAmount() != null ? earlyBuyer.getFrozenAmount() : BigDecimal.ZERO;
-                                    BigDecimal balAfter = balBefore.add(diff);
+                                    BigDecimal balAfter = isEscrowGateway ? balBefore : balBefore.add(diff);
                                     BigDecimal frzAfter = frzBefore.subtract(diff).max(BigDecimal.ZERO);
                                     earlyBuyer.setWalletBalance(balAfter);
                                     earlyBuyer.setFrozenAmount(frzAfter);
@@ -436,7 +451,9 @@ public class GroupSessionServiceImpl extends ServiceImpl<GroupSessionMapper, Gro
                                         tx.setFrozenAfter(frzAfter);
                                         tx.setRelatedOrderId(order.getId());
                                         tx.setTransactionNo(SerialNoGenerator.nextTransactionNo(earlyBuyer.getId()));
-                                        tx.setRemark("拼班团课达标满员阶梯优惠自动退回差价");
+                                        tx.setRemark(isEscrowGateway
+                                                ? "拼班团课达标满员阶梯优惠，差价原路退回原支付渠道"
+                                                : "拼班团课达标满员阶梯优惠自动退回差价");
                                         tx.setCreateTime(LocalDateTime.now());
                                         walletTransactionService.save(tx);
                                     }
@@ -581,7 +598,7 @@ public class GroupSessionServiceImpl extends ServiceImpl<GroupSessionMapper, Gro
             User creator = userMap.get(r.getCreatorId());
             if (creator != null) {
                 vo.setCreatorName(StringUtils.defaultIfBlank(creator.getNickname(), creator.getRealName()));
-                vo.setCreatorAvatar(creator.getAvatar());
+                vo.setCreatorAvatar(fileUrlResolver != null ? fileUrlResolver.toPublicUrl(creator.getAvatar()) : creator.getAvatar());
                 vo.setCreatorEduVerified(creator.getEduVerified());
                 vo.setCreatorCreditScore(creator.getCreditScore() != null ? creator.getCreditScore() : 100);
                 vo.setCreatorDeposit(creator.getSellerDeposit() != null ? creator.getSellerDeposit() : BigDecimal.ZERO);
@@ -653,7 +670,7 @@ public class GroupSessionServiceImpl extends ServiceImpl<GroupSessionMapper, Gro
             User u = buyerMap.get(p.getBuyerId());
             if (u != null) {
                 item.setBuyerName(StringUtils.defaultIfBlank(u.getNickname(), "参团同学"));
-                item.setBuyerAvatar(u.getAvatar());
+                item.setBuyerAvatar(fileUrlResolver != null ? fileUrlResolver.toPublicUrl(u.getAvatar()) : u.getAvatar());
             } else {
                 item.setBuyerName("参团同学");
             }

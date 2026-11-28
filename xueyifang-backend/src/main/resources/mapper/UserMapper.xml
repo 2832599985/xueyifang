@@ -4,7 +4,7 @@
 
     <!-- 通用查询结果列 -->
     <sql id="Base_Column_List">
-        id, student_id, password, real_name, nickname, phone, email, dormitory, grade, professional_id, avatar, bio, role, publish_permission, permission_review_status, wallet_balance, frozen_amount, account_status, create_time, update_time, is_delete
+        id, student_id, password, real_name, nickname, phone, email, dormitory, grade, professional_id, campus_id, avatar, bio, role, publish_permission, permission_review_status, permission_apply_reason, wallet_balance, frozen_amount, account_status, edu_verified, verified_edu_email, credit_score, seller_deposit, create_time, update_time, is_delete
     </sql>
 
     <!-- 使用悲观锁查询用户（FOR UPDATE） -->

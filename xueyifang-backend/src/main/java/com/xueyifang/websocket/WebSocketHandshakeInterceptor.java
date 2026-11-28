@@ -1,5 +1,7 @@
 package com.xueyifang.websocket;
 
+import com.xueyifang.domain.po.User;
+import com.xueyifang.mapper.UserMapper;
 import com.xueyifang.utils.JwtUtils;
 import com.xueyifang.utils.RedisUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,9 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
 
     @Resource
     private RedisUtils redisUtils;
+
+    @Resource
+    private UserMapper userMapper;
 
     /**
      * Token黑名单前缀（与 JwtAuthInterceptor 保持一致）
@@ -86,6 +91,23 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
             Long userId = jwtUtils.getUserIdFromToken(token);
             if (userId == null) {
                 log.warn("WebSocket握手失败: 无法从token获取用户ID");
+                return false;
+            }
+
+            // 检查 Token 是否已因改密/禁用账号被全局吊销
+            if (redisUtils.isTokenInvalidatedForUser(userId, jwtUtils.getTokenIssuedAtMillis(token))) {
+                log.warn("WebSocket握手失败: token已因安全变更失效, userId={}", userId);
+                return false;
+            }
+
+            // 校验用户存在且未被删除或禁用
+            User user = redisUtils.getCachedUser(userId, User.class);
+            if (user == null && userMapper != null) {
+                user = userMapper.selectById(userId);
+            }
+            if (user == null || Integer.valueOf(1).equals(user.getIsDelete())
+                    || Integer.valueOf(2).equals(user.getAccountStatus())) {
+                log.warn("WebSocket握手失败: 用户不存在或已被禁用, userId={}", userId);
                 return false;
             }
 

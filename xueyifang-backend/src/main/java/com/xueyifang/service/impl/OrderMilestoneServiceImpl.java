@@ -1,19 +1,26 @@
 package com.xueyifang.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xueyifang.common.ErrorCode;
+import com.xueyifang.constant.CacheConstant;
+import com.xueyifang.constant.DisputeConstant;
 import com.xueyifang.constant.OrderConstant;
 import com.xueyifang.constant.OrderLogConstant;
 import com.xueyifang.constant.SysConfigConstant;
 import com.xueyifang.constant.WalletConstant;
 import com.xueyifang.domain.dto.OrderMilestonePlanRequest;
 import com.xueyifang.domain.po.OrderMilestone;
+import com.xueyifang.domain.po.PlatformRevenueLedger;
+import com.xueyifang.domain.po.ServiceDispute;
 import com.xueyifang.domain.po.ServiceOrder;
 import com.xueyifang.domain.po.User;
 import com.xueyifang.domain.po.WalletTransaction;
 import com.xueyifang.exception.BusinessException;
 import com.xueyifang.mapper.OrderMilestoneMapper;
+import com.xueyifang.mapper.PlatformRevenueLedgerMapper;
+import com.xueyifang.mapper.ServiceDisputeMapper;
 import com.xueyifang.mapper.ServiceOrderMapper;
 import com.xueyifang.mapper.UserMapper;
 import com.xueyifang.service.ICreditScoreService;
@@ -22,7 +29,9 @@ import com.xueyifang.service.IOrderMilestoneService;
 import com.xueyifang.service.IServiceOrderLogService;
 import com.xueyifang.service.ISysConfigService;
 import com.xueyifang.service.IWalletTransactionService;
+import com.xueyifang.utils.RedisUtils;
 import com.xueyifang.utils.SerialNoGenerator;
+import com.xueyifang.utils.TransactionUtils;
 import com.xueyifang.utils.UserContext;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -62,6 +71,15 @@ public class OrderMilestoneServiceImpl extends ServiceImpl<OrderMilestoneMapper,
 
     @Resource
     private ICreditScoreService creditScoreService;
+
+    @Resource
+    private PlatformRevenueLedgerMapper platformRevenueLedgerMapper;
+
+    @Resource
+    private ServiceDisputeMapper serviceDisputeMapper;
+
+    @Resource
+    private RedisUtils redisUtils;
 
     @Override
     public List<OrderMilestone> listByOrderId(Long orderId) {
@@ -156,13 +174,32 @@ public class OrderMilestoneServiceImpl extends ServiceImpl<OrderMilestoneMapper,
         if (StringUtils.isBlank(proofNote)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请填写本阶段交付成果说明");
         }
-        OrderMilestone milestone = this.baseMapper.selectForUpdate(milestoneId);
+        // 统一先锁订单行再锁里程碑行，杜绝与 saveMilestonePlan 发生 AB-BA 死锁
+        OrderMilestone preview = this.baseMapper.selectById(milestoneId);
+        ServiceOrder order;
+        OrderMilestone milestone;
+        if (preview != null && preview.getOrderId() != null) {
+            order = serviceOrderMapper.selectForUpdate(preview.getOrderId());
+            milestone = this.baseMapper.selectForUpdate(milestoneId);
+        } else {
+            milestone = this.baseMapper.selectForUpdate(milestoneId);
+            if (milestone == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "里程碑阶段不存在");
+            }
+            order = serviceOrderMapper.selectForUpdate(milestone.getOrderId());
+        }
         if (milestone == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "里程碑阶段不存在");
         }
-        ServiceOrder order = serviceOrderMapper.selectForUpdate(milestone.getOrderId());
         if (order == null || !order.getSellerId().equals(userId)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "仅该订单卖方可提交阶段交付成果");
+        }
+        if (order.getOrderStatus() != OrderConstant.ORDER_PENDING_SHIP
+                && order.getOrderStatus() != OrderConstant.ORDER_PENDING_RECEIPT) {
+            throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "当前订单状态不支持提交里程碑成果");
+        }
+        if (Integer.valueOf(OrderConstant.REFUND_PENDING).equals(order.getRefundStatus())) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "订单存在待处理退款，请先处理后再提交阶段成果");
         }
         if (Integer.valueOf(STATUS_RELEASED).equals(milestone.getMilestoneStatus())) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "该阶段已完成验收结算");
@@ -195,15 +232,26 @@ public class OrderMilestoneServiceImpl extends ServiceImpl<OrderMilestoneMapper,
     @Transactional(rollbackFor = Exception.class)
     public void releaseMilestone(Long milestoneId) {
         Long userId = requireLoginId();
-        OrderMilestone milestone = this.baseMapper.selectForUpdate(milestoneId);
+        // 统一先锁订单行再锁里程碑行，杜绝与 saveMilestonePlan 发生 AB-BA 死锁
+        OrderMilestone preview = this.baseMapper.selectById(milestoneId);
+        ServiceOrder order;
+        OrderMilestone milestone;
+        if (preview != null && preview.getOrderId() != null) {
+            order = serviceOrderMapper.selectForUpdate(preview.getOrderId());
+            milestone = this.baseMapper.selectForUpdate(milestoneId);
+        } else {
+            milestone = this.baseMapper.selectForUpdate(milestoneId);
+            if (milestone == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "里程碑阶段不存在");
+            }
+            order = serviceOrderMapper.selectForUpdate(milestone.getOrderId());
+        }
         if (milestone == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "里程碑阶段不存在");
         }
         if (Integer.valueOf(STATUS_RELEASED).equals(milestone.getMilestoneStatus())) {
             throw new BusinessException(ErrorCode.DUPLICATE_SUBMIT, "该阶段款项已释放，请勿重复操作");
         }
-
-        ServiceOrder order = serviceOrderMapper.selectForUpdate(milestone.getOrderId());
         if (order == null) {
             throw new BusinessException(ErrorCode.ORDER_NOT_EXIST);
         }
@@ -236,16 +284,21 @@ public class OrderMilestoneServiceImpl extends ServiceImpl<OrderMilestoneMapper,
             throw new BusinessException(ErrorCode.USER_NOT_EXIST);
         }
 
+        BigDecimal buyerFrozenBefore = buyer.getFrozenAmount() != null ? buyer.getFrozenAmount() : BigDecimal.ZERO;
+        if (buyerFrozenBefore.compareTo(stageAmt) < 0) {
+            throw new BusinessException(ErrorCode.WALLET_FROZEN_NOT_ENOUGH, "买方账户托管冻结余额不足");
+        }
+
         int bps = sysConfigService != null
-                ? sysConfigService.getIntValue(SysConfigConstant.PLATFORM_COMMISSION_BPS, 500) : 500;
+                ? sysConfigService.getIntValue(SysConfigConstant.PLATFORM_COMMISSION_BPS, 0) : 0;
+        bps = Math.max(0, Math.min(3000, bps));
         BigDecimal fee = bps > 0
                 ? stageAmt.multiply(BigDecimal.valueOf(bps)).divide(BigDecimal.valueOf(10000), 2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
         BigDecimal sellerNet = stageAmt.subtract(fee);
 
         // 扣减买方冻结金额
-        BigDecimal buyerFrozenBefore = buyer.getFrozenAmount() != null ? buyer.getFrozenAmount() : BigDecimal.ZERO;
-        BigDecimal buyerFrozenAfter = buyerFrozenBefore.subtract(stageAmt).max(BigDecimal.ZERO);
+        BigDecimal buyerFrozenAfter = buyerFrozenBefore.subtract(stageAmt);
         buyer.setFrozenAmount(buyerFrozenAfter);
         userMapper.updateById(buyer);
 
@@ -284,6 +337,19 @@ public class OrderMilestoneServiceImpl extends ServiceImpl<OrderMilestoneMapper,
         incomeTx.setCreateTime(LocalDateTime.now());
         walletTransactionService.save(incomeTx);
 
+        if (fee.compareTo(BigDecimal.ZERO) > 0 && platformRevenueLedgerMapper != null) {
+            PlatformRevenueLedger ledger = new PlatformRevenueLedger();
+            ledger.setLedgerNo(SerialNoGenerator.nextRevenueLedgerNo(order.getId()));
+            ledger.setOrderId(order.getId());
+            ledger.setSellerId(seller.getId());
+            ledger.setOrderTotalAmount(stageAmt);
+            ledger.setCommissionBps(bps);
+            ledger.setCommissionAmount(fee);
+            ledger.setSellerNetAmount(sellerNet);
+            ledger.setCreateTime(LocalDateTime.now());
+            platformRevenueLedgerMapper.insert(ledger);
+        }
+
         // 更新里程碑状态
         milestone.setMilestoneStatus(STATUS_RELEASED);
         milestone.setReleasedTime(LocalDateTime.now());
@@ -302,10 +368,21 @@ public class OrderMilestoneServiceImpl extends ServiceImpl<OrderMilestoneMapper,
         if (remainingFrozen.compareTo(BigDecimal.ZERO) == 0) {
             order.setOrderStatus(OrderConstant.ORDER_COMPLETED);
             order.setBuyerConfirmTime(LocalDateTime.now());
+            order.setRefundStatus(OrderConstant.REFUND_NONE);
             if (order.getSellerShipTime() == null) {
                 order.setSellerShipTime(LocalDateTime.now());
             }
             serviceOrderMapper.updateById(order);
+
+            if (serviceDisputeMapper != null) {
+                serviceDisputeMapper.update(null, new LambdaUpdateWrapper<ServiceDispute>()
+                        .eq(ServiceDispute::getOrderId, order.getId())
+                        .in(ServiceDispute::getDisputeStatus, DisputeConstant.STATUS_PENDING, DisputeConstant.STATUS_PROCESSING)
+                        .eq(ServiceDispute::getIsDelete, 0)
+                        .set(ServiceDispute::getDisputeStatus, DisputeConstant.STATUS_RESOLVED)
+                        .set(ServiceDispute::getResolution, "全部阶段里程碑验收结算完结，关联纠纷自动结案")
+                        .set(ServiceDispute::getUpdateTime, LocalDateTime.now()));
+            }
             if (orderLogService != null) {
                 orderLogService.recordLog(order.getId(), prevStatus, OrderConstant.ORDER_COMPLETED,
                         OrderLogConstant.ACTION_BUYER_CONFIRM,
@@ -314,6 +391,21 @@ public class OrderMilestoneServiceImpl extends ServiceImpl<OrderMilestoneMapper,
             if (creditScoreService != null) {
                 creditScoreService.adjustCreditScore(seller.getId(), 2, "ORDER_COMPLETE",
                         "完成分阶段里程碑担保履约 " + order.getOrderNumber(), order.getId());
+                creditScoreService.adjustCreditScore(buyer.getId(), 1, "ORDER_COMPLETE",
+                        "诚信验收分阶段里程碑订单奖励", order.getId());
+            }
+            if (redisUtils != null) {
+                Long serviceIdForCache = order.getServiceId();
+                Long sellerIdForCache = seller.getId();
+                Long buyerIdForCache = buyer.getId();
+                TransactionUtils.afterCommit(() -> {
+                    if (serviceIdForCache != null) {
+                        redisUtils.delete(CacheConstant.SERVICE_DETAIL_PREFIX + serviceIdForCache);
+                    }
+                    redisUtils.delete(CacheConstant.STATISTICS_USER_SALES_PREFIX + sellerIdForCache);
+                    redisUtils.deleteUserCache(sellerIdForCache);
+                    redisUtils.deleteUserCache(buyerIdForCache);
+                });
             }
         } else {
             if (order.getOrderStatus() == OrderConstant.ORDER_PENDING_SHIP) {

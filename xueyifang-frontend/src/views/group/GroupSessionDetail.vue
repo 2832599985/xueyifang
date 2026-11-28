@@ -319,7 +319,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -427,6 +427,12 @@ async function handleCancelSession() {
     notifyFallbackError(err, '取消团课失败')
   }
 }
+
+watch(sessionId, (newId, oldId) => {
+  if (newId && !Number.isNaN(newId) && newId !== oldId) {
+    loadDetail()
+  }
+})
 
 onMounted(loadDetail)
 </script>

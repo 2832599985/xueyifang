@@ -43,6 +43,7 @@ import {
   stringToArrayBuffer,
   arrayBufferToString
 } from '@/utils/bleCrypto'
+import { encodeBleFrames, BleFrameAssembler } from '@/utils/bleChunk'
 
 const orderId = ref(0)
 const session = ref<BleSessionPayload | null>(null)
@@ -53,6 +54,14 @@ const stageTitle = ref('准备就绪 · 请将两部手机靠近至 3 米内')
 const stageLog = ref('点击下方按钮向服务端申请一次性挑战随机数并启动 BLE 广播/扫描')
 
 let peripheralServer: any = null
+let connectingDevice = false
+
+function handleBleError(title: string, err?: any) {
+  running.value = false
+  connectingDevice = false
+  stageTitle.value = title
+  stageLog.value = err?.errMsg || err?.message || '蓝牙连接或特征值交互失败，请保持两部手机靠近后重试'
+}
 
 async function getCurrentCoords(): Promise<{ lat?: number; lng?: number }> {
   return new Promise((resolve) => {
@@ -122,38 +131,55 @@ async function runBuyerPeripheralMode(sess: BleSessionPayload) {
                 connectable: true,
                 deviceName: sess.advShortToken,
                 serviceUuids: [sess.serviceUuid]
-              }
+              },
+              fail: (err: any) => handleBleError('启动买方蓝牙广播失败', err)
             })
             peripheralServer.onCharacteristicWriteRequest(async (req: any) => {
-              const sellerNonce = arrayBufferToString(req.value).trim()
-              const coords = await getCurrentCoords()
-              const buyerSig = signBleHandshake({
-                roleSigningKey: sess.roleSigningKey,
-                orderId: sess.orderId,
-                sessionId: sess.sessionId,
-                buyerNonce: sess.buyerNonce,
-                sellerNonce,
-                role: 'BUYER'
-              })
-              const replyPayload = JSON.stringify({
-                buyerNonce: sess.buyerNonce,
-                buyerSig,
-                lat: coords.lat,
-                lng: coords.lng
-              })
-              peripheralServer.writeCharacteristicValue({
-                serviceId: sess.serviceUuid,
-                characteristicId: sess.characteristicUuid,
-                value: stringToArrayBuffer(replyPayload),
-                needNotify: true,
-                callbackId: req.callbackId
-              })
-              stageTitle.value = '已完成近场双向挑战签名交换'
-              stageLog.value = '卖方正在提交双端签名至服务端结算担保资金...'
+              try {
+                const sellerNonce = arrayBufferToString(req.value).trim()
+                const coords = await getCurrentCoords()
+                const buyerSig = signBleHandshake({
+                  roleSigningKey: sess.roleSigningKey,
+                  orderId: sess.orderId,
+                  sessionId: sess.sessionId,
+                  buyerNonce: sess.buyerNonce,
+                  sellerNonce,
+                  role: 'BUYER'
+                })
+                const replyPayload = JSON.stringify({
+                  buyerNonce: sess.buyerNonce,
+                  buyerSig,
+                  lat: coords.lat,
+                  lng: coords.lng
+                })
+                const frames = encodeBleFrames(replyPayload)
+                for (let i = 0; i < frames.length; i++) {
+                  await new Promise<void>((resolve, reject) => {
+                    peripheralServer.writeCharacteristicValue({
+                      serviceId: sess.serviceUuid,
+                      characteristicId: sess.characteristicUuid,
+                      value: frames[i],
+                      needNotify: true,
+                      callbackId: i === 0 ? req.callbackId : undefined,
+                      success: () => resolve(),
+                      fail: (err: any) => reject(err)
+                    })
+                  })
+                  if (i < frames.length - 1) {
+                    await new Promise((r) => setTimeout(r, 25))
+                  }
+                }
+                stageTitle.value = '已完成近场双向挑战签名交换'
+                stageLog.value = '卖方正在提交双端签名至服务端结算担保资金...'
+              } catch (err: any) {
+                handleBleError('回传加密签名分包失败', err)
+              }
             })
-          }
+          },
+          fail: (err: any) => handleBleError('注册蓝牙 GATT 服务失败', err)
         })
-      }
+      },
+      fail: (err: any) => handleBleError('初始化外围广播服务失败', err)
     })
   } else {
     stageLog.value = '请在微信小程序或 Android 真机环境运行 BLE 外围广播模式'
@@ -164,13 +190,15 @@ async function runBuyerPeripheralMode(sess: BleSessionPayload) {
 /**
  * 卖方（Central 中心扫描连接模式）：
  * 扫描携带 advShortToken 的买方外围广播，读取实时物理 RSSI 信号强度，
- * 连接 GATT 写入随机挑战码 Ns，读取买方签名后叠加卖方签名联合上报后端验签完结订单。
+ * 连接 GATT 写入随机挑战码 Ns，读取买方分包签名后叠加卖方签名联合上报后端验签完结订单。
  */
 async function runSellerCentralMode(sess: BleSessionPayload) {
   stageTitle.value = '正在扫描 3 米内买方加密蓝牙信标...'
   stageLog.value = `目标信标：${sess.advShortToken}`
+  connectingDevice = false
 
   uni.onBluetoothDeviceFound((res) => {
+    if (connectingDevice || verified.value) return
     for (const dev of res.devices) {
       const name = dev.name || dev.localName || ''
       if (name.includes(sess.advShortToken)) {
@@ -179,6 +207,7 @@ async function runSellerCentralMode(sess: BleSessionPayload) {
           stageLog.value = `已发现买方手机，当前信号 ${dev.RSSI} dBm 偏弱，请再靠近一些`
           return
         }
+        connectingDevice = true
         uni.stopBluetoothDevicesDiscovery({})
         connectAndExchangeWithBuyer(sess, dev.deviceId, dev.RSSI)
         break
@@ -187,7 +216,8 @@ async function runSellerCentralMode(sess: BleSessionPayload) {
   })
 
   uni.startBluetoothDevicesDiscovery({
-    allowDuplicatesKey: true
+    allowDuplicatesKey: true,
+    fail: (err) => handleBleError('启动蓝牙扫描失败', err)
   })
 }
 
@@ -195,10 +225,18 @@ async function connectAndExchangeWithBuyer(sess: BleSessionPayload, deviceId: st
   stageTitle.value = '已捕获近场信标 · 正在交换加密挑战签名...'
   const sellerNonce = generateSellerNonce()
   const sellerCoords = await getCurrentCoords()
+  const assembler = new BleFrameAssembler()
 
   uni.createBLEConnection({
     deviceId,
     success: () => {
+      if (typeof (uni as any).setBLEMTU === 'function') {
+        try {
+          ;(uni as any).setBLEMTU({ deviceId, mtu: 240 })
+        } catch {
+          // ignore on unsupported platforms; 20-byte chunking handles default MTU
+        }
+      }
       uni.getBLEDeviceServices({
         deviceId,
         success: () => {
@@ -214,7 +252,11 @@ async function connectAndExchangeWithBuyer(sess: BleSessionPayload, deviceId: st
                 success: () => {
                   uni.onBLECharacteristicValueChange(async (ev) => {
                     try {
-                      const buyerReply = JSON.parse(arrayBufferToString(ev.value))
+                      const assembled = assembler.push(ev.value)
+                      if (!assembled) {
+                        return
+                      }
+                      const buyerReply = JSON.parse(assembled)
                       const sellerSignature = signBleHandshake({
                         roleSigningKey: sess.roleSigningKey,
                         orderId: sess.orderId,
@@ -239,13 +281,13 @@ async function connectAndExchangeWithBuyer(sess: BleSessionPayload, deviceId: st
 
                       verified.value = true
                       running.value = false
+                      connectingDevice = false
                       stageTitle.value = '蓝牙近场加密碰面核销成功'
                       stageLog.value = '双端挑战签名与校园围栏定位均已存证，担保资金已结算入账'
                       uni.closeBLEConnection({ deviceId })
                     } catch (e: any) {
-                      running.value = false
-                      stageTitle.value = '服务端验签未通过'
-                      stageLog.value = e?.message || '请重试近场感应'
+                      handleBleError('服务端验签未通过', e)
+                      uni.closeBLEConnection({ deviceId })
                     }
                   })
 
@@ -253,15 +295,32 @@ async function connectAndExchangeWithBuyer(sess: BleSessionPayload, deviceId: st
                     deviceId,
                     serviceId: sess.serviceUuid,
                     characteristicId: sess.characteristicUuid,
-                    value: stringToArrayBuffer(sellerNonce) as any
+                    value: stringToArrayBuffer(sellerNonce) as any,
+                    fail: (err) => {
+                      handleBleError('写入卖方挑战随机数失败', err)
+                      uni.closeBLEConnection({ deviceId })
+                    }
                   })
+                },
+                fail: (err) => {
+                  handleBleError('开启特征值通知失败', err)
+                  uni.closeBLEConnection({ deviceId })
                 }
               })
+            },
+            fail: (err) => {
+              handleBleError('读取蓝牙特征值失败', err)
+              uni.closeBLEConnection({ deviceId })
             }
           })
+        },
+        fail: (err) => {
+          handleBleError('读取蓝牙服务列表失败', err)
+          uni.closeBLEConnection({ deviceId })
         }
       })
-    }
+    },
+    fail: (err) => handleBleError('建立低功耗蓝牙连接失败', err)
   })
 }
 
@@ -377,7 +436,7 @@ onUnload(() => {
     font-weight: 700;
   }
   .start-btn {
-    background: #18181b;
+    background: #e5c79e;
     color: #09090b;
   }
   .done-btn {

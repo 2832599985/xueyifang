@@ -35,6 +35,11 @@ public class RedisUtils {
     private static final String TOKEN_BLACKLIST_PREFIX = "token:blacklist:";
 
     /**
+     * 用户全局 Token 失效水位线前缀（用于修改密码/重置密码/禁用账号后立即吊销所有旧 JWT）
+     */
+    private static final String TOKEN_INVALID_BEFORE_PREFIX = "token:invalid_before:";
+
+    /**
      * 用户缓存的Redis Key前缀
      */
     private static final String USER_CACHE_PREFIX = "user:cache:";
@@ -71,6 +76,36 @@ public class RedisUtils {
     public void removeTokenFromBlacklist(String token) {
         String key = TOKEN_BLACKLIST_PREFIX + hashTokenKey(token);
         redisTemplate.delete(key);
+    }
+
+    /**
+     * 吊销用户在该时间戳之前签发的所有 JWT Token（保留 8 天覆盖最大 Token 有效期）
+     */
+    public void markUserTokensInvalidBefore(Long userId, long epochMillis) {
+        if (userId == null) {
+            return;
+        }
+        String key = TOKEN_INVALID_BEFORE_PREFIX + userId;
+        redisTemplate.opsForValue().set(key, String.valueOf(epochMillis), 8L * 24 * 3600, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 检查用户 Token 是否早于失效水位线（如改密、管理员重置密码、禁用账号后）
+     */
+    public boolean isTokenInvalidatedForUser(Long userId, Long tokenIssuedAtMillis) {
+        if (userId == null) {
+            return false;
+        }
+        Object raw = redisTemplate.opsForValue().get(TOKEN_INVALID_BEFORE_PREFIX + userId);
+        if (raw == null) {
+            return false;
+        }
+        try {
+            long invalidBefore = Long.parseLong(raw.toString());
+            return tokenIssuedAtMillis == null || tokenIssuedAtMillis < invalidBefore;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private String hashTokenKey(String token) {

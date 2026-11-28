@@ -1,8 +1,10 @@
 package com.xueyifang.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xueyifang.common.ErrorCode;
+import com.xueyifang.constant.CacheConstant;
 import com.xueyifang.constant.OrderConstant;
 import com.xueyifang.domain.dto.RiskAlertQueryRequest;
 import com.xueyifang.domain.dto.RiskAlertResolveRequest;
@@ -22,6 +24,8 @@ import com.xueyifang.mapper.ServiceMapper;
 import com.xueyifang.mapper.ServiceOrderMapper;
 import com.xueyifang.mapper.UserMapper;
 import com.xueyifang.service.IRiskRadarService;
+import com.xueyifang.utils.RedisUtils;
+import com.xueyifang.utils.TransactionUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,9 +69,17 @@ public class RiskRadarServiceImpl implements IRiskRadarService {
     @Resource
     private NotificationMapper notificationMapper;
 
+    @Resource
+    private RedisUtils redisUtils;
+
     @Override
     public RiskRadarOverviewVO getRadarOverview() {
-        List<RiskAuditAlert> allAlerts = riskAuditAlertMapper.selectList(new LambdaQueryWrapper<>());
+        List<RiskAuditAlert> allAlerts = riskAuditAlertMapper.selectList(
+                new LambdaQueryWrapper<RiskAuditAlert>()
+                        .select(RiskAuditAlert::getId, RiskAuditAlert::getHandleStatus,
+                                RiskAuditAlert::getSeverity, RiskAuditAlert::getRuleCode)
+                        .orderByDesc(RiskAuditAlert::getId)
+                        .last("LIMIT 5000"));
         if (allAlerts == null) {
             allAlerts = Collections.emptyList();
         }
@@ -354,20 +366,51 @@ public class RiskRadarServiceImpl implements IRiskRadarService {
 
         int deductPoints = 0;
         String penaltyAction = "DISMISSED";
-
+        boolean offlineSvc = false;
         if (targetStatus == 1) {
-            // 确认为违规互刷，执行双向信用分扣减与可选服务下架
             deductPoints = request.getCreditDeductPoints() != null
                     ? Math.min(50, Math.max(0, request.getCreditDeductPoints()))
                     : 15;
-            boolean offlineSvc = Boolean.TRUE.equals(request.getOfflineService());
+            offlineSvc = Boolean.TRUE.equals(request.getOfflineService());
             penaltyAction = offlineSvc ? "DEDUCT_CREDIT_AND_OFFLINE" : (deductPoints > 0 ? "DEDUCT_CREDIT_ONLY" : "WARN_ONLY");
+        }
 
+        String handleRemark = StringUtils.hasText(request.getHandleRemark())
+                ? request.getHandleRemark().trim()
+                : (targetStatus == 1 ? "经交易关系图谱核查确认为违规互刷，已执行信用分扣减处罚" : "经核查属于正常高频辅导交易，排除误报");
+        LocalDateTime now = LocalDateTime.now();
+
+        // 先通过条件原子更新抢占 handle_status = 0 -> targetStatus，防止并发重复处置与双重扣分
+        int claimed = riskAuditAlertMapper.update(null, new LambdaUpdateWrapper<RiskAuditAlert>()
+                .eq(RiskAuditAlert::getId, alertId)
+                .eq(RiskAuditAlert::getHandleStatus, 0)
+                .set(RiskAuditAlert::getHandleStatus, targetStatus)
+                .set(RiskAuditAlert::getPenaltyAction, penaltyAction)
+                .set(RiskAuditAlert::getCreditDeducted, deductPoints)
+                .set(RiskAuditAlert::getHandlerId, adminId)
+                .set(RiskAuditAlert::getHandleRemark, handleRemark)
+                .set(RiskAuditAlert::getHandleTime, now)
+                .set(RiskAuditAlert::getUpdateTime, now));
+        if (claimed <= 0) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "该风控预警已处置完毕，请勿重复操作");
+        }
+
+        if (targetStatus == 1) {
             if (deductPoints > 0) {
-                deductUserCreditScore(alert.getBuyerId(), deductPoints, alert.getOrderId(),
-                        "风控审计确认违规互刷交易（单号 " + alert.getAlertNo() + "），买方扣减信用分");
-                deductUserCreditScore(alert.getSellerId(), deductPoints, alert.getOrderId(),
-                        "风控审计确认违规互刷交易（单号 " + alert.getAlertNo() + "），卖方扣减信用分");
+                Long buyerId = alert.getBuyerId();
+                Long sellerId = alert.getSellerId();
+                String buyerDesc = "风控审计确认违规互刷交易（单号 " + alert.getAlertNo() + "），买方扣减信用分";
+                String sellerDesc = "风控审计确认违规互刷交易（单号 " + alert.getAlertNo() + "），卖方扣减信用分";
+                // 严格按 userId 升序加行锁，杜绝死锁
+                if (buyerId != null && sellerId != null && buyerId > sellerId) {
+                    deductUserCreditScore(sellerId, deductPoints, alert.getOrderId(), sellerDesc);
+                    deductUserCreditScore(buyerId, deductPoints, alert.getOrderId(), buyerDesc);
+                } else {
+                    deductUserCreditScore(buyerId, deductPoints, alert.getOrderId(), buyerDesc);
+                    if (sellerId != null && !sellerId.equals(buyerId)) {
+                        deductUserCreditScore(sellerId, deductPoints, alert.getOrderId(), sellerDesc);
+                    }
+                }
             }
 
             if (offlineSvc && alert.getServiceId() != null) {
@@ -375,8 +418,12 @@ public class RiskRadarServiceImpl implements IRiskRadarService {
                 if (svc != null) {
                     svc.setStatus(0);
                     svc.setReviewReason("触发平台反互刷风控审计（" + alert.getRuleName() + "），已强制下架整改");
-                    svc.setUpdateTime(LocalDateTime.now());
+                    svc.setUpdateTime(now);
                     serviceMapper.updateById(svc);
+                    if (redisUtils != null) {
+                        Long svcId = alert.getServiceId();
+                        TransactionUtils.afterCommit(() -> redisUtils.delete(CacheConstant.SERVICE_DETAIL_PREFIX + svcId));
+                    }
                 }
             }
 
@@ -388,13 +435,9 @@ public class RiskRadarServiceImpl implements IRiskRadarService {
                 .setPenaltyAction(penaltyAction)
                 .setCreditDeducted(deductPoints)
                 .setHandlerId(adminId)
-                .setHandleRemark(StringUtils.hasText(request.getHandleRemark())
-                        ? request.getHandleRemark().trim()
-                        : (targetStatus == 1 ? "经交易关系图谱核查确认为违规互刷，已执行信用分扣减处罚" : "经核查属于正常高频辅导交易，排除误报"))
-                .setHandleTime(LocalDateTime.now())
-                .setUpdateTime(LocalDateTime.now());
-
-        riskAuditAlertMapper.updateById(alert);
+                .setHandleRemark(handleRemark)
+                .setHandleTime(now)
+                .setUpdateTime(now);
         return toVO(alert);
     }
 
@@ -402,7 +445,7 @@ public class RiskRadarServiceImpl implements IRiskRadarService {
         if (userId == null || deductPoints <= 0) {
             return;
         }
-        User user = userMapper.selectById(userId);
+        User user = userMapper.selectForUpdate(userId);
         if (user == null) {
             return;
         }
@@ -422,6 +465,10 @@ public class RiskRadarServiceImpl implements IRiskRadarService {
                 .setRelatedOrderId(orderId)
                 .setCreateTime(LocalDateTime.now());
         creditScoreLogMapper.insert(log);
+
+        if (redisUtils != null) {
+            TransactionUtils.afterCommit(() -> redisUtils.deleteUserCache(userId));
+        }
     }
 
     private void sendRiskPenaltyNotification(Long recipientId, RiskAuditAlert alert, int deductPoints, boolean offlineSvc) {

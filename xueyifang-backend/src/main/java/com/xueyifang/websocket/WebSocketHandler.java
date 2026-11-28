@@ -73,7 +73,11 @@ public class WebSocketHandler extends TextWebSocketHandler {
 
         // 发送连接成功消息
         WebSocketMessage connectedMessage = WebSocketMessage.connected(userId);
-        session.sendMessage(new TextMessage(gson.toJson(connectedMessage)));
+        synchronized (session) {
+            if (session.isOpen()) {
+                session.sendMessage(new TextMessage(gson.toJson(connectedMessage)));
+            }
+        }
     }
 
     /**
@@ -97,7 +101,11 @@ public class WebSocketHandler extends TextWebSocketHandler {
                 case "PING":
                     // 心跳请求，返回PONG
                     WebSocketMessage pongMessage = WebSocketMessage.pong();
-                    session.sendMessage(new TextMessage(gson.toJson(pongMessage)));
+                    synchronized (session) {
+                        if (session.isOpen()) {
+                            session.sendMessage(new TextMessage(gson.toJson(pongMessage)));
+                        }
+                    }
                     break;
 
                 default:
@@ -117,7 +125,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         Long userId = getUserId(session);
         if (userId != null) {
-            sessionManager.removeSession(userId);
+            sessionManager.removeSession(userId, session);
         }
     }
 
@@ -134,7 +142,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
         }
 
         if (userId != null) {
-            sessionManager.removeSession(userId);
+            sessionManager.removeSession(userId, session);
         }
     }
 

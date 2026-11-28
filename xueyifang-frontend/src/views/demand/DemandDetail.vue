@@ -433,7 +433,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, ArrowRight, ChatDotRound } from '@element-plus/icons-vue'
@@ -621,6 +621,12 @@ async function handleCancelDemand() {
     // cancelled
   }
 }
+
+watch(demandId, (newId, oldId) => {
+  if (newId && !Number.isNaN(newId) && newId !== oldId) {
+    loadDetail()
+  }
+})
 
 onMounted(loadDetail)
 </script>

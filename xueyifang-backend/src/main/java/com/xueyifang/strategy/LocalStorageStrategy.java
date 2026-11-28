@@ -77,22 +77,46 @@ public class LocalStorageStrategy implements FileStorageStrategy {
     @Override
     public boolean deleteFile(String fileUrl) {
         try {
-            // 1. 从URL中提取相对路径
+            if (fileUrl == null || fileUrl.trim().isEmpty()) {
+                return false;
+            }
+            String cleanUrl = fileUrl.trim().replace("\\", "/");
+            // 1. 提取相对路径（同时兼容完整前缀 URL 与数据库存储的相对 ObjectKey）
             String urlPrefix = properties.getLocal().getUrlPrefix();
-            if (!fileUrl.startsWith(urlPrefix)) {
-                log.warn("文件URL不匹配: {}", fileUrl);
+            String relativePath = cleanUrl;
+            if (urlPrefix != null && !urlPrefix.isEmpty()) {
+                String normalizedPrefix = urlPrefix.endsWith("/") ? urlPrefix : urlPrefix + "/";
+                if (cleanUrl.startsWith(normalizedPrefix)) {
+                    relativePath = cleanUrl.substring(normalizedPrefix.length());
+                } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+                    log.warn("文件URL不匹配本地存储前缀: {}", fileUrl);
+                    return false;
+                }
+            }
+            while (relativePath.startsWith("/")) {
+                relativePath = relativePath.substring(1);
+            }
+            if (relativePath.isEmpty() || relativePath.contains("..") || relativePath.indexOf('\0') >= 0) {
+                log.warn("拒绝非法文件删除路径: {}", fileUrl);
                 return false;
             }
 
-            String relativePath = fileUrl.substring(urlPrefix.length() + 1);
-
-            // 2. 获取文件绝对路径
+            // 2. 获取文件绝对路径并严格校验规范化目录边界（防止路径遍历与兄弟目录逃逸）
             String uploadPath = properties.getLocal().getUploadPath();
             File baseDir = resolveBasePath(uploadPath);
             File targetFile = new File(baseDir, relativePath);
 
-            // 3. 删除文件
-            if (targetFile.exists()) {
+            String canonicalBasePath = baseDir.getCanonicalPath();
+            String canonicalTargetPath = targetFile.getCanonicalPath();
+            String baseBoundary = canonicalBasePath.endsWith(File.separator)
+                    ? canonicalBasePath : canonicalBasePath + File.separator;
+            if (!canonicalTargetPath.startsWith(baseBoundary)) {
+                log.warn("检测到路径穿越删除尝试，已拦截: {}", fileUrl);
+                return false;
+            }
+
+            // 3. 仅允许删除上传根目录内的普通文件
+            if (targetFile.exists() && targetFile.isFile()) {
                 boolean deleted = targetFile.delete();
                 if (deleted) {
                     log.info("文件删除成功: {}", targetFile.getAbsolutePath());
@@ -101,7 +125,7 @@ public class LocalStorageStrategy implements FileStorageStrategy {
                 }
                 return deleted;
             } else {
-                log.warn("文件不存在: {}", targetFile.getAbsolutePath());
+                log.warn("文件不存在或不是普通文件: {}", targetFile.getAbsolutePath());
                 return false;
             }
         } catch (Exception e) {

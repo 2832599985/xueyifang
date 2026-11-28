@@ -31,6 +31,7 @@ import com.xueyifang.service.IServiceService;
 import com.xueyifang.service.IServiceTagService;
 import com.xueyifang.service.ISysConfigService;
 import com.xueyifang.service.IUserService;
+import com.xueyifang.utils.FileUrlResolver;
 import com.xueyifang.utils.GeofenceUtils;
 import com.xueyifang.utils.SerialNoGenerator;
 import com.xueyifang.utils.UserContext;
@@ -89,6 +90,9 @@ public class DemandServiceImpl extends ServiceImpl<DemandRequestMapper, DemandRe
 
     @Resource
     private ISysConfigService sysConfigService;
+
+    @Resource
+    private FileUrlResolver fileUrlResolver;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -527,7 +531,7 @@ public class DemandServiceImpl extends ServiceImpl<DemandRequestMapper, DemandRe
             User pub = userMap.get(r.getPublisherId());
             if (pub != null) {
                 vo.setPublisherName(StringUtils.defaultIfBlank(pub.getNickname(), pub.getRealName()));
-                vo.setPublisherAvatar(pub.getAvatar());
+                vo.setPublisherAvatar(resolvePublicAvatar(pub.getAvatar()));
                 vo.setPublisherEduVerified(pub.getEduVerified());
                 vo.setPublisherCreditScore(pub.getCreditScore() != null ? pub.getCreditScore() : 100);
             }
@@ -597,7 +601,7 @@ public class DemandServiceImpl extends ServiceImpl<DemandRequestMapper, DemandRe
             User u = userMap.get(b.getBidderId());
             if (u != null) {
                 vo.setBidderName(StringUtils.defaultIfBlank(u.getNickname(), u.getRealName()));
-                vo.setBidderAvatar(u.getAvatar());
+                vo.setBidderAvatar(resolvePublicAvatar(u.getAvatar()));
                 vo.setBidderEduVerified(u.getEduVerified());
                 vo.setBidderCreditScore(u.getCreditScore() != null ? u.getCreditScore() : 100);
                 if (u.getProfessionalId() != null) {
@@ -612,5 +616,12 @@ public class DemandServiceImpl extends ServiceImpl<DemandRequestMapper, DemandRe
             list.add(vo);
         }
         return list;
+    }
+
+    private String resolvePublicAvatar(String avatar) {
+        if (StringUtils.isBlank(avatar)) {
+            return avatar;
+        }
+        return fileUrlResolver != null ? fileUrlResolver.toPublicUrl(avatar) : avatar;
     }
 }

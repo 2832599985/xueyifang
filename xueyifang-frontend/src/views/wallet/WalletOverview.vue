@@ -183,8 +183,13 @@
             </div>
 
             <div class="asset-panel__actions">
-              <button type="button" class="wallet-btn-primary" @click="openRechargeDialog">
-                充值余额
+              <button
+                type="button"
+                class="wallet-btn-primary"
+                :disabled="demoRechargeDisabled"
+                @click="openRechargeDialog"
+              >
+                {{ demoRechargeDisabled ? '暂未开放自助充值' : '充值余额' }}
               </button>
               <button type="button" class="wallet-btn-secondary" @click="openWithdrawDialog">
                 申请提现
@@ -487,6 +492,7 @@ const recentTransactions = ref<WalletTransaction[]>([])
 
 const rechargeVisible = ref(false)
 const rechargeAmount = ref(100)
+const demoRechargeDisabled = ref(false)
 const withdrawVisible = ref(false)
 const withdrawAmount = ref(0)
 
@@ -558,6 +564,10 @@ function transactionTone(type: TransactionType): 'neutral' | 'info' | 'success' 
 }
 
 function openRechargeDialog() {
+  if (demoRechargeDisabled.value) {
+    ElMessage.info('当前环境已关闭体验金自助充值，请使用担保收银台直接付款')
+    return
+  }
   rechargeAmount.value = 100
   rechargeVisible.value = true
 }
@@ -599,7 +609,12 @@ async function handleRecharge() {
     ElMessage.success('充值成功')
     rechargeVisible.value = false
     await fetchWalletData()
-  } catch (err) {
+  } catch (err: any) {
+    const msg = String(err?.message || err?.response?.data?.message || '')
+    if (/未开启|已关闭|禁用|暂未开放|关闭充值/i.test(msg)) {
+      demoRechargeDisabled.value = true
+      rechargeVisible.value = false
+    }
     notifyFallbackError(err, '充值失败')
   } finally {
     submitting.value = false
@@ -994,9 +1009,14 @@ onMounted(() => {
   background: #18181b;
   color: #ffffff;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #2e2e34;
     transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 }
 

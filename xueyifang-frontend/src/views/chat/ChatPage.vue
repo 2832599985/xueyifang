@@ -255,7 +255,7 @@ const msgLoading = ref(false)
 const sending = ref(false)
 const uploadingImg = ref(false)
 const searchPeer = ref('')
-const conversations = ref<ChatConversation[]>([])
+const conversations = computed(() => chatStore.conversations)
 const messages = ref<ChatMessage[]>([])
 const draftMessage = ref('')
 const pageNum = ref(1)
@@ -318,8 +318,7 @@ function fillQuickPhrase(phrase: string) {
 async function fetchConversations() {
   convLoading.value = true
   try {
-    conversations.value = await listConversations()
-    await chatStore.fetchConversations().catch(() => {})
+    chatStore.conversations = await listConversations()
   } catch (err) {
     notifyFallbackError(err, '加载会话列表失败')
   } finally {
@@ -428,19 +427,34 @@ watch(
 let stopWsListener: (() => void) | null = null
 
 onMounted(() => {
-  fetchConversations()
+  if (!selectedUserId.value) {
+    fetchConversations()
+  }
 
   stopWsListener = onWebSocketMessage((msg) => {
     if (msg.type === MESSAGE_TYPES.NEW_CHAT) {
       const incoming = msg.data as ChatMessage
-      fetchConversations()
       if (
         selectedUserId.value &&
         (incoming.sender?.userId === selectedUserId.value ||
           incoming.receiver?.userId === selectedUserId.value)
       ) {
-        messages.value.push(incoming)
-        scrollToBottom()
+        const exists =
+          incoming.messageId !== undefined &&
+          messages.value.some((m) => m.messageId === incoming.messageId)
+        if (!exists) {
+          messages.value.push(incoming)
+          totalMessages.value += 1
+          scrollToBottom()
+        }
+        if (incoming.sender?.userId === selectedUserId.value) {
+          const peerId = selectedUserId.value
+          listMessages(peerId, { pageNum: 1, pageSize: 1 })
+            .then(() => {
+              chatStore.clearConversationUnread(peerId)
+            })
+            .catch(() => {})
+        }
       }
     }
   })

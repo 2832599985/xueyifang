@@ -80,13 +80,63 @@ public class WebSocketSessionManager {
     }
 
     /**
+     * 移除用户会话（仅当当前注册会话与待关闭会话一致时移除，防止旧连接断开误删重连后的新会话）
+     *
+     * @param userId          用户ID
+     * @param expectedSession 预期要移除的会话
+     */
+    public void removeSession(Long userId, WebSocketSession expectedSession) {
+        if (userId == null) {
+            return;
+        }
+        if (expectedSession == null) {
+            removeSession(userId);
+            return;
+        }
+        boolean removed = userSessions.remove(userId, expectedSession);
+        if (!removed) {
+            WebSocketSession current = userSessions.get(userId);
+            if (current != null && current.getId().equals(expectedSession.getId())) {
+                removed = userSessions.remove(userId, current);
+            }
+        }
+        if (removed) {
+            log.info("WebSocket连接断开: userId={}, sessionId={}, 当前在线人数={}",
+                    userId, expectedSession.getId(), userSessions.size());
+        }
+    }
+
+    /**
      * 移除用户会话
      *
      * @param userId 用户ID
      */
     public void removeSession(Long userId) {
+        if (userId == null) {
+            return;
+        }
         userSessions.remove(userId);
         log.info("WebSocket连接断开: userId={}, 当前在线人数={}", userId, userSessions.size());
+    }
+
+    /**
+     * 强制关闭并踢出指定用户的 WebSocket 会话（用于禁用账号、修改密码、重置密码等场景）
+     *
+     * @param userId 用户ID
+     */
+    public void closeSession(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        WebSocketSession session = userSessions.remove(userId);
+        if (session != null && session.isOpen()) {
+            try {
+                session.close();
+                log.info("已强制断开用户WebSocket会话: userId={}", userId);
+            } catch (IOException e) {
+                log.warn("强制断开用户WebSocket会话失败: userId={}", userId, e);
+            }
+        }
     }
 
     /**
@@ -126,13 +176,13 @@ public class WebSocketSessionManager {
 
         try {
             String jsonMessage = gson.toJson(message);
-            session.sendMessage(new TextMessage(jsonMessage));
+            sendTextSafe(session, new TextMessage(jsonMessage));
             log.debug("WebSocket消息发送成功: userId={}, type={}", userId, message.getType());
             return true;
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             log.error("WebSocket消息发送失败: userId={}", userId, e);
-            // 发送失败，移除无效会话
-            removeSession(userId);
+            // 发送失败，仅移除当前失效会话
+            removeSession(userId, session);
             return false;
         }
     }
@@ -149,12 +199,20 @@ public class WebSocketSessionManager {
         userSessions.forEach((userId, session) -> {
             if (session.isOpen()) {
                 try {
-                    session.sendMessage(textMessage);
-                } catch (IOException e) {
+                    sendTextSafe(session, textMessage);
+                } catch (IOException | IllegalStateException e) {
                     log.error("广播消息发送失败: userId={}", userId, e);
                 }
             }
         });
+    }
+
+    private void sendTextSafe(WebSocketSession session, TextMessage textMessage) throws IOException {
+        synchronized (session) {
+            if (session.isOpen()) {
+                session.sendMessage(textMessage);
+            }
+        }
     }
 
     /**

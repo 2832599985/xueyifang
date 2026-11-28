@@ -46,8 +46,12 @@
         <text class="lbl">微信担保托管合计</text>
         <text class="total">¥{{ (Number(service.price || 0) * quantity).toFixed(2) }}</text>
       </view>
-      <view class="xyf-btn-primary pay-btn" @tap="submitAndEscrowPay">
-        微信担保支付
+      <view
+        class="xyf-btn-primary pay-btn"
+        :class="{ 'is-disabled': submitting }"
+        @tap="submitAndEscrowPay"
+      >
+        {{ submitting ? '支付处理中...' : '微信担保支付' }}
       </view>
     </view>
   </view>
@@ -63,6 +67,7 @@ const slotId = ref<number | undefined>(undefined)
 const service = ref<any>(null)
 const quantity = ref(1)
 const remark = ref('')
+const submitting = ref(false)
 const fenceInside = ref(true)
 const fenceHint = ref('所选点需位于本校安全电子围栏保护区内')
 
@@ -97,58 +102,74 @@ function chooseNativeMapLocation() {
 }
 
 async function submitAndEscrowPay() {
-  if (!service.value) return
+  if (!service.value || submitting.value) return
   if (service.value.tradeType === 1 && !fenceInside.value) {
     uni.showToast({ title: '所选位置超出校园安全电子围栏，请重新选点', icon: 'none' })
     return
   }
 
-  const orderId = await mobileApi.createOrder({
-    serviceId: service.value.id,
-    quantity: quantity.value,
-    tradeType: service.value.tradeType,
-    tradeLocationId: service.value.tradeLocationId,
-    slotId: slotId.value,
-    meetupLat: meetup.latitude,
-    meetupLng: meetup.longitude,
-    meetupPoiName: meetup.poiName || undefined,
-    meetupAddress: meetup.detailAddress || undefined,
-    remark: remark.value.trim() || undefined
-  })
-
-  // 拉起微信小程序 / Android App 原生担保支付收银台
-  // #ifdef MP-WEIXIN
-  const prepay = await mobileApi.escrowPrepay(orderId, 'WECHAT_MINI')
-  if (prepay.sandboxCallbackSign) {
-    await mobileApi.sandboxEscrowCallback(prepay.paymentNo, prepay.amount, prepay.sandboxCallbackSign)
-  } else {
-    await new Promise<void>((resolve, reject) => {
-      uni.requestPayment({
-        provider: 'wxpay',
-        orderInfo: prepay.paymentNo,
-        timeStamp: prepay.sdkPayParams.timeStamp,
-        nonceStr: prepay.sdkPayParams.nonceStr,
-        package: prepay.sdkPayParams.package,
-        signType: prepay.sdkPayParams.signType as any,
-        paySign: prepay.sdkPayParams.paySign,
-        success: () => resolve(),
-        fail: (err) => reject(err)
-      })
+  submitting.value = true
+  try {
+    const orderId = await mobileApi.createOrder({
+      serviceId: service.value.id,
+      quantity: quantity.value,
+      tradeType: service.value.tradeType,
+      tradeLocationId: service.value.tradeLocationId,
+      slotId: slotId.value,
+      meetupLat: meetup.latitude,
+      meetupLng: meetup.longitude,
+      meetupPoiName: meetup.poiName || undefined,
+      meetupAddress: meetup.detailAddress || undefined,
+      remark: remark.value.trim() || undefined
     })
-  }
-  // #endif
 
-  // #ifndef MP-WEIXIN
-  const appPrepay = await mobileApi.escrowPrepay(orderId, 'WECHAT_APP')
-  if (appPrepay.sandboxCallbackSign) {
-    await mobileApi.sandboxEscrowCallback(appPrepay.paymentNo, appPrepay.amount, appPrepay.sandboxCallbackSign)
-  }
-  // #endif
+    let paidConfirmed = false
 
-  uni.showToast({ title: '担保支付成功', icon: 'success' })
-  setTimeout(() => {
-    uni.redirectTo({ url: `/pages/order/detail?id=${orderId}` })
-  }, 400)
+    // 拉起微信小程序 / Android App 原生担保支付收银台
+    // #ifdef MP-WEIXIN
+    const prepay = await mobileApi.escrowPrepay(orderId, 'WECHAT_MINI')
+    if (prepay.sandboxCallbackSign) {
+      await mobileApi.sandboxEscrowCallback(prepay.paymentNo, prepay.amount, prepay.sandboxCallbackSign)
+      paidConfirmed = true
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        uni.requestPayment({
+          provider: 'wxpay',
+          orderInfo: prepay.paymentNo,
+          timeStamp: prepay.sdkPayParams.timeStamp,
+          nonceStr: prepay.sdkPayParams.nonceStr,
+          package: prepay.sdkPayParams.package,
+          signType: prepay.sdkPayParams.signType as any,
+          paySign: prepay.sdkPayParams.paySign,
+          success: () => resolve(),
+          fail: (err) => reject(err)
+        })
+      })
+      paidConfirmed = true
+    }
+    // #endif
+
+    // #ifndef MP-WEIXIN
+    const appPrepay = await mobileApi.escrowPrepay(orderId, 'WECHAT_APP')
+    if (appPrepay.sandboxCallbackSign) {
+      await mobileApi.sandboxEscrowCallback(appPrepay.paymentNo, appPrepay.amount, appPrepay.sandboxCallbackSign)
+      paidConfirmed = true
+    }
+    // #endif
+
+    if (paidConfirmed) {
+      uni.showToast({ title: '担保支付成功', icon: 'success' })
+    } else {
+      uni.showToast({ title: '订单与担保支付单已创建，请完成收银台付款', icon: 'none' })
+    }
+    setTimeout(() => {
+      uni.redirectTo({ url: `/pages/order/detail?id=${orderId}` })
+    }, 450)
+  } catch (err: any) {
+    uni.showToast({ title: err?.errMsg || err?.message || '下单或支付失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
 onLoad(async (query) => {
@@ -263,6 +284,9 @@ onLoad(async (query) => {
   }
   .pay-btn {
     padding: 0 48rpx;
+    &.is-disabled {
+      opacity: 0.6;
+    }
   }
 }
 </style>

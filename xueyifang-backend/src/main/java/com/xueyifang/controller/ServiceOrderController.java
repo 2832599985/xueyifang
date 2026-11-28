@@ -18,6 +18,7 @@ import com.xueyifang.domain.vo.OrderVerifyCredentialVO;
 import com.xueyifang.domain.vo.SellerOrderListItemVO;
 import com.xueyifang.exception.BusinessException;
 import com.xueyifang.service.IServiceOrderService;
+import com.xueyifang.service.IServiceService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -46,13 +47,21 @@ public class ServiceOrderController {
     @Resource
     private IServiceOrderService serviceOrderService;
 
+    @Resource
+    private IServiceService serviceService;
+
     // ==================== 订单基础操作 ====================
 
     @PostMapping("/create")
     @ApiOperation("创建订单")
     public BaseResponse<Long> createOrder(@RequestBody OrderCreateRequest request) {
-        if (request == null) {
+        if (request == null || request.getServiceId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        com.xueyifang.domain.po.Service svc = serviceService.getById(request.getServiceId());
+        if (svc != null && svc.getServiceTitle() != null
+                && (svc.getServiceTitle().startsWith("【悬赏定向单】") || svc.getServiceTitle().startsWith("【拼班团课】"))) {
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR, "该服务为悬赏定向单或拼班团课专用模板，请通过对应业务入口下单");
         }
         Long orderId = serviceOrderService.createOrder(request);
         return ResultUtils.success(orderId);

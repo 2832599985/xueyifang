@@ -1,4 +1,4 @@
-﻿--
+--
 -- Host: localhost    Database: xueyifang
 -- ------------------------------------------------------
 -- Server version	9.6.0
@@ -543,6 +543,8 @@ CREATE TABLE `user` (
 -- Dumping data for table `user`
 --
 
+-- SECURITY NOTICE: The seeded accounts below are for local development/demo initialization only.
+-- Before any staging or production deployment, immediately rotate the admin password and remove or disable demo accounts.
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
 INSERT INTO `user` VALUES (1,'20240001','534249f67bb81d9808afc189ae7622b0','管理员','Admin','13800000001',NULL,NULL,NULL,NULL,NULL,NULL,2,0,2,NULL,10000.00,0.00,1,'2025-11-21 14:26:38','2025-11-25 15:13:05',0),(2,'20240002','534249f67bb81d9808afc189ae7622b0','卖家小王','SellerLi','13800000002','23232@qq.com',NULL,'大三',6,NULL,NULL,1,1,1,'擅长Java与艺术设计课程辅导',10000.00,0.00,1,'2025-11-21 14:26:38','2026-04-16 23:44:22',0),(3,'20240003','534249f67bb81d9808afc189ae7622b0','买家小李','买家小李','13800000003','2832599985@qq.com','3号楼201','大四',2,NULL,NULL,1,1,1,'提供软件工程课程辅导与跑腿代办',10000.00,0.00,1,'2025-11-21 14:26:38','2026-04-16 23:44:22',0);
@@ -614,7 +616,7 @@ CREATE TABLE `wallet_transaction` (
   KEY `fk_wallet_order` (`related_order_id`),
   CONSTRAINT `wallet_transaction_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
   CONSTRAINT `wallet_transaction_ibfk_2` FOREIGN KEY (`related_order_id`) REFERENCES `service_order` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='钱包流水表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='钱包流水表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

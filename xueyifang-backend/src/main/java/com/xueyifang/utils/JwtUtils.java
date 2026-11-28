@@ -98,6 +98,26 @@ public class JwtUtils {
     }
 
     /**
+     * 获取 Token 签发时间戳（毫秒），用于改密/禁用账号后的全局旧 Token 吊销校验
+     */
+    public Long getTokenIssuedAtMillis(String token) {
+        try {
+            Claims claims = parseJwtToken(token);
+            Object ts = claims.get("timestamp");
+            if (ts instanceof Number) {
+                return ((Number) ts).longValue();
+            }
+            if (ts != null) {
+                return Long.parseLong(ts.toString());
+            }
+            Date iat = claims.getIssuedAt();
+            return iat != null ? iat.getTime() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * 验证Token是否合法
      *
      * @param token JWT Token

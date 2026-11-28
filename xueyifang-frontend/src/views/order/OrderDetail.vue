@@ -514,13 +514,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DocumentCopy, ChatDotRound } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { buildImageUrl } from '@/api/service'
 import { uploadFile } from '@/api/file'
+import { getWalletInfo } from '@/api/wallet'
 import {
   getOrderDetail,
   payOrder,
@@ -696,20 +697,30 @@ async function handlePayOrder() {
       { confirmButtonText: '确认支付', cancelButtonText: '取消', type: 'info' }
     )
     actionLoading.value = true
-    const prepay = await createEscrowPrepay(orderDetail.value.id, 'WECHAT_MINI')
-    if (prepay.sandboxCallbackSign) {
-      await triggerSandboxEscrowWebhook({
-        paymentNo: prepay.paymentNo,
-        paidAmount: prepay.amount,
-        signature: prepay.sandboxCallbackSign
-      })
-    } else {
+    const walletInfo = await getWalletInfo().catch(() => null)
+    const canPayByWallet =
+      walletInfo !== null &&
+      Number(walletInfo.walletBalance || 0) >= Number(orderDetail.value.totalAmount || 0)
+
+    if (canPayByWallet) {
       await payOrder(orderDetail.value.id, {
         orderId: orderDetail.value.id,
         paymentMethod: PaymentMethod.WALLET
       })
+      ElMessage.success('支付成功，款项已进入平台担保')
+    } else {
+      const prepay = await createEscrowPrepay(orderDetail.value.id, 'WECHAT_MINI')
+      if (prepay.sandboxCallbackSign) {
+        await triggerSandboxEscrowWebhook({
+          paymentNo: prepay.paymentNo,
+          paidAmount: prepay.amount,
+          signature: prepay.sandboxCallbackSign
+        })
+        ElMessage.success('支付成功，款项已进入平台担保')
+      } else {
+        ElMessage.info(`担保支付单 ${prepay.paymentNo} 已创建，请在收银台完成付款或充值钱包后支付`)
+      }
     }
-    ElMessage.success('支付成功，款项已进入平台担保')
     await fetchDetail()
   } catch (err) {
     if (err !== 'cancel') notifyFallbackError(err, '支付失败')
@@ -912,6 +923,12 @@ function handleReviewSuccess() {
     orderDetail.value.isReviewed = true
   }
 }
+
+watch(orderId, (newId, oldId) => {
+  if (newId && !Number.isNaN(newId) && newId !== oldId) {
+    fetchDetail()
+  }
+})
 
 onMounted(() => {
   fetchDetail()

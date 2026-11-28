@@ -21,7 +21,12 @@
     </view>
 
     <!-- Escrow Bounty Tickets -->
-    <view v-for="item in filteredDemands" :key="item.id" class="bounty-ticket">
+    <view
+      v-for="item in filteredDemands"
+      :key="item.id"
+      class="bounty-ticket"
+      @tap="openDemandDetail(item)"
+    >
       <view class="d-head">
         <view class="d-tags">
           <text class="u-tag" :class="`u-${item.urgencyLevel}`">
@@ -78,6 +83,31 @@
         </view>
       </view>
     </view>
+
+    <!-- Demand Detail & Creator Bid Bottom Sheet -->
+    <view v-if="activeDemand" class="sheet-mask" @tap.self="activeDemand = null">
+      <view class="sheet-box">
+        <view class="sheet-handle" />
+        <text class="sheet-title">{{ activeDemand.title }}</text>
+        <text class="d-desc" style="margin-bottom: 16rpx">{{ activeDemand.description }}</text>
+        <view class="d-spot" style="margin-bottom: 20rpx">
+          预算 ¥{{ activeDemand.budgetMin }} – ¥{{ activeDemand.budgetMax }} · 已收到 {{ activeDemand.bids?.length ?? activeDemand.bidCount ?? 0 }} 份方案
+        </view>
+
+        <template v-if="activeDemand.demandStatus === 0 && activeDemand.publisherId !== userStore.userInfo?.id">
+          <view class="row-2">
+            <input v-model.number="bidForm.bidPrice" type="number" class="inp" placeholder="报价金额(元)" />
+            <input v-model.number="bidForm.estimatedHours" type="number" class="inp" placeholder="承诺耗时(小时)" />
+          </view>
+          <textarea v-model="bidForm.bidPlan" class="area" placeholder="填写履约计划与个人优势（至少6字）..." />
+          <view class="row-2">
+            <view class="cancel-btn" @tap="activeDemand = null">关闭</view>
+            <view class="ok-btn" @tap="submitMobileBid">提交竞标方案</view>
+          </view>
+        </template>
+        <view v-else class="cancel-btn" @tap="activeDemand = null">关闭</view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -85,12 +115,20 @@
 import { ref, reactive, computed } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { mobileApi } from '@/api'
+import { useMobileUserStore } from '@/stores/user'
 
 declare const uni: any
 
+const userStore = useMobileUserStore()
 const demands = ref<any[]>([])
 const activeUrgency = ref<number | undefined>(undefined)
 const showPublishModal = ref(false)
+const activeDemand = ref<any | null>(null)
+const bidForm = reactive({
+  bidPrice: 80,
+  estimatedHours: 12,
+  bidPlan: ''
+})
 
 const urgencyTabs = [
   { label: '全部悬赏', value: undefined },
@@ -140,6 +178,42 @@ function chooseMapSpot() {
   })
 }
 
+async function openDemandDetail(item: any) {
+  activeDemand.value = item
+  bidForm.bidPrice = Math.round((Number(item.budgetMin || 50) + Number(item.budgetMax || 100)) / 2)
+  bidForm.estimatedHours = 12
+  bidForm.bidPlan = ''
+  try {
+    activeDemand.value = await mobileApi.getDemandDetail(item.id)
+  } catch {
+    // keep summary data if detail request fails
+  }
+}
+
+async function submitMobileBid() {
+  if (!activeDemand.value) return
+  if (!userStore.isLoggedIn) {
+    uni.navigateTo({ url: '/pages/auth/login' })
+    return
+  }
+  if (!bidForm.bidPlan.trim() || bidForm.bidPlan.trim().length < 6) {
+    uni.showToast({ title: '请填写至少6字的履约方案说明', icon: 'none' })
+    return
+  }
+  try {
+    await mobileApi.submitDemandBid(activeDemand.value.id, {
+      bidPrice: Number(bidForm.bidPrice),
+      estimatedHours: Number(bidForm.estimatedHours),
+      bidPlan: bidForm.bidPlan.trim()
+    })
+    uni.showToast({ title: '竞标方案已提交', icon: 'success' })
+    activeDemand.value = null
+    loadList()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '提交报价失败', icon: 'none' })
+  }
+}
+
 async function submitMobileDemand() {
   if (!form.title || !form.description) {
     uni.showToast({ title: '请填写标题与说明', icon: 'none' })
@@ -148,8 +222,9 @@ async function submitMobileDemand() {
   if (!form.meetupPoiName) {
     form.meetupPoiName = '主图书馆监控区'
   }
+  const campusId = userStore.userInfo?.campusId || userStore.activeCampusId || 1
   try {
-    await mobileApi.publishDemand({ ...form, campusId: 1 })
+    await mobileApi.publishDemand({ ...form, campusId })
     uni.showToast({ title: '悬赏发布成功', icon: 'success' })
     showPublishModal.value = false
     loadList()

@@ -90,6 +90,13 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
             log.warn("Token中无法解析用户ID，路径：{}", request.getRequestURI());
             throw new BusinessException(ErrorCode.USER_NOT_LOGIN, "登录信息异常，请重新登录");
         }
+
+        // 4.5 检查 Token 是否因改密/重置密码/禁用账号而被吊销
+        Long issuedAtMillis = jwtUtils.getTokenIssuedAtMillis(token);
+        if (redisUtils.isTokenInvalidatedForUser(userId, issuedAtMillis)) {
+            log.warn("Token已因安全变更失效，userId：{}，路径：{}", userId, request.getRequestURI());
+            throw new BusinessException(ErrorCode.USER_NOT_LOGIN, "登录凭证已失效，请重新登录");
+        }
         
         // 5. 查询用户信息（优先从 Redis 会话缓存读取，未命中再查库并回填 30 分钟缓存）
         User user = loadUserWithCache(userId);
@@ -158,8 +165,13 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
             if (userId == null) {
                 return;
             }
+            if (redisUtils.isTokenInvalidatedForUser(userId, jwtUtils.getTokenIssuedAtMillis(token))) {
+                return;
+            }
             User user = loadUserWithCache(userId);
-            if (user != null && (user.getIsDelete() == null || user.getIsDelete() == 0)) {
+            if (user != null
+                    && (user.getIsDelete() == null || user.getIsDelete() == 0)
+                    && (user.getAccountStatus() == null || user.getAccountStatus() != 2)) {
                 UserContext.setCurrentUser(user);
             }
         } catch (Exception e) {

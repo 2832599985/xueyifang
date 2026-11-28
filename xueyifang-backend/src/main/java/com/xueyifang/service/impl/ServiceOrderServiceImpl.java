@@ -16,6 +16,8 @@ import com.xueyifang.domain.dto.OrderCreateRequest;
 import com.xueyifang.domain.dto.OrderPayRequest;
 import com.xueyifang.domain.dto.SellerShipRequest;
 import com.xueyifang.domain.po.EscrowPaymentOrder;
+import com.xueyifang.domain.po.GroupSession;
+import com.xueyifang.domain.po.GroupSessionParticipant;
 import com.xueyifang.domain.po.PlatformRevenueLedger;
 import com.xueyifang.domain.po.Professional;
 import com.xueyifang.domain.po.Service;
@@ -31,6 +33,8 @@ import com.xueyifang.domain.vo.OrderVerifyCredentialVO;
 import com.xueyifang.domain.vo.SellerOrderListItemVO;
 import com.xueyifang.exception.BusinessException;
 import com.xueyifang.mapper.EscrowPaymentOrderMapper;
+import com.xueyifang.mapper.GroupSessionMapper;
+import com.xueyifang.mapper.GroupSessionParticipantMapper;
 import com.xueyifang.mapper.PlatformRevenueLedgerMapper;
 import com.xueyifang.mapper.ServiceDisputeMapper;
 import com.xueyifang.mapper.ServiceMapper;
@@ -154,6 +158,12 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
 
     @Resource
     private ICreditScoreService creditScoreService;
+
+    @Resource
+    private GroupSessionMapper groupSessionMapper;
+
+    @Resource
+    private GroupSessionParticipantMapper groupSessionParticipantMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -317,7 +327,8 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         order.setFrozenAmount(amount);
         order.setOrderStatus(OrderConstant.ORDER_PENDING_SHIP);
         order.setPaymentStatus(OrderConstant.PAYMENT_PAID);
-        order.setPaymentMethod(request.getPaymentMethod());
+        // 钱包支付强制记录为钱包支付方式，防止客户端篡改 paymentMethod=2 导致退款时跳过退回余额
+        order.setPaymentMethod(OrderConstant.PAYMENT_METHOD_WALLET);
         order.setPaymentTime(LocalDateTime.now());
         if (Integer.valueOf(OrderConstant.TRADE_TYPE_OFFLINE).equals(order.getTradeType())) {
             order.setVerifyCode(OfflineVerifyCodeUtils.generateOrderSeed());
@@ -617,12 +628,6 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
     }
 
     private void validateVerifierWithinLocationRadius(ServiceOrder order, BigDecimal verifierLat, BigDecimal verifierLng) {
-        if (verifierLat == null || verifierLng == null) {
-            return;
-        }
-        if (!GeofenceUtils.isValidCoordinate(verifierLat.doubleValue(), verifierLng.doubleValue())) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "上报的核销定位坐标无效");
-        }
         BigDecimal targetLat = order.getMeetupLat();
         BigDecimal targetLng = order.getMeetupLng();
         Integer allowedRadius = order.getMeetupRadiusMeters();
@@ -642,6 +647,13 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
             }
         }
         if (targetLat != null && targetLng != null) {
+            if (verifierLat == null || verifierLng == null) {
+                throw new BusinessException(ErrorCode.GEOFENCE_OUT_OF_BOUNDS,
+                        "该线下订单已设定交接电子围栏，请先授权获取定位后再进行当面核销");
+            }
+            if (!GeofenceUtils.isValidCoordinate(verifierLat.doubleValue(), verifierLng.doubleValue())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "上报的核销定位坐标无效");
+            }
             int maxMeters = (allowedRadius != null && allowedRadius > 0)
                     ? allowedRadius
                     : (sysConfigService != null ? sysConfigService.getIntValue(SysConfigConstant.MEETUP_GEOFENCE_TOLERANCE_METERS, 150) : 150);
@@ -654,6 +666,9 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
                         String.format("超出约定交接地点有效范围：当前距「%s」约 %.0f 米，需进入 %d 米范围内当面核销",
                                 StringUtils.defaultIfBlank(spotName, "约定交接点"), dist, maxMeters));
             }
+        } else if (verifierLat != null && verifierLng != null
+                && !GeofenceUtils.isValidCoordinate(verifierLat.doubleValue(), verifierLng.doubleValue())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "上报的核销定位坐标无效");
         }
     }
 
@@ -733,6 +748,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         if (order.getSlotId() != null && serviceTimeSlotMapper != null) {
             serviceTimeSlotMapper.releaseSlot(order.getSlotId(), order.getQuantity() != null ? order.getQuantity() : 1);
         }
+        releaseGroupSessionSeatIfApplicable(order.getId());
 
         order.setOrderStatus(OrderConstant.ORDER_CANCELLED);
         this.updateById(order);
@@ -1101,6 +1117,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         if (order.getSlotId() != null && serviceTimeSlotMapper != null) {
             serviceTimeSlotMapper.releaseSlot(order.getSlotId(), order.getQuantity() != null ? order.getQuantity() : 1);
         }
+        releaseGroupSessionSeatIfApplicable(order.getId());
 
         order.setPaymentStatus(OrderConstant.PAYMENT_REFUNDED);
         order.setOrderStatus(OrderConstant.ORDER_FAILED);
@@ -1161,8 +1178,10 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         }
         BigDecimal sellerNet = amount.subtract(platformFee);
 
-        order.setPlatformFee(platformFee);
-        order.setSellerSettleAmount(sellerNet);
+        BigDecimal existingFee = order.getPlatformFee() != null ? order.getPlatformFee() : BigDecimal.ZERO;
+        BigDecimal existingSettle = order.getSellerSettleAmount() != null ? order.getSellerSettleAmount() : BigDecimal.ZERO;
+        order.setPlatformFee(existingFee.add(platformFee));
+        order.setSellerSettleAmount(existingSettle.add(sellerNet));
 
         BigDecimal buyerBalanceBefore = buyer.getWalletBalance();
         BigDecimal buyerFrozenBefore = buyer.getFrozenAmount();
@@ -1229,6 +1248,7 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
         if (order.getSlotId() != null && serviceTimeSlotMapper != null) {
             serviceTimeSlotMapper.releaseSlot(order.getSlotId(), order.getQuantity() != null ? order.getQuantity() : 1);
         }
+        releaseGroupSessionSeatIfApplicable(order.getId());
         order.setOrderStatus(OrderConstant.ORDER_CANCELLED);
         this.updateById(order);
 
@@ -1238,6 +1258,40 @@ public class ServiceOrderServiceImpl extends ServiceImpl<ServiceOrderMapper, Ser
 
         notificationService.sendOrderNotification(order.getBuyerId(), order.getId(), "订单自动取消通知",
                 String.format("订单 %s 因超过 %d 小时未支付，已被系统自动取消", order.getOrderNumber(), timeoutHours));
+    }
+
+    private void releaseGroupSessionSeatIfApplicable(Long orderId) {
+        if (groupSessionParticipantMapper == null || groupSessionMapper == null || orderId == null) {
+            return;
+        }
+        GroupSessionParticipant participant = groupSessionParticipantMapper.selectOne(
+                new LambdaQueryWrapper<GroupSessionParticipant>()
+                        .eq(GroupSessionParticipant::getOrderId, orderId)
+                        .eq(GroupSessionParticipant::getJoinStatus, 1)
+                        .last("LIMIT 1"));
+        if (participant == null) {
+            return;
+        }
+        participant.setJoinStatus(0);
+        participant.setUpdateTime(LocalDateTime.now());
+        groupSessionParticipantMapper.updateById(participant);
+
+        GroupSession session = groupSessionMapper.selectForUpdate(participant.getSessionId());
+        if (session == null) {
+            return;
+        }
+        int currentJoined = session.getJoinedCount() != null ? session.getJoinedCount() : 0;
+        int updatedJoined = Math.max(0, currentJoined - 1);
+        session.setJoinedCount(updatedJoined);
+        if (Objects.equals(session.getSessionStatus(), GroupSessionServiceImpl.STATUS_FULL)
+                || Objects.equals(session.getSessionStatus(), GroupSessionServiceImpl.STATUS_FORMED)) {
+            int minP = session.getMinParticipants() != null ? session.getMinParticipants() : 2;
+            session.setSessionStatus(updatedJoined >= minP
+                    ? GroupSessionServiceImpl.STATUS_FORMED
+                    : GroupSessionServiceImpl.STATUS_RECRUITING);
+        }
+        session.setUpdateTime(LocalDateTime.now());
+        groupSessionMapper.updateById(session);
     }
 
     private void processAutoConfirmReceipt(Long orderId, int timeoutDays) {

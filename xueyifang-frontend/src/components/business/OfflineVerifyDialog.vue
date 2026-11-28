@@ -178,6 +178,7 @@ import jsQR from 'jsqr'
 import { ElMessage } from 'element-plus'
 import { verifyOfflineCode, verifyOfflineQr } from '@/api/order'
 import { notifyFallbackError } from '@/api/request'
+import { wgs84ToGcj02 } from '@/utils/coordTransform'
 import type { OrderListItem } from '@/types/order'
 
 interface Props {
@@ -240,10 +241,7 @@ function acquireVerifierLocation(): Promise<{ lat: number; lng: number } | null>
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const coords = {
-          lat: Number(pos.coords.latitude.toFixed(6)),
-          lng: Number(pos.coords.longitude.toFixed(6))
-        }
+        const coords = wgs84ToGcj02(pos.coords.latitude, pos.coords.longitude)
         verifierCoords.value = coords
         locatingGps.value = false
         resolve(coords)

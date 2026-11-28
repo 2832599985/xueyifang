@@ -121,9 +121,12 @@ class RiskRadarServiceImplTest {
                 .setHandleStatus(0);
 
         when(riskAuditAlertMapper.selectById(900L)).thenReturn(pendingAlert);
+        when(riskAuditAlertMapper.update(isNull(), any())).thenReturn(1);
 
         User buyer = new User().setId(11L).setRealName("张同学").setStudentId("20230011").setCreditScore(100);
         User seller = new User().setId(22L).setRealName("李同学").setStudentId("20230022").setCreditScore(105);
+        when(userMapper.selectForUpdate(11L)).thenReturn(buyer);
+        when(userMapper.selectForUpdate(22L)).thenReturn(seller);
         when(userMapper.selectById(11L)).thenReturn(buyer);
         when(userMapper.selectById(22L)).thenReturn(seller);
 
@@ -151,7 +154,7 @@ class RiskRadarServiceImplTest {
 
         verify(creditScoreLogMapper, times(2)).insert(any(CreditScoreLog.class));
         verify(notificationMapper, times(2)).insert(any(Notification.class));
-        verify(riskAuditAlertMapper, times(1)).updateById(any(RiskAuditAlert.class));
+        verify(riskAuditAlertMapper, times(1)).update(isNull(), any());
     }
 
     @Test

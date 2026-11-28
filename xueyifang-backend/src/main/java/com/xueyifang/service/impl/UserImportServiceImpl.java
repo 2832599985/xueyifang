@@ -118,7 +118,6 @@ public class UserImportServiceImpl implements IUserImportService {
     };
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public UserImportResultVO importUsers(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件不能为空");
@@ -296,7 +295,7 @@ public class UserImportServiceImpl implements IUserImportService {
         for (int i = 0; i < headers.size(); i++) {
             Object header = headers.get(i);
             if (header != null) {
-                String headerStr = header.toString().trim();
+                String headerStr = header.toString().replace("\uFEFF", "").trim();
                 String fieldName = COLUMN_MAPPING.get(headerStr);
                 if (fieldName != null) {
                     mapping.put(i, fieldName);
@@ -459,11 +458,15 @@ public class UserImportServiceImpl implements IUserImportService {
         }
 
         // 设置默认值（管理员导入的用户直接拥有发布权限）
+        user.setCampusId(1L);
         user.setRole(UserConstant.ROLE_STUDENT);
         user.setPublishPermission(UserConstant.HAS_PUBLISH_PERMISSION);  // 管理员导入直接有发布权限
         user.setPermissionReviewStatus(UserConstant.PERMISSION_APPROVED); // 审核状态为已通过
         user.setWalletBalance(BigDecimal.ZERO);
         user.setFrozenAmount(BigDecimal.ZERO);
+        user.setSellerDeposit(BigDecimal.ZERO);
+        user.setCreditScore(100);
+        user.setEduVerified(0);
         user.setAccountStatus(UserConstant.ACCOUNT_NORMAL);
 
         return user;

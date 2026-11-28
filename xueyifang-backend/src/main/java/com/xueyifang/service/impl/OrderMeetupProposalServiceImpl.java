@@ -149,15 +149,27 @@ public class OrderMeetupProposalServiceImpl extends ServiceImpl<OrderMeetupPropo
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 
+        OrderMeetupProposal initialProposal = this.getById(proposalId);
+        if (initialProposal == null) {
+            throw new BusinessException(ErrorCode.MEETUP_PROPOSAL_INVALID);
+        }
+
+        // 先对订单加行锁，再在锁内重查提案状态，防止与新提案覆盖/并发响应形成 TOCTOU 竞态
+        ServiceOrder order = serviceOrderMapper.selectForUpdate(initialProposal.getOrderId());
+        if (order == null) {
+            throw new BusinessException(ErrorCode.ORDER_NOT_EXIST);
+        }
+        if (Objects.equals(order.getOrderStatus(), OrderConstant.ORDER_COMPLETED)
+                || Objects.equals(order.getOrderStatus(), OrderConstant.ORDER_CANCELLED)
+                || Objects.equals(order.getOrderStatus(), OrderConstant.ORDER_FAILED)) {
+            throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "已终结订单无法响应会面位置提案");
+        }
+
         OrderMeetupProposal proposal = this.getById(proposalId);
         if (proposal == null || !Objects.equals(proposal.getProposalStatus(), STATUS_PENDING)) {
             throw new BusinessException(ErrorCode.MEETUP_PROPOSAL_INVALID);
         }
 
-        ServiceOrder order = serviceOrderMapper.selectForUpdate(proposal.getOrderId());
-        if (order == null) {
-            throw new BusinessException(ErrorCode.ORDER_NOT_EXIST);
-        }
         boolean isParticipant = Objects.equals(currentUserId, order.getBuyerId())
                 || Objects.equals(currentUserId, order.getSellerId());
         if (!isParticipant || Objects.equals(currentUserId, proposal.getProposerId())) {

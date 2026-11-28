@@ -11,6 +11,16 @@ spring:
     password: ${REDIS_PASSWORD:}
     database: ${REDIS_DB:2}
 
+# 开发环境专属开关（生产与 Docker 环境默认全部关闭）
+xueyifang:
+  edu-verify:
+    dev-preview-enabled: ${EDU_VERIFY_DEV_PREVIEW:true}
+  security:
+    expose-docs-public: ${EXPOSE_DOCS_PUBLIC:true}
+
+payment:
+  sandbox-enabled: ${PAYMENT_SANDBOX_ENABLED:true}
+
 # MyBatis Plus日志
 mybatis-plus:
   configuration:

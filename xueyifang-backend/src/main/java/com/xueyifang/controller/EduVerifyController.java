@@ -46,6 +46,7 @@ public class EduVerifyController {
     }
 
     @PostMapping("/edu-verify/confirm")
+    @RateLimit(maxRequests = 10, windowSeconds = 300, limitType = RateLimit.LimitType.USER)
     @ApiOperation("提交校园教育邮箱6位验证码完成学籍实名认证")
     public BaseResponse<Void> confirmEduCode(@RequestBody EduVerifyConfirmRequest request) {
         Long userId = UserContext.getCurrentUserId();

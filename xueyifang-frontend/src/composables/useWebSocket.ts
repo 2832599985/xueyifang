@@ -125,6 +125,8 @@ export function useWebSocket() {
     const url = getWsUrl()
     if (!url) return
 
+    manualClose = false
+
     try {
       wsInstance = new WebSocket(url)
 

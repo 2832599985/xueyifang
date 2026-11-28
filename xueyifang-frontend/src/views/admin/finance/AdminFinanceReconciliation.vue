@@ -268,16 +268,24 @@ import {
   adminCompensateNoShowOrder,
   type FinancialOverviewData
 } from '@/api/finance'
+import { notifyFallbackError } from '@/api/request'
 import XyfPageHeader from '@/components/ui/XyfPageHeader.vue'
 import XyfStatTile from '@/components/ui/XyfStatTile.vue'
 import XyfStatusBadge from '@/components/ui/XyfStatusBadge.vue'
+
+function formatLocalDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
 
 const loading = ref(false)
 const reconciling = ref(false)
 const exporting = ref(false)
 const scanningNoShow = ref(false)
 const activeTab = ref<'reports' | 'noshow'>('reports')
-const selectedDate = ref(new Date().toISOString().slice(0, 10))
+const selectedDate = ref(formatLocalDate(new Date()))
 const chartRef = ref<HTMLDivElement | null>(null)
 let chartInstance: ReturnType<typeof echarts.init> | null = null
 
@@ -369,6 +377,8 @@ const fetchOverview = async () => {
     Object.assign(overview, data)
     await nextTick()
     renderCashflowChart()
+  } catch (err) {
+    notifyFallbackError(err, '加载财务对账概览失败')
   } finally {
     loading.value = false
   }
@@ -380,6 +390,8 @@ const handleReconcile = async () => {
     const rep = await reconcileDailyFinance(selectedDate.value)
     ElMessage.success(`账期 ${rep.reportDate} 自动对账完成（批次号：${rep.reportNo}）`)
     await fetchOverview()
+  } catch (err) {
+    notifyFallbackError(err, '生成日终对账单失败')
   } finally {
     reconciling.value = false
   }
@@ -399,6 +411,8 @@ const handleExportCsv = async () => {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     ElMessage.success('财务日终对账与分账/爽约赔付 CSV 报表已导出下载')
+  } catch (err) {
+    notifyFallbackError(err, '导出财务 CSV 报表失败')
   } finally {
     exporting.value = false
   }
@@ -410,6 +424,8 @@ const handleScanNoShow = async () => {
     const count = await scanOverdueNoShowOrders()
     ElMessage.success(`逾期预约订单巡检完成，本次自动执行爽约退赔 ${count} 笔`)
     await fetchOverview()
+  } catch (err) {
+    notifyFallbackError(err, '扫描逾期爽约订单失败')
   } finally {
     scanningNoShow.value = false
   }
@@ -427,6 +443,8 @@ const handleManualCompensate = async () => {
     manualDialogVisible.value = false
     activeTab.value = 'noshow'
     await fetchOverview()
+  } catch (err) {
+    notifyFallbackError(err, '执行手动爽约退赔失败')
   } finally {
     manualSubmitting.value = false
   }

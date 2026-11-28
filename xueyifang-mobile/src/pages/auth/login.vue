@@ -2,17 +2,17 @@
   <view class="login-wrap">
     <view class="xyf-card">
       <text class="brand">学艺坊 · 校园版</text>
-      <text class="sub">输入在校学号登录（测试卖家：20240002 / 买家：20240003，密码：password123）</text>
+      <text class="sub">请使用在校实名学号与密码登录</text>
 
       <input v-model="studentId" class="inp" placeholder="请输入学号" />
       <input v-model="password" class="inp" password placeholder="请输入密码" />
 
       <view class="xyf-btn-primary" style="margin-top: 24rpx" @tap="submitLogin">
-        登录进入校园大厅
+        {{ submitting ? '登录中...' : '登录进入校园大厅' }}
       </view>
 
-      <view class="api-cfg">
-        <text class="cfg-lbl">真机联调后端地址（Android / 微信真机请填局域网 IP 或 HTTPS 域名）：</text>
+      <view v-if="isDev" class="api-cfg">
+        <text class="cfg-lbl">开发联调后端地址（仅开发环境可见）：</text>
         <input v-model="apiBase" class="inp small" placeholder="http://192.168.x.x:8080/api" @blur="saveApiBase" />
       </view>
     </view>
@@ -25,27 +25,41 @@ import { mobileApi } from '@/api'
 import { getApiBaseUrl } from '@/utils/request'
 import { useMobileUserStore } from '@/stores/user'
 
+const isDev = import.meta.env.DEV
 const userStore = useMobileUserStore()
-const studentId = ref('20240003')
-const password = ref('password123')
+const studentId = ref('')
+const password = ref('')
+const submitting = ref(false)
 const apiBase = ref(getApiBaseUrl())
 
 function saveApiBase() {
-  if (apiBase.value.trim()) {
+  if (isDev && apiBase.value.trim()) {
     uni.setStorageSync('XYF_API_BASE_URL', apiBase.value.trim())
   }
 }
 
 async function submitLogin() {
+  if (submitting.value) return
+  if (!studentId.value.trim() || !password.value) {
+    uni.showToast({ title: '请输入学号和密码', icon: 'none' })
+    return
+  }
   saveApiBase()
-  const res: any = await mobileApi.login(studentId.value.trim(), password.value)
-  const token = res.token
-  const user = res.userInfo || res
-  userStore.setSession(token, user)
-  uni.showToast({ title: '登录成功', icon: 'success' })
-  setTimeout(() => {
-    uni.switchTab({ url: '/pages/index/index' })
-  }, 300)
+  submitting.value = true
+  try {
+    const res: any = await mobileApi.login(studentId.value.trim(), password.value)
+    const token = res.token
+    const user = res.userInfo || res
+    userStore.setSession(token, user)
+    uni.showToast({ title: '登录成功', icon: 'success' })
+    setTimeout(() => {
+      uni.switchTab({ url: '/pages/index/index' })
+    }, 300)
+  } catch {
+    // error toast already displayed by httpRequest
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 

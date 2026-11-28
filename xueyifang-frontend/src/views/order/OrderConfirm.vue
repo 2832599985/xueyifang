@@ -116,7 +116,44 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="期望履约或会面时段（选填，点击快捷填入）">
+                <el-form-item
+                  v-if="requireSlot"
+                  label="预约服务档期（必选，由卖家开放的可约时段）"
+                  required
+                >
+                  <div v-if="availableSlots.length" class="booking-slot-grid">
+                    <button
+                      v-for="slot in availableSlots"
+                      :key="slot.id"
+                      type="button"
+                      class="booking-slot-card xyf-tabular"
+                      :class="{
+                        'is-active': form.slotId === slot.id,
+                        'is-full': slot.remainingCapacity <= 0 || slot.status !== 1
+                      }"
+                      :disabled="slot.remainingCapacity <= 0 || slot.status !== 1"
+                      @click="form.slotId = slot.id"
+                    >
+                      <strong>{{ formatDateTimeMinute(slot.slotStart) }} ~ {{ formatDateTimeMinute(slot.slotEnd).slice(11) }}</strong>
+                      <span>
+                        {{
+                          slot.remainingCapacity > 0 && slot.status === 1
+                            ? `剩余 ${slot.remainingCapacity} 个名额`
+                            : '已约满'
+                        }}
+                      </span>
+                    </button>
+                  </div>
+                  <el-alert
+                    v-else
+                    title="该服务暂未开放可预约档期，请联系卖家新增可约时段后再下单"
+                    type="warning"
+                    show-icon
+                    :closable="false"
+                  />
+                </el-form-item>
+
+                <el-form-item v-else label="期望履约或会面时段（选填，点击快捷填入）">
                   <div class="slot-chips">
                     <button
                       v-for="slot in campusTimeSlots"
@@ -191,7 +228,7 @@
                   type="primary"
                   size="large"
                   class="pay-btn"
-                  :disabled="isOwnService || isSoldOut"
+                  :disabled="isOwnService || isSoldOut || (requireSlot && !form.slotId)"
                   :loading="submittingPay"
                   @click="handleSubmitOrder(true)"
                 >
@@ -201,7 +238,7 @@
                 <el-button
                   size="large"
                   class="defer-btn"
-                  :disabled="isOwnService || isSoldOut"
+                  :disabled="isOwnService || isSoldOut || (requireSlot && !form.slotId)"
                   :loading="submittingCreate"
                   @click="handleSubmitOrder(false)"
                 >
@@ -253,7 +290,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -263,7 +300,7 @@ import { createOrder, payOrder, createEscrowPrepay, triggerSandboxEscrowWebhook 
 import CampusMapPicker, { type MapLocationValue } from '@/components/business/CampusMapPicker.vue'
 import { getWalletInfo, rechargeWallet } from '@/api/wallet'
 import { notifyFallbackError } from '@/api/request'
-import { formatPrice } from '@/utils/format'
+import { formatPrice, formatDateTimeMinute } from '@/utils/format'
 import { TradeType, PaymentMethod } from '@/types/order'
 import type { ServiceDetail } from '@/types/service'
 import type { WalletInfo } from '@/types/wallet'
@@ -321,8 +358,12 @@ const form = reactive({
   quantity: 1,
   tradeType: TradeType.ONLINE,
   tradeLocationId: undefined as number | undefined,
+  slotId: undefined as number | undefined,
   remark: ''
 })
+
+const requireSlot = computed(() => service.value?.requireSlot === 1)
+const availableSlots = computed(() => service.value?.availableSlots || [])
 
 const isOwnService = computed(() =>
   Boolean(userStore.userInfo?.id && service.value?.sellerId === userStore.userInfo.id)
@@ -371,6 +412,10 @@ async function confirmQuickRecharge() {
 
 async function handleSubmitOrder(payImmediately: boolean) {
   if (!service.value) return
+  if (requireSlot.value && !form.slotId) {
+    ElMessage.warning('请选择有效的预约服务档期')
+    return
+  }
   if (form.tradeType === TradeType.OFFLINE && !mapLocation.value.poiName && !form.tradeLocationId) {
     ElMessage.warning('请在校园地图上选择会面地点')
     return
@@ -384,6 +429,7 @@ async function handleSubmitOrder(payImmediately: boolean) {
       serviceId: service.value.id,
       quantity: form.quantity,
       tradeType: form.tradeType,
+      slotId: requireSlot.value ? form.slotId : undefined,
       tradeLocationId: form.tradeType === TradeType.OFFLINE ? form.tradeLocationId : undefined,
       meetupLat: form.tradeType === TradeType.OFFLINE ? mapLocation.value.latitude : undefined,
       meetupLng: form.tradeType === TradeType.OFFLINE ? mapLocation.value.longitude : undefined,
@@ -423,9 +469,10 @@ async function handleSubmitOrder(payImmediately: boolean) {
   }
 }
 
-onMounted(async () => {
+async function loadPageData() {
   if (!serviceId.value || Number.isNaN(serviceId.value)) {
     loading.value = false
+    service.value = null
     return
   }
 
@@ -440,12 +487,24 @@ onMounted(async () => {
     wallet.value = w
     form.tradeType = svc.tradeType === TradeType.OFFLINE ? TradeType.OFFLINE : TradeType.ONLINE
     form.tradeLocationId = svc.tradeLocationId || dictStore.tradeLocations?.[0]?.id
+    const firstOpenSlot = svc.availableSlots?.find((s) => s.status === 1 && s.remainingCapacity > 0)
+    form.slotId = svc.requireSlot === 1 ? firstOpenSlot?.id : undefined
   } catch (err) {
     notifyFallbackError(err, '加载订单确认页失败')
     service.value = null
   } finally {
     loading.value = false
   }
+}
+
+watch(serviceId, (newId, oldId) => {
+  if (newId && !Number.isNaN(newId) && newId !== oldId) {
+    loadPageData()
+  }
+})
+
+onMounted(() => {
+  loadPageData()
 })
 </script>
 
@@ -646,6 +705,60 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.booking-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.booking-slot-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--xyf-border);
+  background: #ffffff;
+  color: var(--xyf-ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--xyf-transition);
+
+  strong {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--xyf-ink-muted);
+  }
+
+  &:hover:not(:disabled) {
+    border-color: #18181b;
+  }
+
+  &.is-active {
+    background: #18181b;
+    border-color: #18181b;
+    color: #ffffff;
+
+    span {
+      color: rgba(255, 255, 255, 0.78);
+    }
+  }
+
+  &.is-full,
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--xyf-bg);
+  }
 }
 
 .slot-chip {

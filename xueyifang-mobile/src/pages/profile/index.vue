@@ -104,8 +104,14 @@ function goLogin() {
   uni.navigateTo({ url: '/pages/auth/login' })
 }
 
-function handleLogout() {
-  userStore.clearSession()
+async function handleLogout() {
+  try {
+    await mobileApi.logout()
+  } catch {
+    // ignore logout network errors and clear local session anyway
+  } finally {
+    userStore.clearSession()
+  }
 }
 
 onShow(syncProfile)
@@ -148,8 +154,9 @@ onShow(syncProfile)
     color: #a1a1aa;
   }
   .credit-pill {
-    background: #18181b;
-    color: #09090b;
+    background: rgba(229, 199, 158, 0.18);
+    border: 1rpx solid rgba(229, 199, 158, 0.45);
+    color: #e5c79e;
     padding: 8rpx 20rpx;
     border-radius: 999rpx;
     font-size: 24rpx;

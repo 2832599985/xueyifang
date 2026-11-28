@@ -110,7 +110,7 @@ public class FileController {
     }
 
     /**
-     * 删除文件
+     * 删除文件（严格校验资源归属权与相对路径合法性，禁止跨用户删文件与路径穿越）
      */
     @DeleteMapping("/delete")
     @Operation(summary = "删除文件")
@@ -122,9 +122,29 @@ public class FileController {
         if (userId == null) {
             throw new BusinessException(ErrorCode.USER_NOT_LOGIN);
         }
+        if (url == null || url.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件URL不能为空");
+        }
 
-        // 删除文件
-        boolean result = fileService.deleteFile(url);
+        String relativeKey = fileUrlResolver.toRelativeKey(url);
+        if (relativeKey == null || relativeKey.isEmpty()
+                || relativeKey.contains("..")
+                || relativeKey.contains("\\")
+                || relativeKey.contains("://")
+                || relativeKey.indexOf('\0') >= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "非法的文件路径");
+        }
+
+        // 文件存储结构固定为 {biz}/{userId}/{yyyyMM}/{uuid}.{ext}，仅允许本人或管理员删除
+        if (!UserContext.isAdmin()) {
+            String[] segments = relativeKey.split("/");
+            if (segments.length < 3 || !String.valueOf(userId).equals(segments[1])) {
+                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权删除他人上传的文件");
+            }
+        }
+
+        // 删除文件（统一传递安全校验后的相对路径或受控公网 URL）
+        boolean result = fileService.deleteFile(fileUrlResolver.toPublicUrl(relativeKey));
         return ResultUtils.success(result);
     }
 
@@ -140,10 +160,32 @@ public class FileController {
         String prefix = contextPath + "/file/view/";
         String relativePath = requestURI.startsWith(prefix) ? requestURI.substring(prefix.length()) : "";
 
-        // 若启用了远程 S3/OSS 对象存储，自动 302 重定向到远程对象存储公网 URL，兼容旧相对路径访问
+        if (relativePath.isEmpty()
+                || relativePath.contains("..")
+                || relativePath.contains("\\")
+                || relativePath.contains("://")
+                || relativePath.startsWith("/")
+                || relativePath.contains("\r")
+                || relativePath.contains("\n")
+                || relativePath.indexOf('\0') >= 0) {
+            log.warn("非法文件预览路径: {}", relativePath);
+            try {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "非法的文件路径");
+            } catch (IOException e) {
+                log.error("发送错误响应失败", e);
+            }
+            return;
+        }
+
+        // 若启用了远程 S3/OSS 对象存储，仅允许重定向到配置的对象存储前缀内（严防开放重定向）
         if (!"local".equalsIgnoreCase(properties.getType())) {
             try {
                 String remoteUrl = fileUrlResolver.toPublicUrl(relativePath);
+                if (remoteUrl == null || !isTrustedRemoteStorageUrl(remoteUrl)) {
+                    log.warn("拦截非受信任的远程对象存储重定向: {}", remoteUrl);
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "非法的对象存储地址");
+                    return;
+                }
                 response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
                 response.sendRedirect(remoteUrl);
             } catch (IOException e) {
@@ -153,16 +195,17 @@ public class FileController {
         }
 
         try {
-
             // 2. 解析本地文件路径
             String uploadPath = properties.getLocal().getUploadPath();
             File baseDir = resolveBasePath(uploadPath);
             File targetFile = new File(baseDir, relativePath);
 
-            // 3. 安全检查：防止路径遍历攻击
+            // 3. 安全检查：严格目录边界校验，防止路径遍历与同前缀兄弟目录逃逸
             String canonicalBasePath = baseDir.getCanonicalPath();
             String canonicalFilePath = targetFile.getCanonicalPath();
-            if (!canonicalFilePath.startsWith(canonicalBasePath)) {
+            String baseBoundary = canonicalBasePath.endsWith(File.separator)
+                    ? canonicalBasePath : canonicalBasePath + File.separator;
+            if (!canonicalFilePath.startsWith(baseBoundary)) {
                 log.warn("非法文件访问尝试: {}", relativePath);
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "无权访问该文件");
                 return;
@@ -204,6 +247,39 @@ public class FileController {
                 log.error("发送错误响应失败", ex);
             }
         }
+    }
+
+    /**
+     * 校验远程对象存储重定向目标必须位于已配置的 OSS/CDN 前缀下，防止开放重定向漏洞
+     */
+    private boolean isTrustedRemoteStorageUrl(String remoteUrl) {
+        if (remoteUrl == null || remoteUrl.contains("\r") || remoteUrl.contains("\n")) {
+            return false;
+        }
+        FileStorageProperties.OssStorageConfig oss = properties.getOss();
+        if (oss == null) {
+            return false;
+        }
+        String urlPrefix = oss.getUrlPrefix();
+        if (urlPrefix != null && !urlPrefix.trim().isEmpty()) {
+            String normalized = urlPrefix.trim().endsWith("/") ? urlPrefix.trim() : urlPrefix.trim() + "/";
+            if (remoteUrl.startsWith(normalized)) {
+                return true;
+            }
+        }
+        String endpoint = oss.getEndpoint();
+        String bucket = oss.getBucketName();
+        if (endpoint != null && !endpoint.trim().isEmpty() && bucket != null && !bucket.trim().isEmpty()) {
+            String ep = endpoint.trim().replaceAll("/+$", "");
+            if (!ep.startsWith("http://") && !ep.startsWith("https://")) {
+                ep = "https://" + ep;
+            }
+            String pathStyle = ep + "/" + bucket.trim() + "/";
+            if (remoteUrl.startsWith(pathStyle)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -43,6 +45,17 @@ public class BleVerifyServiceImpl extends ServiceImpl<BleVerifyRecordMapper, Ble
     private static final String REDIS_BLE_SESSION_PREFIX = "order:ble:sess:";
     private static final int SESSION_TTL_SECONDS = 90;
     private static final int DEFAULT_MIN_RSSI_DBM = -78;
+    private static final DefaultRedisScript<Long> COMPARE_AND_DELETE_SCRIPT;
+
+    static {
+        COMPARE_AND_DELETE_SCRIPT = new DefaultRedisScript<>();
+        COMPARE_AND_DELETE_SCRIPT.setScriptText(
+                "if redis.call('get', KEYS[1]) == ARGV[1] then " +
+                "return redis.call('del', KEYS[1]) " +
+                "else return 0 end"
+        );
+        COMPARE_AND_DELETE_SCRIPT.setResultType(Long.class);
+    }
 
     @Value("${jwt.secret:xueyifang-dev-jwt-secret-change-in-production}")
     private String verifyMasterSecret;
@@ -166,8 +179,9 @@ public class BleVerifyServiceImpl extends ServiceImpl<BleVerifyRecordMapper, Ble
                             request.getRssiDbm(), minRssi));
         }
 
-        // 2. 校验 Redis 一次性挑战会话并立即销毁防重放
+        // 2. 校验 Redis 一次性挑战会话（仅先读取校验，所有签名与地理围栏校验通过后再原子销毁，防止无效请求消耗会话及并发重放）
         String redisKey = REDIS_BLE_SESSION_PREFIX + orderId;
+        String expectedCached = null;
         if (stringRedisTemplate != null) {
             String cached = stringRedisTemplate.opsForValue().get(redisKey);
             if (StringUtils.isBlank(cached)) {
@@ -177,7 +191,7 @@ public class BleVerifyServiceImpl extends ServiceImpl<BleVerifyRecordMapper, Ble
             if (parts.length != 3 || !parts[0].equals(request.getSessionId()) || !parts[2].equals(request.getBuyerNonce())) {
                 throw new BusinessException(ErrorCode.BLE_VERIFY_FAILED, "蓝牙挑战随机数不匹配，疑似重放请求");
             }
-            stringRedisTemplate.delete(redisKey);
+            expectedCached = cached;
         }
 
         // 3. 恒定时间验证买方设备签名 + 卖方设备签名（确保双方真实客户端均参与了近场 Nonce 交换）
@@ -195,10 +209,13 @@ public class BleVerifyServiceImpl extends ServiceImpl<BleVerifyRecordMapper, Ble
             throw new BusinessException(ErrorCode.BLE_VERIFY_FAILED, "双端加密挑战签名校验未通过，严禁伪造碰面数据");
         }
 
-        // 4. 联合校验实时 GPS 与约定会面坐标物理误差（若订单已锁定地图坐标且设备上报了定位）
+        // 4. 联合校验实时 GPS 与约定会面坐标物理误差（订单已锁定会面坐标时强制要求上传定位，禁止缺省绕过）
         BigDecimal distMeters = null;
-        if (order.getMeetupLat() != null && order.getMeetupLng() != null
-                && request.getSellerLat() != null && request.getSellerLng() != null) {
+        if (order.getMeetupLat() != null && order.getMeetupLng() != null) {
+            if (request.getSellerLat() == null || request.getSellerLng() == null) {
+                throw new BusinessException(ErrorCode.GEOFENCE_OUT_OF_BOUNDS,
+                        "该订单已锁定校园会面坐标，请开启定位权限并在约定地点附近完成蓝牙近场核销");
+            }
             double d = GeofenceUtils.distanceMeters(
                     order.getMeetupLat().doubleValue(), order.getMeetupLng().doubleValue(),
                     request.getSellerLat().doubleValue(), request.getSellerLng().doubleValue()
@@ -211,6 +228,18 @@ public class BleVerifyServiceImpl extends ServiceImpl<BleVerifyRecordMapper, Ble
                 throw new BusinessException(ErrorCode.GEOFENCE_OUT_OF_BOUNDS,
                         String.format("蓝牙碰面位置偏离约定点「%s」%.0f 米（要求 %d 米内），请前往约定点或先在订单内改约位置",
                                 StringUtils.defaultIfBlank(order.getMeetupPoiName(), "约定交接点"), d, allowedRadius));
+            }
+        }
+
+        // 4.5 全部校验通过后，Lua 原子校验并销毁 Redis 挑战会话，杜绝并发重放
+        if (stringRedisTemplate != null && expectedCached != null) {
+            Long deleted = stringRedisTemplate.execute(
+                    COMPARE_AND_DELETE_SCRIPT,
+                    Collections.singletonList(redisKey),
+                    expectedCached
+            );
+            if (deleted == null || deleted <= 0L) {
+                throw new BusinessException(ErrorCode.BLE_VERIFY_FAILED, "蓝牙挑战会话已过期或已被使用，请重新开启近场感应");
             }
         }
 

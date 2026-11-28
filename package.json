@@ -1,0 +1,27 @@
+{
+  "name": "xueyifang-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "学艺坊 · 校园技能服务与担保交易平台",
+  "workspaces": [
+    "xueyifang-frontend"
+  ],
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "npm run build --workspace=xueyifang-frontend",
+    "start": "node server.ts",
+    "lint": "npm exec --workspace=xueyifang-frontend -- vue-tsc --noEmit",
+    "test": "tsx --test server/mockApi.test.ts"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2"
+  }
+}

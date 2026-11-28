@@ -3,6 +3,7 @@ package com.xueyifang.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.xueyifang.common.ErrorCode;
+import com.xueyifang.constant.CacheConstant;
 import com.xueyifang.constant.OrderConstant;
 import com.xueyifang.constant.WalletConstant;
 import com.xueyifang.domain.po.AppointmentNoshowClaim;
@@ -24,13 +25,18 @@ import com.xueyifang.mapper.FinancialReconciliationDailyMapper;
 import com.xueyifang.mapper.NotificationMapper;
 import com.xueyifang.mapper.PlatformRevenueLedgerMapper;
 import com.xueyifang.mapper.SellerDepositLedgerMapper;
+import com.xueyifang.mapper.ServiceMapper;
 import com.xueyifang.mapper.ServiceOrderMapper;
+import com.xueyifang.mapper.ServiceTimeSlotMapper;
 import com.xueyifang.mapper.UserMapper;
 import com.xueyifang.mapper.WalletTransactionMapper;
 import com.xueyifang.service.IFinancialReconciliationService;
+import com.xueyifang.utils.RedisUtils;
+import com.xueyifang.utils.TransactionUtils;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
@@ -80,9 +86,23 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
     @Resource
     private EscrowPaymentOrderMapper escrowPaymentOrderMapper;
 
+    @Resource
+    private ServiceMapper serviceMapper;
+
+    @Resource
+    private ServiceTimeSlotMapper serviceTimeSlotMapper;
+
+    @Resource
+    private RedisUtils redisUtils;
+
+    @Resource
+    private TransactionTemplate transactionTemplate;
+
     @Override
     public FinancialOverviewVO getFinancialOverview() {
-        List<PlatformRevenueLedger> revenueList = platformRevenueLedgerMapper.selectList(new LambdaQueryWrapper<>());
+        List<PlatformRevenueLedger> revenueList = platformRevenueLedgerMapper.selectList(
+                new LambdaQueryWrapper<PlatformRevenueLedger>()
+                        .select(PlatformRevenueLedger::getCommissionAmount, PlatformRevenueLedger::getSellerNetAmount));
         if (revenueList == null) {
             revenueList = Collections.emptyList();
         }
@@ -100,11 +120,14 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
         // 计算全平台在途托管冻结资金池
         BigDecimal activeEscrowPool = computeCurrentEscrowFrozenPool();
 
-        // 计算全平台创作者保证金在池总额
-        List<User> allUsers = userMapper.selectList(new LambdaQueryWrapper<User>().eq(User::getIsDelete, 0));
+        // 计算全平台创作者保证金在池总额（仅查询非零保证金且投影单列，降低内存开销）
+        List<User> depositUsers = userMapper.selectList(new LambdaQueryWrapper<User>()
+                .select(User::getSellerDeposit)
+                .eq(User::getIsDelete, 0)
+                .gt(User::getSellerDeposit, BigDecimal.ZERO));
         BigDecimal depositPool = BigDecimal.ZERO;
-        if (allUsers != null) {
-            for (User u : allUsers) {
+        if (depositUsers != null) {
+            for (User u : depositUsers) {
                 if (u.getSellerDeposit() != null && u.getSellerDeposit().compareTo(BigDecimal.ZERO) > 0) {
                     depositPool = depositPool.add(u.getSellerDeposit());
                 }
@@ -113,7 +136,9 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
 
         // 统计预约爽约自动赔付
         List<AppointmentNoshowClaim> allClaims = noshowClaimMapper.selectList(
-                new LambdaQueryWrapper<AppointmentNoshowClaim>().orderByDesc(AppointmentNoshowClaim::getCreateTime));
+                new LambdaQueryWrapper<AppointmentNoshowClaim>()
+                        .orderByDesc(AppointmentNoshowClaim::getCreateTime)
+                        .last("LIMIT 500"));
         if (allClaims == null) {
             allClaims = Collections.emptyList();
         }
@@ -162,10 +187,11 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
         LocalDateTime startOfDay = LocalDateTime.of(date, LocalTime.MIN);
         LocalDateTime endOfDay = LocalDateTime.of(date, LocalTime.MAX);
 
-        // 1. 查询当日支付订单流入
+        // 1. 查询当日支付订单流入（包含当日支付后又当日退款的订单，避免日终流入口径漏算）
         LambdaQueryWrapper<ServiceOrder> paidQuery = new LambdaQueryWrapper<>();
-        paidQuery.eq(ServiceOrder::getIsDelete, 0)
-                .eq(ServiceOrder::getPaymentStatus, OrderConstant.PAYMENT_PAID)
+        paidQuery.select(ServiceOrder::getId, ServiceOrder::getTotalAmount)
+                .eq(ServiceOrder::getIsDelete, 0)
+                .in(ServiceOrder::getPaymentStatus, OrderConstant.PAYMENT_PAID, OrderConstant.PAYMENT_REFUNDED)
                 .ge(ServiceOrder::getPaymentTime, startOfDay)
                 .le(ServiceOrder::getPaymentTime, endOfDay);
         List<ServiceOrder> paidOrders = serviceOrderMapper.selectList(paidQuery);
@@ -182,7 +208,9 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
 
         // 2. 查询当日完结结算订单并执行总分勾稽审计 (totalAmount == sellerSettleAmount + platformFee)
         LambdaQueryWrapper<ServiceOrder> completedQuery = new LambdaQueryWrapper<>();
-        completedQuery.eq(ServiceOrder::getIsDelete, 0)
+        completedQuery.select(ServiceOrder::getId, ServiceOrder::getTotalAmount,
+                        ServiceOrder::getPlatformFee, ServiceOrder::getSellerSettleAmount)
+                .eq(ServiceOrder::getIsDelete, 0)
                 .eq(ServiceOrder::getOrderStatus, OrderConstant.ORDER_COMPLETED)
                 .ge(ServiceOrder::getBuyerConfirmTime, startOfDay)
                 .le(ServiceOrder::getBuyerConfirmTime, endOfDay);
@@ -211,10 +239,13 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
             }
         }
 
-        // 3. 查询当日退款订单流出
+        // 3. 查询当日已完结退款订单流出（严格限定已退款关闭状态，降低非退款变更引起的跨日重复统计风险）
         LambdaQueryWrapper<ServiceOrder> refundQuery = new LambdaQueryWrapper<>();
-        refundQuery.eq(ServiceOrder::getIsDelete, 0)
-                .in(ServiceOrder::getRefundStatus, OrderConstant.REFUND_APPROVED, OrderConstant.REFUND_COMPLETED)
+        refundQuery.select(ServiceOrder::getId, ServiceOrder::getTotalAmount)
+                .eq(ServiceOrder::getIsDelete, 0)
+                .eq(ServiceOrder::getOrderStatus, OrderConstant.ORDER_FAILED)
+                .eq(ServiceOrder::getPaymentStatus, OrderConstant.PAYMENT_REFUNDED)
+                .eq(ServiceOrder::getRefundStatus, OrderConstant.REFUND_COMPLETED)
                 .ge(ServiceOrder::getUpdateTime, startOfDay)
                 .le(ServiceOrder::getUpdateTime, endOfDay);
         List<ServiceOrder> refundedOrders = serviceOrderMapper.selectList(refundQuery);
@@ -293,7 +324,8 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
 
     private BigDecimal computeCurrentEscrowFrozenPool() {
         LambdaQueryWrapper<ServiceOrder> activeQuery = new LambdaQueryWrapper<>();
-        activeQuery.eq(ServiceOrder::getIsDelete, 0)
+        activeQuery.select(ServiceOrder::getFrozenAmount, ServiceOrder::getTotalAmount)
+                .eq(ServiceOrder::getIsDelete, 0)
                 .eq(ServiceOrder::getPaymentStatus, OrderConstant.PAYMENT_PAID)
                 .in(ServiceOrder::getOrderStatus, OrderConstant.ORDER_PENDING_SHIP, OrderConstant.ORDER_PENDING_RECEIPT);
         List<ServiceOrder> activeOrders = serviceOrderMapper.selectList(activeQuery);
@@ -410,6 +442,14 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
             return "";
         }
         String cleaned = val.replace("\"", "\"\"").replace("\n", " ").replace("\r", " ");
+        // 防止 Excel / WPS CSV 公式注入（前导 = + - @ 或制表符）
+        String trimmedLead = cleaned.replaceFirst("^\\s+", "");
+        if (!trimmedLead.isEmpty()) {
+            char first = trimmedLead.charAt(0);
+            if (first == '=' || first == '+' || first == '-' || first == '@' || cleaned.startsWith("\t")) {
+                cleaned = "'" + cleaned;
+            }
+        }
         return "\"" + cleaned + "\"";
     }
 
@@ -430,12 +470,17 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
             return existing;
         }
 
+        if (order.getScheduledEnd() == null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "该订单未约定履约截止时间，不适用预约爽约自动赔付");
+        }
+        if (order.getScheduledEnd().isAfter(LocalDateTime.now())) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "预约时段尚未结束，无法触发爽约自动赔付");
+        }
         if (!Integer.valueOf(OrderConstant.PAYMENT_PAID).equals(order.getPaymentStatus())) {
             throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "未支付或已退款订单不适用预约爽约赔付");
         }
-        if (!Integer.valueOf(OrderConstant.ORDER_PENDING_SHIP).equals(order.getOrderStatus())
-                && !Integer.valueOf(OrderConstant.ORDER_PENDING_RECEIPT).equals(order.getOrderStatus())) {
-            throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "当前订单状态不支持预约爽约赔付");
+        if (!Integer.valueOf(OrderConstant.ORDER_PENDING_SHIP).equals(order.getOrderStatus())) {
+            throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "仅未交付的待履约预约订单适用爽约自动赔付");
         }
 
         Long firstUserId = Math.min(order.getBuyerId(), order.getSellerId());
@@ -556,7 +601,15 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
                 .setCreateTime(LocalDateTime.now());
         creditScoreLogMapper.insert(creditLog);
 
-        // 4. 更新订单状态为交易失败退款并清零冻结
+        // 4. 归还服务库存与预约档期名额，并更新订单状态为交易失败退款并清零冻结
+        int qty = order.getQuantity() != null && order.getQuantity() > 0 ? order.getQuantity() : 1;
+        if (serviceMapper != null && order.getServiceId() != null) {
+            serviceMapper.decrementPurchaseCount(order.getServiceId(), qty);
+        }
+        if (serviceTimeSlotMapper != null && order.getSlotId() != null) {
+            serviceTimeSlotMapper.releaseSlot(order.getSlotId(), qty);
+        }
+
         order.setOrderStatus(OrderConstant.ORDER_FAILED)
                 .setPaymentStatus(OrderConstant.PAYMENT_REFUNDED)
                 .setRefundStatus(OrderConstant.REFUND_COMPLETED)
@@ -564,6 +617,19 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
                 .setRefundReason("卖方预约逾期爽约，系统已执行自动退本赔付（保证金划扣 ¥" + actualCompensation + "）")
                 .setUpdateTime(LocalDateTime.now());
         serviceOrderMapper.updateById(order);
+
+        if (redisUtils != null) {
+            Long buyerIdForCache = buyer.getId();
+            Long sellerIdForCache = seller.getId();
+            Long serviceIdForCache = order.getServiceId();
+            TransactionUtils.afterCommit(() -> {
+                redisUtils.deleteUserCache(buyerIdForCache);
+                redisUtils.deleteUserCache(sellerIdForCache);
+                if (serviceIdForCache != null) {
+                    redisUtils.delete(CacheConstant.SERVICE_DETAIL_PREFIX + serviceIdForCache);
+                }
+            });
+        }
 
         // 5. 写入爽约自动赔付存证表
         String claimNo = "NSH" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
@@ -606,7 +672,6 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
 
     @Override
     @Scheduled(cron = "0 */15 * * * ?")
-    @Transactional(rollbackFor = Exception.class)
     public int scanAndCompensateOverdueNoShowOrders() {
         LocalDateTime overdueThreshold = LocalDateTime.now().minusMinutes(30);
         LambdaQueryWrapper<ServiceOrder> query = new LambdaQueryWrapper<>();
@@ -624,11 +689,22 @@ public class FinancialReconciliationServiceImpl implements IFinancialReconciliat
         int count = 0;
         for (ServiceOrder order : overdueOrders) {
             try {
-                processSellerNoShowCompensation(0L, order.getId(),
-                        "定时巡检发现预约结束时间已逾期超过 30 分钟仍未签到/交付，触发自动爽约退赔");
-                count++;
+                if (transactionTemplate != null) {
+                    Boolean ok = transactionTemplate.execute(status -> {
+                        processSellerNoShowCompensation(0L, order.getId(),
+                                "定时巡检发现预约结束时间已逾期超过 30 分钟仍未签到/交付，触发自动爽约退赔");
+                        return Boolean.TRUE;
+                    });
+                    if (Boolean.TRUE.equals(ok)) {
+                        count++;
+                    }
+                } else {
+                    processSellerNoShowCompensation(0L, order.getId(),
+                            "定时巡检发现预约结束时间已逾期超过 30 分钟仍未签到/交付，触发自动爽约退赔");
+                    count++;
+                }
             } catch (Exception ignored) {
-                // 单笔异常不影响其余订单赔付
+                // 单笔独立事务失败不影响其余订单赔付
             }
         }
         return count;

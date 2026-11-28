@@ -44,12 +44,15 @@ public class EscrowPaymentServiceImpl extends ServiceImpl<EscrowPaymentOrderMapp
 
     public static final int PAY_STATUS_PENDING = 0;
     public static final int PAY_STATUS_PAID = 1;
+    public static final int PAY_STATUS_PENDING_REFUND = 4;
 
-    @Value("${payment.webhook-secret:xueyifang-escrow-webhook-secret}")
+    private static final String DEV_FALLBACK_WEBHOOK_SECRET = "xueyifang-dev-escrow-webhook-secret";
+
+    @Value("${payment.webhook-secret:}")
     private String webhookSecret;
 
-    @Value("${spring.profiles.active:dev}")
-    private String activeProfile;
+    @Value("${payment.sandbox-enabled:false}")
+    private boolean sandboxEnabled;
 
     @Resource
     private ServiceOrderMapper serviceOrderMapper;
@@ -78,6 +81,7 @@ public class EscrowPaymentServiceImpl extends ServiceImpl<EscrowPaymentOrderMapp
             throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "当前订单不是待支付状态");
         }
 
+        String effectiveSecret = resolveWebhookSecret();
         String channel = StringUtils.defaultIfBlank(request.getPayChannel(), "WECHAT_MINI").toUpperCase();
         String paymentNo = SerialNoGenerator.nextPaymentNo(order.getId());
         BigDecimal amount = order.getTotalAmount();
@@ -97,7 +101,7 @@ public class EscrowPaymentServiceImpl extends ServiceImpl<EscrowPaymentOrderMapp
         String nonceStr = BleMeetupCryptoUtils.generateNonce();
         String prepayPkg = "prepay_id=wx_" + paymentNo;
         String signPayload = paymentNo + "|" + amount.toPlainString() + "|" + epochSec;
-        String paySign = BleMeetupCryptoUtils.hmacSha256Hex(webhookSecret, signPayload);
+        String paySign = BleMeetupCryptoUtils.hmacSha256Hex(effectiveSecret, signPayload);
 
         Map<String, String> sdkParams = new HashMap<>();
         sdkParams.put("timeStamp", String.valueOf(epochSec));
@@ -112,7 +116,7 @@ public class EscrowPaymentServiceImpl extends ServiceImpl<EscrowPaymentOrderMapp
         vo.setPayChannel(channel);
         vo.setAmount(amount);
         vo.setSdkPayParams(sdkParams);
-        if (!"prod".equalsIgnoreCase(activeProfile)) {
+        if (sandboxEnabled) {
             vo.setSandboxCallbackSign(computeWebhookSign(paymentNo, amount));
         }
         return vo;
@@ -129,8 +133,9 @@ public class EscrowPaymentServiceImpl extends ServiceImpl<EscrowPaymentOrderMapp
         if (payOrder == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "支付单不存在");
         }
-        // 幂等放行：第三方支付网关重复通知直接返回成功
-        if (Objects.equals(payOrder.getPayStatus(), PAY_STATUS_PAID)) {
+        // 幂等放行：第三方支付网关重复通知或已标记待原路退款的支付单直接返回成功
+        if (Objects.equals(payOrder.getPayStatus(), PAY_STATUS_PAID)
+                || Objects.equals(payOrder.getPayStatus(), PAY_STATUS_PENDING_REFUND)) {
             return;
         }
         if (payOrder.getAmount().compareTo(webhook.getPaidAmount()) != 0) {
@@ -148,16 +153,41 @@ public class EscrowPaymentServiceImpl extends ServiceImpl<EscrowPaymentOrderMapp
         payOrder.setUpdateTime(LocalDateTime.now());
         this.updateById(payOrder);
 
-        serviceOrderService.markOrderPaidByEscrowGateway(
-                payOrder.getOrderId(),
-                payOrder.getUserId(),
-                payOrder.getPayChannel(),
-                payOrder.getPaymentNo()
-        );
+        try {
+            serviceOrderService.markOrderPaidByEscrowGateway(
+                    payOrder.getOrderId(),
+                    payOrder.getUserId(),
+                    payOrder.getPayChannel(),
+                    payOrder.getPaymentNo()
+            );
+        } catch (BusinessException ex) {
+            int code = ex.getCode();
+            if (code == ErrorCode.ORDER_STATUS_ERROR.getCode()
+                    || code == ErrorCode.SERVICE_SOLD_OUT.getCode()
+                    || code == ErrorCode.ORDER_NOT_EXIST.getCode()) {
+                log.error("[担保支付竞态] 支付单已收款但订单不可支付，已标记为待原路退款: paymentNo={}, orderId={}, reason={}",
+                        payOrder.getPaymentNo(), payOrder.getOrderId(), ex.getMessage());
+                payOrder.setPayStatus(PAY_STATUS_PENDING_REFUND);
+                payOrder.setUpdateTime(LocalDateTime.now());
+                this.updateById(payOrder);
+                return;
+            }
+            throw ex;
+        }
     }
 
     public String computeWebhookSign(String paymentNo, BigDecimal amount) {
         String normalized = amount.stripTrailingZeros().toPlainString();
-        return BleMeetupCryptoUtils.hmacSha256Hex(webhookSecret, "ESCROW_WEBHOOK|" + paymentNo + "|" + normalized);
+        return BleMeetupCryptoUtils.hmacSha256Hex(resolveWebhookSecret(), "ESCROW_WEBHOOK|" + paymentNo + "|" + normalized);
+    }
+
+    private String resolveWebhookSecret() {
+        if (StringUtils.isNotBlank(webhookSecret)) {
+            return webhookSecret.trim();
+        }
+        if (sandboxEnabled) {
+            return DEV_FALLBACK_WEBHOOK_SECRET;
+        }
+        throw new BusinessException(ErrorCode.SYSTEM_ERROR, "支付回调密钥未配置（请设置 PAYMENT_WEBHOOK_SECRET 环境变量）");
     }
 }

@@ -324,6 +324,20 @@ const router = createRouter({
   }
 })
 
+function isJwtExpired(token: string): boolean {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return true
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+    const payload = JSON.parse(atob(padded)) as { exp?: number }
+    if (typeof payload.exp !== 'number') return false
+    return payload.exp * 1000 <= Date.now()
+  } catch {
+    return true
+  }
+}
+
 async function ensureUserInfo() {
   const { useUserStore } = await import('@/stores/user')
   const userStore = useUserStore()
@@ -379,11 +393,18 @@ router.beforeEach(async (to) => {
     return true
   }
 
-  if (localStorage.getItem('token') && (to.path === '/login' || to.path === '/register')) {
-    return '/'
+  if (token && (to.path === '/login' || to.path === '/register')) {
+    if (isJwtExpired(token)) {
+      await clearAuthState()
+    } else {
+      const userInfo = await ensureUserInfo()
+      if (userInfo) {
+        return userInfo.role === 2 ? '/admin/dashboard' : '/'
+      }
+    }
   }
 
-  if (!token && to.path === '/register') {
+  if (!localStorage.getItem('token') && to.path === '/register') {
     try {
       const { getRegisterStatus } = await import('@/api/sysConfig')
       const res = await getRegisterStatus()

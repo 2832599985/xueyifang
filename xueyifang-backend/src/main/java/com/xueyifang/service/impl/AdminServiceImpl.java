@@ -19,6 +19,7 @@ import com.xueyifang.service.INotificationService;
 import com.xueyifang.service.IServiceImageService;
 import com.xueyifang.utils.RedisUtils;
 import com.xueyifang.utils.UserContext;
+import com.xueyifang.websocket.WebSocketSessionManager;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,8 +73,14 @@ public class AdminServiceImpl implements IAdminService {
     @Resource
     private RedisUtils redisUtils;
 
+    @Resource
+    private WebSocketSessionManager webSocketSessionManager;
+
     @Value("${password.salt:xueyifang}")
     private String passwordSalt;
+
+    @Value("${xueyifang.security.default-reset-password:password123}")
+    private String defaultResetPassword;
 
     /**
      * 趋势统计的天数
@@ -542,6 +549,13 @@ public class AdminServiceImpl implements IAdminService {
         userMapper.updateById(update);
         if (redisUtils != null) {
             redisUtils.deleteUserCache(target.getId());
+            if (Integer.valueOf(UserConstant.ACCOUNT_DISABLED).equals(request.getAccountStatus())) {
+                redisUtils.markUserTokensInvalidBefore(target.getId(), System.currentTimeMillis());
+            }
+        }
+        if (Integer.valueOf(UserConstant.ACCOUNT_DISABLED).equals(request.getAccountStatus())
+                && webSocketSessionManager != null) {
+            webSocketSessionManager.closeSession(target.getId());
         }
         if (request.getPublishPermission() != null
                 && !request.getPublishPermission().equals(target.getPublishPermission())) {
@@ -561,13 +575,18 @@ public class AdminServiceImpl implements IAdminService {
         if (target == null || (target.getIsDelete() != null && target.getIsDelete() == 1)) {
             throw new BusinessException(ErrorCode.USER_NOT_EXIST);
         }
-        String defaultEncrypted = com.xueyifang.utils.PasswordUtils.hashPassword("password123");
+        String resetPlain = StringUtils.defaultIfBlank(defaultResetPassword, "password123");
+        String defaultEncrypted = com.xueyifang.utils.PasswordUtils.hashPassword(resetPlain);
         User update = new User();
         update.setId(userId);
         update.setPassword(defaultEncrypted);
         userMapper.updateById(update);
         if (redisUtils != null) {
             redisUtils.deleteUserCache(userId);
+            redisUtils.markUserTokensInvalidBefore(userId, System.currentTimeMillis());
+        }
+        if (webSocketSessionManager != null) {
+            webSocketSessionManager.closeSession(userId);
         }
     }
 

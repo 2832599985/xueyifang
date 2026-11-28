@@ -27,6 +27,7 @@ import com.xueyifang.utils.FileUrlResolver;
 import com.xueyifang.utils.JwtUtils;
 import com.xueyifang.utils.PasswordUtils;
 import com.xueyifang.utils.RedisUtils;
+import com.xueyifang.websocket.WebSocketSessionManager;
 import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -49,6 +50,9 @@ import java.util.regex.Pattern;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
     private static final String EDU_CODE_KEY_PREFIX = "user:edu:otp:";
+    private static final String EDU_CODE_FAIL_KEY_PREFIX = "user:edu:otp:fail:";
+    private static final String EDU_CODE_LOCK_KEY_PREFIX = "user:edu:otp:lock:";
+    private static final int EDU_OTP_MAX_FAILS = 5;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     @Value("${password.salt:xueyifang}")
@@ -57,8 +61,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Value("${xueyifang.user.nickname-prefix:xueyifang}")
     private String nicknamePrefix;
 
-    @Value("${spring.profiles.active:dev}")
-    private String activeProfile;
+    @Value("${xueyifang.edu-verify.dev-preview-enabled:false}")
+    private boolean eduDevPreviewEnabled;
 
     @Resource
     private JwtUtils jwtUtils;
@@ -83,6 +87,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Resource
     private ICreditScoreService creditScoreService;
+
+    @Resource
+    private WebSocketSessionManager webSocketSessionManager;
 
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[0-9])(?=.*[a-zA-Z]).{8,16}$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
@@ -152,18 +159,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if (campusService != null && !campusService.isAllowedEduEmail(campusId, email)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "仅支持本校认证后缀校园邮箱（如 .edu.cn）进行学籍实名核验");
         }
+        assertEduEmailNotBoundByOthers(email, userId);
 
         String otp = String.format("%06d", RANDOM.nextInt(1000000));
         if (redisUtils != null) {
             redisUtils.set(EDU_CODE_KEY_PREFIX + userId, email + "|" + otp, 300L);
+            redisUtils.delete(EDU_CODE_FAIL_KEY_PREFIX + userId);
         }
         log.info("[校园实名邮箱核验] userId={}, eduEmail={}, 验证码已生成（有效期5分钟）", userId, email);
 
         Map<String, Object> res = new HashMap<>();
         res.put("eduEmail", email);
         res.put("expireSeconds", 300);
-        // 非生产环境未配置企业 SMTP 时返回开发联调验证码，生产 profile 自动隐藏并走邮件通道投递
-        if (!"prod".equalsIgnoreCase(activeProfile)) {
+        // 仅在显式开启开发联调预览开关时返回验证码，默认及生产环境不回传明文 OTP
+        if (eduDevPreviewEnabled) {
             res.put("devPreviewCode", otp);
         }
         return res;
@@ -183,23 +192,38 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if (Integer.valueOf(1).equals(user.getEduVerified())) {
             return;
         }
+        String normalizedEmail = request.getEduEmail().trim().toLowerCase();
+        String lockKey = EDU_CODE_LOCK_KEY_PREFIX + userId;
+        if (redisUtils != null && redisUtils.hasKey(lockKey)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "验证码错误次数过多，请15分钟后重试");
+        }
         String key = EDU_CODE_KEY_PREFIX + userId;
         Object raw = redisUtils != null ? redisUtils.get(key) : null;
         if (raw == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "验证码已过期，请重新获取");
         }
-        String expected = request.getEduEmail().trim().toLowerCase() + "|" + request.getVerifyCode().trim();
+        String expected = normalizedEmail + "|" + request.getVerifyCode().trim();
         if (!expected.equals(raw.toString())) {
+            if (redisUtils != null) {
+                long fails = redisUtils.incrementWithExpire(EDU_CODE_FAIL_KEY_PREFIX + userId, 900L);
+                if (fails >= EDU_OTP_MAX_FAILS) {
+                    redisUtils.delete(key);
+                    redisUtils.set(lockKey, "1", 900L);
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "验证码连续错误过多，验证码已作废，请15分钟后重新获取");
+                }
+            }
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "校园邮箱或验证码不匹配");
         }
+        assertEduEmailNotBoundByOthers(normalizedEmail, userId);
         if (redisUtils != null) {
             redisUtils.delete(key);
+            redisUtils.delete(EDU_CODE_FAIL_KEY_PREFIX + userId);
         }
 
         User update = new User();
         update.setId(userId);
         update.setEduVerified(1);
-        update.setVerifiedEduEmail(request.getEduEmail().trim().toLowerCase());
+        update.setVerifiedEduEmail(normalizedEmail);
         this.updateById(update);
 
         if (creditScoreService != null) {
@@ -207,6 +231,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         if (redisUtils != null) {
             redisUtils.deleteUserCache(userId);
+        }
+    }
+
+    private void assertEduEmailNotBoundByOthers(String normalizedEmail, Long currentUserId) {
+        QueryWrapper<User> dupQuery = new QueryWrapper<>();
+        dupQuery.eq("verified_edu_email", normalizedEmail)
+                .eq("is_delete", 0)
+                .ne("id", currentUserId);
+        if (this.count(dupQuery) > 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该校园教育邮箱已被其他账号完成实名认证");
         }
     }
 
@@ -479,6 +513,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         if (redisUtils != null) {
             redisUtils.deleteUserCache(userId);
+            redisUtils.markUserTokensInvalidBefore(userId, System.currentTimeMillis());
+        }
+        if (webSocketSessionManager != null) {
+            webSocketSessionManager.closeSession(userId);
         }
         return true;
     }

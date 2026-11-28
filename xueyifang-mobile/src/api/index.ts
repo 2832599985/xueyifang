@@ -46,6 +46,13 @@ export const mobileApi = {
     return httpRequest<MobileUser>({ url: '/auth/currentUser' })
   },
 
+  logout() {
+    return httpRequest<void>({
+      url: '/auth/logout',
+      method: 'POST'
+    })
+  },
+
   sendEduCode(eduEmail: string) {
     return httpRequest<{ eduEmail: string; expireSeconds: number; devPreviewCode?: string }>({
       url: '/auth/edu-verify/send',
@@ -91,6 +98,10 @@ export const mobileApi = {
     return httpRequest<{ records: any[]; total: number }>({
       url: `/demand/list?${q.join('&')}`
     })
+  },
+
+  getDemandDetail(demandId: number) {
+    return httpRequest<any>({ url: `/demand/${demandId}` })
   },
 
   publishDemand(payload: Record<string, any>) {
